@@ -32,15 +32,16 @@ const categories: Category[] = [
 
 export default function Home() {
   return (
-    <div className="mx-auto flex min-h-screen max-w-md flex-col px-5 pt-6 pb-4">
+    <div className="mx-auto flex min-h-screen max-w-md flex-col px-5">
       <Header />
 
-      <main className="mt-4 flex-1 space-y-6">
+      <main className="flex-1 space-y-6 pt-20 pb-28">
         <SummaryCard
           salaryNet={salaryNet}
           totalExpenses={totalExpenses}
           remaining={remaining}
         />
+
         <ChargesByCategoryCard categories={categories} />
       </main>
 
@@ -52,11 +53,7 @@ export default function Home() {
 function Header() {
   return (
     <header
-      className="
-        fixed top-0 left-0 right-0 z-50
-        relative flex items-center justify-center py-2
-        backdrop-blur-md
-        border-b border-white/10
+      className="fixed top-0 left-0 right-0 z-50 flex items-center justify-center py-2 backdrop-blur-md border-b border-white/10
       "
     >
       {/* Icône FlowCash centrée */}
