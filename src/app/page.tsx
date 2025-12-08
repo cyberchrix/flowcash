@@ -51,22 +51,27 @@ export default function Home() {
 
 function Header() {
   return (
-    <header className="relative flex items-center justify-center py-2">
-      
-      {/* ICÔNE FLOWCASH CENTRÉE */}
+    <header
+      className="
+        fixed top-0 left-0 right-0 z-50
+        relative flex items-center justify-center py-2
+        backdrop-blur-md
+        border-b border-white/10
+      "
+    >
+      {/* Icône FlowCash centrée */}
       <Image
         src="/flowcash-icon.png"
         alt="FlowCash Icon"
-        width={80}
-        height={80}
+        width={60}
+        height={60}
         priority
       />
 
-      {/* AVATAR CH ALIGNÉ À DROITE */}
-      <div className="absolute right-4 flex h-11 w-11 items-center justify-center rounded-full bg-flow-primary shadow-flowSoft">
+      {/* Avatar aligné à droite */}
+      <div className="absolute right-4 flex h-9 w-9 items-center justify-center rounded-full bg-flow-primary shadow-flowSoft">
         <span className="text-sm font-semibold text-white">CH</span>
       </div>
-
     </header>
   );
 }
@@ -252,7 +257,7 @@ function ChargesByCategoryCard({ categories }: { categories: Category[] }) {
 
 function BottomNav() {
   return (
-    <nav className="mt-6 flex justify-center">
+    <nav className="fixed bottom-0 left-0 right-0 z-50 flex justify-center pb-4">
       <div className="flex w-full max-w-xs items-center justify-between rounded-3xl border border-white/60 bg-white/80 px-8 py-4 shadow-flowNav backdrop-blur-flow">
         
         {/* Accueil actif */}
@@ -262,17 +267,18 @@ function BottomNav() {
           active={true}
         />
 
-        {/* BOUTON + EN AVANT  */}
+        {/* bouton + plein */}
         <button className="flex h-12 w-12 items-center justify-center rounded-full bg-flow-primary text-white shadow-flowSoft">
           <PlusIcon className="h-6 w-6 text-white" />
         </button>
 
-        {/* Stats inactif */}
+        {/* Stats inactive */}
         <NavItem
           icon={<ChartBarIcon className="h-6 w-6" />}
           label="Stats"
           active={false}
         />
+
       </div>
     </nav>
   );
