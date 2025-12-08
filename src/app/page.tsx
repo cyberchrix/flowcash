@@ -1,15 +1,9 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { motion } from "framer-motion";
 import Image from "next/image";
-
-
-import {
-  HomeIcon,
-  ChartBarIcon,
-  PlusIcon,
-} from "@heroicons/react/24/outline";
+import { motion } from "framer-motion";
+import { HomeIcon, ChartBarIcon, PlusIcon } from "@heroicons/react/24/outline";
 
 type Category = {
   name: string;
@@ -22,20 +16,19 @@ const totalExpenses = 2008.51;
 const remaining = salaryNet - totalExpenses;
 
 const categories: Category[] = [
-  { name: "Logement", percent: 45, color: "#FF2D8A" },
-  { name: "Enfants", percent: 22, color: "#8A2BFF" },
-  { name: "Abonnements", percent: 18, color: "#316CFF" },
+  { name: "Housing", percent: 45, color: "#FF2D8A" },
+  { name: "Children", percent: 22, color: "#8A2BFF" },
+  { name: "Subscriptions", percent: 18, color: "#316CFF" },
   { name: "Transport", percent: 10, color: "#FFC04A" },
-  { name: "Autres", percent: 5, color: "#A1A1A1" },
+  { name: "Other", percent: 5, color: "#A1A1A1" },
 ];
-
 
 export default function Home() {
   return (
-    <div className="mx-auto flex min-h-screen max-w-md flex-col px-5">
+    <div className="mx-auto flex min-h-screen max-w-md flex-col px-5 bg-flowBg">
       <Header />
 
-      <main className="flex-1 space-y-6 pt-20 pb-28">
+      <main className="flex-1 space-y-6 pt-26 pb-28">
         <SummaryCard
           salaryNet={salaryNet}
           totalExpenses={totalExpenses}
@@ -50,28 +43,29 @@ export default function Home() {
   );
 }
 
+/* ---------------- HEADER ---------------- */
+
 function Header() {
   return (
-    <header
-      className="fixed top-0 left-0 right-0 z-50 flex items-center justify-center py-2 backdrop-blur-md border-b border-white/10
-      "
-    >
-      {/* Icône FlowCash centrée */}
+    <header className="fixed top-0 left-0 right-0 z-50 flex items-center justify-center py-2 backdrop-blur-md border-b border-white/10">
+      {/* FlowCash icon centered */}
       <Image
         src="/flowcash-icon.png"
         alt="FlowCash Icon"
-        width={60}
-        height={60}
+        width={80}
+        height={80}
         priority
       />
 
-      {/* Avatar aligné à droite */}
-      <div className="absolute right-4 flex h-9 w-9 items-center justify-center rounded-full bg-flow-primary shadow-flowSoft">
-        <span className="text-sm font-semibold text-white">CH</span>
+      {/* CH avatar on the right, smaller */}
+      <div className="absolute right-4 flex h-8 w-8 items-center justify-center rounded-full bg-flow-primary shadow-flowSoft">
+        <span className="text-[10px] font-semibold text-white">CH</span>
       </div>
     </header>
   );
 }
+
+/* ---------------- SUMMARY CARD ---------------- */
 
 function SummaryCard({
   salaryNet,
@@ -83,60 +77,63 @@ function SummaryCard({
   remaining: number;
 }) {
   return (
-    <motion.section
-      className="rounded-4xl border border-white/60 bg-white/80 p-6 shadow-flowSoft backdrop-blur-flow"
-      style={{
-        background:
-          "radial-gradient(circle at top left, rgba(255,255,255,0.95), rgba(255,255,255,0.75))",
-      }}
-
-      /* ✨ Animation très discrète */
+    <motion.div
       initial={{ opacity: 0, y: 12 }}
       animate={{ opacity: 1, y: 0 }}
       transition={{ duration: 0.45, ease: "easeOut" }}
-
-      /* ✨ Hover minimaliste */
-      whileHover={{
-        scale: 1.01,
-        boxShadow: "0 10px 24px rgba(0,0,0,0.08)",
-      }}
-
-      whileTap={{ scale: 0.995 }}
     >
-      <div className="text-sm font-medium text-flowTextMuted">Salaire net</div>
-      <div className="mt-1 text-3xl font-semibold text-[#8A2BFF]">
-        {salaryNet.toLocaleString("fr-FR")} €
-      </div>
-
-      <div className="mt-6 flex items-center justify-between gap-4">
-        <div>
-          <div className="text-xs text-flowTextMuted">Sorties totales</div>
-          <div className="mt-1 text-xl font-semibold text-flowPink">
-            {totalExpenses.toLocaleString("fr-FR", {
-              minimumFractionDigits: 2,
-              maximumFractionDigits: 2,
-            })} €
+      <div className="relative rounded-[28px] p-[1px] bg-[conic-gradient(from_140deg,rgba(255,45,138,0.2),rgba(138,43,255,0.6),rgba(49,108,255,0.2),rgba(255,45,138,0.2))] shadow-flowSoft">
+        <section className="rounded-[26px] bg-white/90 px-6 py-5 backdrop-blur-xl">
+          <div className="text-sm font-medium text-flowTextMuted">
+            Net Income
           </div>
-        </div>
 
-        <div className="text-right">
-          <div className="text-xs text-flowTextMuted">Reste à vivre</div>
-          <div className="mt-1 text-xl font-semibold text-flowBlue">
-            {remaining.toLocaleString("fr-FR")} €
+          <div className="mt-1 text-3xl font-semibold text-flow-primary">
+            {salaryNet.toLocaleString("fr-FR")} €
           </div>
-        </div>
+
+          <div className="mt-6 flex items-center justify-between gap-4">
+            <div>
+              <div className="text-xs text-flowTextMuted">
+                Total Expenses
+              </div>
+              <div className="mt-1 text-xl font-semibold text-flowPink">
+                {totalExpenses.toLocaleString("fr-FR", {
+                  minimumFractionDigits: 2,
+                  maximumFractionDigits: 2,
+                })}{" "}
+                €
+              </div>
+            </div>
+
+            <div className="text-right">
+              <div className="text-xs text-flowTextMuted">
+                Disposable Income
+              </div>
+              <div className="mt-1 text-xl font-semibold text-flowBlue">
+                {remaining.toLocaleString("fr-FR", {
+                  minimumFractionDigits: 0,
+                  maximumFractionDigits: 0,
+                })}{" "}
+                €
+              </div>
+            </div>
+          </div>
+        </section>
       </div>
-    </motion.section>
+    </motion.div>
   );
 }
 
+/* ---------------- DONUT + CATEGORIES ---------------- */
+
 function ChargesByCategoryCard({ categories }: { categories: Category[] }) {
-  // progress : 0 → 1 avec une vraie anim
+  // progress: 0 → 1 to animate donut + percentages
   const [progress, setProgress] = useState(0);
 
   useEffect(() => {
     let frameId: number;
-    const duration = 1000; // 1s
+    const duration = 1000; // 1 second
     let start: number | null = null;
 
     const animate = (timestamp: number) => {
@@ -155,7 +152,7 @@ function ChargesByCategoryCard({ categories }: { categories: Category[] }) {
 
   const radius = 40;
   const circumference = 2 * Math.PI * radius;
-  const offset = circumference * (1 - progress); // pour le donut
+  const offset = circumference * (1 - progress);
 
   return (
     <section
@@ -166,11 +163,11 @@ function ChargesByCategoryCard({ categories }: { categories: Category[] }) {
       }}
     >
       <h2 className="text-base font-semibold text-flowText">
-        Sorties par catégorie
+        Expenses by Category
       </h2>
 
       <div className="mt-4 flex items-center justify-between gap-4">
-        {/* Donut animé (gradient) */}
+        {/* Animated donut */}
         <div className="relative h-36 w-36">
           <svg
             viewBox="0 0 120 120"
@@ -190,7 +187,7 @@ function ChargesByCategoryCard({ categories }: { categories: Category[] }) {
               </linearGradient>
             </defs>
 
-            {/* cercle de fond */}
+            {/* background circle */}
             <circle
               cx="60"
               cy="60"
@@ -201,7 +198,7 @@ function ChargesByCategoryCard({ categories }: { categories: Category[] }) {
               opacity={0.25}
             />
 
-            {/* cercle animé */}
+            {/* animated circle */}
             <circle
               cx="60"
               cy="60"
@@ -217,14 +214,16 @@ function ChargesByCategoryCard({ categories }: { categories: Category[] }) {
             />
           </svg>
 
-          {/* Label centre */}
+          {/* center label */}
           <div className="absolute inset-0 flex flex-col items-center justify-center text-xs">
             <span className="text-flowTextMuted">Total</span>
-            <span className="text-lg font-semibold text-flowText">100%</span>
+            <span className="text-lg font-semibold text-flowText">
+              100%
+            </span>
           </div>
         </div>
 
-        {/* Légende avec compteur animé */}
+        {/* Categories with animated percentages */}
         <div className="flex-1 space-y-3 text-sm">
           {categories.map((cat) => {
             const displayed = Math.round(cat.percent * progress);
@@ -252,30 +251,27 @@ function ChargesByCategoryCard({ categories }: { categories: Category[] }) {
   );
 }
 
+/* ---------------- BOTTOM NAV ---------------- */
+
 function BottomNav() {
   return (
     <nav className="fixed bottom-0 left-0 right-0 z-50 flex justify-center pb-4">
       <div className="flex w-full max-w-xs items-center justify-between rounded-3xl border border-white/60 bg-white/80 px-8 py-4 shadow-flowNav backdrop-blur-flow">
-        
-        {/* Accueil actif */}
         <NavItem
           icon={<HomeIcon className="h-6 w-6" />}
-          label="Accueil"
+          label="Home"
           active={true}
         />
 
-        {/* bouton + plein */}
         <button className="flex h-12 w-12 items-center justify-center rounded-full bg-flow-primary text-white shadow-flowSoft">
           <PlusIcon className="h-6 w-6 text-white" />
         </button>
 
-        {/* Stats inactive */}
         <NavItem
           icon={<ChartBarIcon className="h-6 w-6" />}
           label="Stats"
           active={false}
         />
-
       </div>
     </nav>
   );
@@ -292,18 +288,14 @@ function NavItem({
 }) {
   return (
     <button className="flex flex-col items-center gap-1 text-xs">
-      <span
-        className={
-          active ? "text-flow-primary" : "text-flow-muted"
-        }
-      >
+      <span className={active ? "text-flowBlue" : "text-flowTextMuted"}>
         {icon}
       </span>
       <span
         className={
           active
-            ? "font-semibold text-flow-primary"
-            : "font-medium text-flow-muted"
+            ? "font-semibold text-flowBlue"
+            : "font-medium text-flowTextMuted"
         }
       >
         {label}
