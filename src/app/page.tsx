@@ -50,10 +50,10 @@ function Header() {
     <header className="fixed top-0 left-0 right-0 z-50 flex items-center justify-center py-2 backdrop-blur-md border-b border-white/10">
       {/* FlowCash icon centered */}
       <Image
-        src="/flowcash-icon.png"
-        alt="FlowCash Icon"
-        width={80}
-        height={80}
+        src="/availo-icon_v2.png"
+        alt="Availo Icon"
+        width={60}
+        height={60}
         priority
       />
 
