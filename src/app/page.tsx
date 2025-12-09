@@ -318,13 +318,13 @@ function NavItem({
 }) {
   return (
     <button className="flex flex-col items-center gap-1 text-xs">
-      <span className={active ? "text-flowBlue" : "text-flowTextMuted"}>
+      <span className={active ? "text-flow-primary" : "text-flowTextMuted"}>
         {icon}
       </span>
       <span
         className={
           active
-            ? "font-semibold text-flowBlue"
+            ? "font-semibold text-flow-primary"
             : "font-medium text-flowTextMuted"
         }
       >
