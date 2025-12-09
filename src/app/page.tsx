@@ -24,6 +24,36 @@ const categories: Category[] = [
 ];
 
 export default function Home() {
+  const [showSplash, setShowSplash] = useState(true);
+
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      setShowSplash(false);
+    }, 2500); // Affiche le splash pendant 2.5 secondes
+
+    return () => clearTimeout(timer);
+  }, []);
+
+  if (showSplash) {
+    return (
+      <div className="fixed inset-0 z-50 flex items-center justify-center bg-flowBg">
+        <motion.div
+          initial={{ opacity: 0, scale: 0.8 }}
+          animate={{ opacity: 1, scale: 1 }}
+          transition={{ duration: 0.5, ease: "easeOut" }}
+        >
+          <Image
+            src="/availo-icon_v6.png"
+            alt="Availo Icon"
+            width={80}
+            height={80}
+            priority
+          />
+        </motion.div>
+      </div>
+    );
+  }
+
   return (
     <div className="mx-auto flex min-h-screen max-w-md flex-col px-5 bg-flowBg">
       <Header />
