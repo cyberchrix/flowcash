@@ -52,8 +52,8 @@ function Header() {
       <Image
         src="/availo-icon_v2.png"
         alt="Availo Icon"
-        width={60}
-        height={60}
+        width={80}
+        height={80}
         priority
       />
 
