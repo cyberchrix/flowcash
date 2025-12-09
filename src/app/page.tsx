@@ -47,13 +47,13 @@ export default function Home() {
 
 function Header() {
   return (
-    <header className="fixed top-0 left-0 right-0 z-50 flex items-center justify-center py-2 backdrop-blur-md border-b border-white/10">
+    <header className="fixed top-0 left-0 right-0 z-50 flex items-center justify-center py-2 backdrop-blur-md border-b border-white/10 pt-3">
       {/* FlowCash icon centered */}
       <Image
-        src="/availo-icon_v2.png"
+        src="/availo-icon_v6.png"
         alt="Availo Icon"
-        width={80}
-        height={80}
+        width={40}
+        height={40}
         priority
       />
 
