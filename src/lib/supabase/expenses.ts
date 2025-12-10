@@ -34,6 +34,25 @@ export async function createExpense(expense: ExpenseInsert) {
   return data;
 }
 
+export async function updateExpense(
+  expenseId: string,
+  updates: { label?: string; amount?: number }
+) {
+  ensureSupabaseConfigured();
+  const { data, error } = await supabase
+    .from("expenses")
+    .update(updates)
+    .eq("id", expenseId)
+    .select()
+    .single();
+
+  if (error) {
+    throw new Error(`Error updating expense: ${error.message}`);
+  }
+
+  return data;
+}
+
 export async function deleteExpense(expenseId: string) {
   ensureSupabaseConfigured();
   const { error } = await supabase

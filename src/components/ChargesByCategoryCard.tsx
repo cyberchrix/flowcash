@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { useRouter } from "next/navigation";
 import { Category } from "@/types";
 
 interface ChargesByCategoryCardProps {
@@ -55,6 +56,7 @@ function polarToCartesian(
 export function ChargesByCategoryCard({
   categories,
 }: ChargesByCategoryCardProps) {
+  const router = useRouter();
   // progress: 0 → 1 to animate donut + percentages
   const [progress, setProgress] = useState(0);
 
@@ -105,7 +107,8 @@ export function ChargesByCategoryCard({
 
   return (
     <section
-      className="rounded-[28px] bg-white border border-gray-200 p-6"
+      onClick={() => router.push("/expenses")}
+      className="rounded-[28px] bg-white border border-gray-200 p-6 cursor-pointer hover:bg-gray-50 transition-colors"
       style={{
         fontFamily:
           'Inter Variable, ui-sans-serif, system-ui, sans-serif, "Apple Color Emoji", "Segoe UI Emoji", Segoe UI Symbol, "Noto Color Emoji"',
@@ -134,12 +137,17 @@ export function ChargesByCategoryCard({
 
             {/* Segments du camembert */}
             {segments.map((segment) => {
+              const totalAngle = segment.endAngle - segment.startAngle;
               const animatedEndAngle =
-                segment.startAngle +
-                (segment.endAngle - segment.startAngle) * progress;
+                segment.startAngle + totalAngle * progress;
 
               const angleDiff = animatedEndAngle - segment.startAngle;
-              if (angleDiff <= 0) return null;
+              
+              // Si l'angle est très petit, ne pas afficher (mais permettre 360°)
+              if (angleDiff < 0.1 && totalAngle < 359) return null;
+
+              // Cas spécial : cercle complet (360° ou très proche)
+              const isFullCircle = totalAngle >= 359.9;
 
               // Points pour l'arc extérieur
               const outerStart = polarToCartesian(
@@ -152,7 +160,7 @@ export function ChargesByCategoryCard({
                 centerX,
                 centerY,
                 outerRadius,
-                animatedEndAngle
+                isFullCircle ? segment.startAngle + 359.9 : animatedEndAngle
               );
 
               // Points pour l'arc intérieur
@@ -160,7 +168,7 @@ export function ChargesByCategoryCard({
                 centerX,
                 centerY,
                 innerRadius,
-                animatedEndAngle
+                isFullCircle ? segment.startAngle + 359.9 : animatedEndAngle
               );
               const innerEnd = polarToCartesian(
                 centerX,
@@ -169,7 +177,8 @@ export function ChargesByCategoryCard({
                 segment.startAngle
               );
 
-              const largeArcFlag = angleDiff > 180 ? "1" : "0";
+              const effectiveAngle = isFullCircle ? 359.9 : angleDiff;
+              const largeArcFlag = effectiveAngle > 180 ? "1" : "0";
 
               // Créer le chemin du segment de donut
               const pathData = [
