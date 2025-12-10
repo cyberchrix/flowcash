@@ -6,6 +6,8 @@ import { Header } from "@/components/Header";
 import { BottomNav } from "@/components/BottomNav";
 import { useAuth } from "@/hooks/useAuth";
 import { getUserSettings, updateUserSettings } from "@/lib/supabase/settings";
+import { getCategories, createCategory, deleteCategory } from "@/lib/supabase/categories";
+import { TrashIcon, PlusIcon } from "@heroicons/react/24/outline";
 
 // Force dynamic rendering
 export const dynamic = 'force-dynamic';
@@ -25,31 +27,44 @@ export default function ParametersPage() {
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState(false);
+  const [categories, setCategories] = useState<Array<{ id: string; name: string; color: string }>>([]);
+  const [newCategoryName, setNewCategoryName] = useState("");
+  const [newCategoryColor, setNewCategoryColor] = useState("#6366F1");
+  const [deletingCategoryId, setDeletingCategoryId] = useState<string | null>(null);
 
-  // Charger les paramètres actuels
+  // Charger les paramètres actuels et les catégories
   useEffect(() => {
-    const loadSettings = async () => {
+    const loadData = async () => {
       if (!user) {
         setLoading(false);
         return;
       }
 
       try {
+        // Charger les paramètres
         const settings = await getUserSettings(user.id);
         if (settings) {
           setSalaryNet(settings.salary_net.toString());
           const currency = currencies.find(c => c.code === settings.currency) || currencies[0];
           setSelectedCurrency(currency);
         }
+
+        // Charger les catégories
+        const categoriesData = await getCategories(user.id);
+        setCategories(categoriesData.map(cat => ({
+          id: cat.id,
+          name: cat.name,
+          color: cat.color,
+        })));
       } catch (err) {
-        console.error("Error loading settings:", err);
+        console.error("Error loading data:", err);
         setError("Erreur lors du chargement des paramètres");
       } finally {
         setLoading(false);
       }
     };
 
-    loadSettings();
+    loadData();
   }, [user]);
 
   // Rediriger vers /auth si l'utilisateur n'est pas connecté
@@ -97,6 +112,73 @@ export default function ParametersPage() {
       setSaving(false);
     }
   };
+
+  const handleCreateCategory = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!user || !newCategoryName.trim()) return;
+
+    setError(null);
+
+    try {
+      const newCategory = await createCategory({
+        user_id: user.id,
+        name: newCategoryName.trim(),
+        color: newCategoryColor,
+      });
+
+      setCategories([...categories, {
+        id: newCategory.id,
+        name: newCategory.name,
+        color: newCategory.color,
+      }]);
+      setNewCategoryName("");
+      setNewCategoryColor("#6366F1");
+    } catch (err) {
+      console.error("Error creating category:", err);
+      setError(
+        err instanceof Error
+          ? err.message
+          : "Erreur lors de la création de la catégorie"
+      );
+    }
+  };
+
+  const handleDeleteCategory = async (categoryId: string, categoryName: string) => {
+    if (!confirm(`Êtes-vous sûr de vouloir supprimer la catégorie "${categoryName}" ? Les dépenses associées ne seront pas supprimées.`)) {
+      return;
+    }
+
+    setDeletingCategoryId(categoryId);
+    setError(null);
+
+    try {
+      await deleteCategory(categoryId);
+      setCategories(categories.filter(cat => cat.id !== categoryId));
+    } catch (err) {
+      console.error("Error deleting category:", err);
+      setError(
+        err instanceof Error
+          ? err.message
+          : "Erreur lors de la suppression de la catégorie"
+      );
+    } finally {
+      setDeletingCategoryId(null);
+    }
+  };
+
+  // Couleurs prédéfinies pour les catégories
+  const predefinedColors = [
+    "#FF2D8A", // Pink (Housing)
+    "#8A2BFF", // Purple (Children)
+    "#316CFF", // Blue (Subscriptions)
+    "#FFC04A", // Yellow (Transport)
+    "#A1A1A1", // Gray (Other)
+    "#6366F1", // Indigo (Crédit)
+    "#10B981", // Green
+    "#F59E0B", // Amber
+    "#EF4444", // Red
+    "#06B6D4", // Cyan
+  ];
 
   if (authLoading || loading) {
     return (
@@ -188,6 +270,105 @@ export default function ParametersPage() {
                 {saving ? "Enregistrement..." : "Enregistrer les paramètres"}
               </button>
             </div>
+          </form>
+        </div>
+
+        {/* Section Catégories */}
+        <div
+          className="rounded-[28px] bg-white border border-gray-200 px-6 py-5"
+          style={{
+            fontFamily:
+              'Inter Variable, ui-sans-serif, system-ui, sans-serif, "Apple Color Emoji", "Segoe UI Emoji", Segoe UI Symbol, "Noto Color Emoji"',
+            boxShadow: "0 1px 2px 0 rgba(0, 0, 0, 0.05)",
+          }}
+        >
+          <h2 className="text-lg font-semibold text-flow-primary mb-2">
+            Catégories
+          </h2>
+          <p className="text-sm text-flowTextMuted mb-6">
+            Gérez vos catégories de dépenses
+          </p>
+
+          {/* Liste des catégories */}
+          <div className="space-y-3 mb-6">
+            {categories.map((category) => (
+              <div
+                key={category.id}
+                className="flex items-center justify-between p-3 rounded-lg border border-gray-200"
+              >
+                <div className="flex items-center gap-3">
+                  <div
+                    className="h-4 w-4 rounded-full"
+                    style={{ backgroundColor: category.color }}
+                  />
+                  <span className="text-sm font-medium text-gray-900">
+                    {category.name}
+                  </span>
+                </div>
+                <button
+                  onClick={() => handleDeleteCategory(category.id, category.name)}
+                  disabled={deletingCategoryId === category.id}
+                  className="p-1.5 text-red-500 hover:bg-red-50 rounded-lg transition-colors disabled:opacity-50"
+                  title="Supprimer"
+                >
+                  <TrashIcon className="h-4 w-4" />
+                </button>
+              </div>
+            ))}
+          </div>
+
+          {/* Formulaire d'ajout de catégorie */}
+          <form onSubmit={handleCreateCategory} className="space-y-4">
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                Nouvelle catégorie
+              </label>
+              <input
+                type="text"
+                value={newCategoryName}
+                onChange={(e) => setNewCategoryName(e.target.value)}
+                placeholder="ex: Crédit"
+                className="w-full rounded-lg border border-gray-300 px-4 py-2 focus:border-flow-primary focus:outline-none focus:ring-2 focus:ring-flow-primary/20"
+              />
+            </div>
+
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                Couleur
+              </label>
+              <div className="flex flex-wrap gap-2">
+                {predefinedColors.map((color) => (
+                  <button
+                    key={color}
+                    type="button"
+                    onClick={() => setNewCategoryColor(color)}
+                    className={`h-8 w-8 rounded-full border-2 transition-all ${
+                      newCategoryColor === color
+                        ? "border-gray-900 scale-110"
+                        : "border-gray-300 hover:border-gray-400"
+                    }`}
+                    style={{ backgroundColor: color }}
+                    title={color}
+                  />
+                ))}
+                <input
+                  type="color"
+                  value={newCategoryColor}
+                  onChange={(e) => setNewCategoryColor(e.target.value)}
+                  className="h-8 w-8 rounded-full border-2 border-gray-300 cursor-pointer"
+                  title="Couleur personnalisée"
+                />
+              </div>
+            </div>
+
+            <button
+              type="submit"
+              disabled={!newCategoryName.trim()}
+              className="w-full rounded-lg bg-flow-primary px-4 py-2 text-sm font-medium text-white hover:bg-flow-primary/90 disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+            >
+              <PlusIcon className="h-4 w-4" />
+              Ajouter la catégorie
+            </button>
           </form>
         </div>
       </main>
