@@ -7,6 +7,51 @@ interface ChargesByCategoryCardProps {
   categories: Category[];
 }
 
+// Fonction pour créer un arc SVG
+function createArc(
+  startAngle: number,
+  endAngle: number,
+  radius: number,
+  centerX: number,
+  centerY: number
+): string {
+  const start = polarToCartesian(centerX, centerY, radius, endAngle);
+  const end = polarToCartesian(centerX, centerY, radius, startAngle);
+  const largeArcFlag = endAngle - startAngle <= 180 ? "0" : "1";
+
+  return [
+    "M",
+    centerX,
+    centerY,
+    "L",
+    start.x,
+    start.y,
+    "A",
+    radius,
+    radius,
+    0,
+    largeArcFlag,
+    0,
+    end.x,
+    end.y,
+    "Z",
+  ].join(" ");
+}
+
+// Fonction pour convertir les coordonnées polaires en coordonnées cartésiennes
+function polarToCartesian(
+  centerX: number,
+  centerY: number,
+  radius: number,
+  angleInDegrees: number
+) {
+  const angleInRadians = ((angleInDegrees - 90) * Math.PI) / 180.0;
+  return {
+    x: centerX + radius * Math.cos(angleInRadians),
+    y: centerY + radius * Math.sin(angleInRadians),
+  };
+}
+
 export function ChargesByCategoryCard({
   categories,
 }: ChargesByCategoryCardProps) {
@@ -15,7 +60,7 @@ export function ChargesByCategoryCard({
 
   useEffect(() => {
     let frameId: number;
-    const duration = 1000; // 1 second
+    const duration = 500; // 0.5 second - animation plus rapide
     let start: number | null = null;
 
     const animate = (timestamp: number) => {
@@ -32,9 +77,31 @@ export function ChargesByCategoryCard({
     return () => cancelAnimationFrame(frameId);
   }, []);
 
-  const radius = 40;
-  const circumference = 2 * Math.PI * radius;
-  const offset = circumference * (1 - progress);
+  const centerX = 60;
+  const centerY = 60;
+  const outerRadius = 50;
+  const innerRadius = 35;
+
+  // Calculer les angles pour chaque catégorie
+  let currentAngle = 0;
+  const segments = categories.map((cat) => {
+    const angle = (cat.percent / 100) * 360;
+    const startAngle = currentAngle;
+    const endAngle = currentAngle + angle;
+    currentAngle = endAngle;
+
+    return {
+      ...cat,
+      startAngle,
+      endAngle,
+    };
+  });
+
+  // Calculer le pourcentage total affiché
+  const totalPercent = categories.reduce(
+    (sum, cat) => sum + cat.percent,
+    0
+  );
 
   return (
     <section
@@ -49,58 +116,103 @@ export function ChargesByCategoryCard({
       </h2>
 
       <div className="mt-4 flex items-center justify-between gap-4">
-        {/* Animated donut */}
-        <div className="relative h-36 w-36">
+        {/* Animated donut avec segments */}
+        <div className="relative h-36 w-36 flex-shrink-0">
           <svg
             viewBox="0 0 120 120"
             className="absolute inset-0 h-full w-full -rotate-90"
           >
-            <defs>
-              <linearGradient
-                id="flowDonutGradient"
-                x1="0%"
-                y1="0%"
-                x2="100%"
-                y2="100%"
-              >
-                <stop offset="0%" stopColor="#FF2D8A" />
-                <stop offset="50%" stopColor="#8A2BFF" />
-                <stop offset="100%" stopColor="#316CFF" />
-              </linearGradient>
-            </defs>
-
-            {/* background circle */}
+            {/* Cercle de fond */}
             <circle
-              cx="60"
-              cy="60"
-              r={radius}
-              stroke="#E4E4E7"
-              strokeWidth="12"
-              fill="none"
-              opacity={0.25}
+              cx={centerX}
+              cy={centerY}
+              r={outerRadius}
+              fill="#E4E4E7"
+              opacity={0.15}
             />
 
-            {/* animated circle */}
-            <circle
-              cx="60"
-              cy="60"
-              r={radius}
-              stroke="url(#flowDonutGradient)"
-              strokeWidth="12"
-              fill="none"
-              strokeLinecap="round"
-              style={{
-                strokeDasharray: circumference,
-                strokeDashoffset: offset,
-              }}
-            />
+            {/* Segments du camembert */}
+            {segments.map((segment) => {
+              const animatedEndAngle =
+                segment.startAngle +
+                (segment.endAngle - segment.startAngle) * progress;
+
+              const angleDiff = animatedEndAngle - segment.startAngle;
+              if (angleDiff <= 0) return null;
+
+              // Points pour l'arc extérieur
+              const outerStart = polarToCartesian(
+                centerX,
+                centerY,
+                outerRadius,
+                segment.startAngle
+              );
+              const outerEnd = polarToCartesian(
+                centerX,
+                centerY,
+                outerRadius,
+                animatedEndAngle
+              );
+
+              // Points pour l'arc intérieur
+              const innerStart = polarToCartesian(
+                centerX,
+                centerY,
+                innerRadius,
+                animatedEndAngle
+              );
+              const innerEnd = polarToCartesian(
+                centerX,
+                centerY,
+                innerRadius,
+                segment.startAngle
+              );
+
+              const largeArcFlag = angleDiff > 180 ? "1" : "0";
+
+              // Créer le chemin du segment de donut
+              const pathData = [
+                "M",
+                outerStart.x,
+                outerStart.y, // Commence au bord extérieur
+                "A",
+                outerRadius,
+                outerRadius,
+                0,
+                largeArcFlag,
+                1,
+                outerEnd.x,
+                outerEnd.y, // Arc extérieur
+                "L",
+                innerStart.x,
+                innerStart.y, // Ligne vers le bord intérieur
+                "A",
+                innerRadius,
+                innerRadius,
+                0,
+                largeArcFlag,
+                0,
+                innerEnd.x,
+                innerEnd.y, // Arc intérieur (retour)
+                "Z", // Fermer le chemin
+              ].join(" ");
+
+              return (
+                <path
+                  key={segment.name}
+                  d={pathData}
+                  fill={segment.color}
+                  stroke="none"
+                />
+              );
+            })}
           </svg>
 
           {/* center label */}
           <div className="absolute inset-0 flex flex-col items-center justify-center text-xs">
             <span className="text-flowTextMuted">Total</span>
             <span className="text-lg font-semibold text-flowText">
-              100%
+              {Math.round(totalPercent)}%
             </span>
           </div>
         </div>
