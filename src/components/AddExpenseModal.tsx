@@ -74,7 +74,7 @@ export function AddExpenseModal({
               onChange={(e) => setAmount(e.target.value)}
               placeholder="0.00"
               required
-              className="flex-1 rounded-lg border border-gray-300 px-4 py-2 focus:border-flow-primary focus:outline-none focus:ring-2 focus:ring-flow-primary/20"
+              className="flex-1 min-w-0 rounded-lg border border-gray-300 px-4 py-2 focus:border-flow-primary focus:outline-none focus:ring-2 focus:ring-flow-primary/20"
             />
             <select
               value={selectedCurrency.code}
@@ -82,7 +82,7 @@ export function AddExpenseModal({
                 const currency = currencies.find((c) => c.code === e.target.value);
                 if (currency) setSelectedCurrency(currency);
               }}
-              className="rounded-lg border border-gray-300 px-4 py-2 focus:border-flow-primary focus:outline-none focus:ring-2 focus:ring-flow-primary/20"
+              className="flex-shrink-0 rounded-lg border border-gray-300 px-4 py-2 focus:border-flow-primary focus:outline-none focus:ring-2 focus:ring-flow-primary/20"
             >
               {currencies.map((currency) => (
                 <option key={currency.code} value={currency.code}>

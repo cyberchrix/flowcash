@@ -25,21 +25,22 @@ export function Modal({ isOpen, onClose, title, children }: ModalProps) {
           />
 
           {/* Modal */}
-          <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+          <div className="fixed inset-0 z-50 flex items-center justify-center p-4 overflow-hidden">
             <motion.div
               initial={{ opacity: 0, scale: 0.95, y: 20 }}
               animate={{ opacity: 1, scale: 1, y: 0 }}
               exit={{ opacity: 0, scale: 0.95, y: 20 }}
               transition={{ type: "spring", duration: 0.3 }}
               onClick={(e) => e.stopPropagation()}
-              className="w-full max-w-md rounded-2xl bg-white shadow-xl"
+              className="w-full max-w-md rounded-2xl bg-white shadow-xl overflow-hidden"
               style={{
                 fontFamily:
                   'Inter Variable, ui-sans-serif, system-ui, sans-serif, "Apple Color Emoji", "Segoe UI Emoji", Segoe UI Symbol, "Noto Color Emoji"',
+                maxWidth: "calc(100vw - 2rem)",
               }}
             >
               {/* Header */}
-              <div className="flex items-center justify-between border-b border-gray-200 px-6 py-4">
+              <div className="flex items-center justify-between border-b border-gray-200 px-4 sm:px-6 py-4">
                 <h2 className="text-lg font-semibold text-flow-primary">{title}</h2>
                 <button
                   onClick={onClose}
@@ -50,7 +51,7 @@ export function Modal({ isOpen, onClose, title, children }: ModalProps) {
               </div>
 
               {/* Content */}
-              <div className="px-6 py-4">{children}</div>
+              <div className="px-4 sm:px-6 py-4 overflow-x-hidden">{children}</div>
             </motion.div>
           </div>
         </>
