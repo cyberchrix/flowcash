@@ -17,11 +17,25 @@ export function SummaryCard({
       animate={{ opacity: 1, y: 0 }}
       transition={{ duration: 0.45, ease: "easeOut" }}
     >
-      <div className="relative rounded-[28px] p-[1px] bg-[conic-gradient(from_140deg,rgba(255,45,138,0.2),rgba(138,43,255,0.6),rgba(49,108,255,0.2),rgba(255,45,138,0.2))] shadow-flowSoft">
-        <section className="rounded-[26px] bg-white/90 px-6 py-5 backdrop-blur-xl">
-          <div className="text-sm font-medium text-flowTextMuted">
-            Net Income
-          </div>
+      <section
+        className="rounded-[28px] bg-white border border-gray-200 px-6 py-5"
+        style={{
+          fontFamily:
+            'Inter Variable, ui-sans-serif, system-ui, sans-serif, "Apple Color Emoji", "Segoe UI Emoji", Segoe UI Symbol, "Noto Color Emoji"',
+          boxShadow: "0 1px 2px 0 rgba(0, 0, 0, 0.05)",
+        }}
+        style={{
+          fontFamily:
+            'Inter Variable, ui-sans-serif, system-ui, sans-serif, "Apple Color Emoji", "Segoe UI Emoji", Segoe UI Symbol, "Noto Color Emoji"',
+        }}
+      >
+        <h2 className="text-sm font-semibold text-flow-primary mb-4">
+          Summary
+        </h2>
+
+        <div className="text-sm font-medium text-flowTextMuted">
+          Net Income
+        </div>
 
           <div className="mt-1 text-3xl font-semibold text-flow-primary">
             {salaryNet.toLocaleString("fr-FR")} €
@@ -45,7 +59,11 @@ export function SummaryCard({
               <div className="text-xs text-flowTextMuted">
                 Disposable Income
               </div>
-              <div className="mt-1 text-xl font-semibold text-flowBlue">
+              <div
+                className={`mt-1 text-xl font-semibold ${
+                  remaining >= 0 ? "text-green-600" : "text-red-600"
+                }`}
+              >
                 {remaining.toLocaleString("fr-FR", {
                   minimumFractionDigits: 0,
                   maximumFractionDigits: 0,
@@ -55,7 +73,6 @@ export function SummaryCard({
             </div>
           </div>
         </section>
-      </div>
     </motion.div>
   );
 }

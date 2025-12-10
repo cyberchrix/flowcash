@@ -105,13 +105,14 @@ export function ChargesByCategoryCard({
 
   return (
     <section
-      className="rounded-4xl border border-white/60 bg-white/80 p-6 shadow-flowSoft backdrop-blur-flow"
+      className="rounded-[28px] bg-white border border-gray-200 p-6"
       style={{
-        background:
-          "radial-gradient(circle at bottom right, rgba(225,232,255,0.9), rgba(255,255,255,0.7))",
+        fontFamily:
+          'Inter Variable, ui-sans-serif, system-ui, sans-serif, "Apple Color Emoji", "Segoe UI Emoji", Segoe UI Symbol, "Noto Color Emoji"',
+        boxShadow: "0 1px 2px 0 rgba(0, 0, 0, 0.05)",
       }}
     >
-      <h2 className="text-base font-semibold text-flowText">
+      <h2 className="text-sm font-semibold text-flow-primary">
         Expenses by Category
       </h2>
 
