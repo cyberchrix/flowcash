@@ -24,10 +24,6 @@ export function SummaryCard({
             'Inter Variable, ui-sans-serif, system-ui, sans-serif, "Apple Color Emoji", "Segoe UI Emoji", Segoe UI Symbol, "Noto Color Emoji"',
           boxShadow: "0 1px 2px 0 rgba(0, 0, 0, 0.05)",
         }}
-        style={{
-          fontFamily:
-            'Inter Variable, ui-sans-serif, system-ui, sans-serif, "Apple Color Emoji", "Segoe UI Emoji", Segoe UI Symbol, "Noto Color Emoji"',
-        }}
       >
         <h2 className="text-sm font-semibold text-flow-primary mb-4">
           Summary
