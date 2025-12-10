@@ -12,7 +12,7 @@ export function SplashScreen() {
         transition={{ duration: 0.5, ease: "easeOut" }}
       >
         <Image
-          src="/availo-icon_v6.png"
+          src="/availo-logo.png"
           alt="Availo Icon"
           width={80}
           height={80}

@@ -121,7 +121,7 @@ export default function AuthPage() {
         {/* Logo */}
         <div className="mb-8 flex justify-center">
           <Image
-            src="/availo-icon_v6.png"
+            src="/availo-icon.png"
             alt="Availo"
             width={80}
             height={80}
