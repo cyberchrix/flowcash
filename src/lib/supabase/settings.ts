@@ -1,4 +1,4 @@
-import { supabase } from "../supabase";
+import { supabase, ensureSupabaseConfigured } from "../supabase";
 import { Database } from "@/types/database";
 
 type UserSettings = Database["public"]["Tables"]["user_settings"]["Row"];
@@ -6,6 +6,7 @@ type UserSettingsInsert = Database["public"]["Tables"]["user_settings"]["Insert"
 type UserSettingsUpdate = Database["public"]["Tables"]["user_settings"]["Update"];
 
 export async function getUserSettings(userId: string) {
+  ensureSupabaseConfigured();
   const { data, error } = await supabase
     .from("user_settings")
     .select("*")
@@ -29,6 +30,7 @@ export async function getUserSettings(userId: string) {
 }
 
 export async function createUserSettings(settings: UserSettingsInsert) {
+  ensureSupabaseConfigured();
   const { data, error } = await supabase
     .from("user_settings")
     .insert(settings)
@@ -46,6 +48,7 @@ export async function updateUserSettings(
   userId: string,
   settings: UserSettingsUpdate
 ) {
+  ensureSupabaseConfigured();
   const { data, error } = await supabase
     .from("user_settings")
     .update(settings)

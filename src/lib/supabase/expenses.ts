@@ -1,10 +1,11 @@
-import { supabase } from "../supabase";
+import { supabase, ensureSupabaseConfigured } from "../supabase";
 import { Database } from "@/types/database";
 
 type Expense = Database["public"]["Tables"]["expenses"]["Row"];
 type ExpenseInsert = Database["public"]["Tables"]["expenses"]["Insert"];
 
 export async function getExpenses(userId: string) {
+  ensureSupabaseConfigured();
   const { data, error } = await supabase
     .from("expenses")
     .select("*, categories(*)")
@@ -19,6 +20,7 @@ export async function getExpenses(userId: string) {
 }
 
 export async function createExpense(expense: ExpenseInsert) {
+  ensureSupabaseConfigured();
   const { data, error } = await supabase
     .from("expenses")
     .insert(expense)
@@ -33,6 +35,7 @@ export async function createExpense(expense: ExpenseInsert) {
 }
 
 export async function deleteExpense(expenseId: string) {
+  ensureSupabaseConfigured();
   const { error } = await supabase
     .from("expenses")
     .delete()
@@ -44,6 +47,7 @@ export async function deleteExpense(expenseId: string) {
 }
 
 export async function getExpensesByCategory(userId: string) {
+  ensureSupabaseConfigured();
   const { data, error } = await supabase
     .from("expenses")
     .select("*, categories(name, color)")

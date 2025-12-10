@@ -1,10 +1,11 @@
-import { supabase } from "../supabase";
+import { supabase, ensureSupabaseConfigured } from "../supabase";
 import { Database } from "@/types/database";
 
 type Category = Database["public"]["Tables"]["categories"]["Row"];
 type CategoryInsert = Database["public"]["Tables"]["categories"]["Insert"];
 
 export async function getCategories(userId: string) {
+  ensureSupabaseConfigured();
   const { data, error } = await supabase
     .from("categories")
     .select("*")
@@ -19,6 +20,7 @@ export async function getCategories(userId: string) {
 }
 
 export async function createCategory(category: CategoryInsert) {
+  ensureSupabaseConfigured();
   const { data, error } = await supabase
     .from("categories")
     .insert(category)
@@ -33,6 +35,7 @@ export async function createCategory(category: CategoryInsert) {
 }
 
 export async function deleteCategory(categoryId: string) {
+  ensureSupabaseConfigured();
   const { error } = await supabase
     .from("categories")
     .delete()

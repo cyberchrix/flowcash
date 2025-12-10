@@ -3,6 +3,9 @@
 import { Header } from "@/components/Header";
 import { BottomNav } from "@/components/BottomNav";
 
+// Force dynamic rendering
+export const dynamic = 'force-dynamic';
+
 export default function ParametersPage() {
   return (
     <div className="mx-auto flex min-h-screen max-w-md flex-col px-5 bg-flowBg">

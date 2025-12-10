@@ -2,6 +2,9 @@
 
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
+
+// Force dynamic rendering to avoid build-time errors with Supabase
+export const dynamic = 'force-dynamic';
 import { Header } from "@/components/Header";
 import { SummaryCard } from "@/components/SummaryCard";
 import { ChargesByCategoryCard } from "@/components/ChargesByCategoryCard";
