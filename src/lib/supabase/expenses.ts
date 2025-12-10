@@ -57,6 +57,9 @@ export async function getExpensesByCategory(userId: string) {
     return [];
   }
 
+  // Type for category totals
+  type CategoryTotal = { name: string; total: number; color: string };
+
   // Group by category and calculate totals
   const grouped = data.reduce((acc, expense) => {
     const category = expense.categories as { name: string; color: string } | null;
@@ -72,16 +75,17 @@ export async function getExpensesByCategory(userId: string) {
     }
     acc[categoryName].total += Number(expense.amount);
     return acc;
-  }, {} as Record<string, { name: string; total: number; color: string }>);
+  }, {} as Record<string, CategoryTotal>);
 
   // Calculate total expenses
-  const totalExpenses = Object.values(grouped).reduce(
+  const categoryValues: CategoryTotal[] = Object.values(grouped);
+  const totalExpenses = categoryValues.reduce(
     (sum, cat) => sum + cat.total,
     0
   );
 
   // Convert to array and calculate percentages
-  return Object.values(grouped).map((cat) => ({
+  return categoryValues.map((cat) => ({
     ...cat,
     percent: totalExpenses > 0 ? (cat.total / totalExpenses) * 100 : 0,
   }));
