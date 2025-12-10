@@ -140,7 +140,7 @@ export default function Home() {
       <div className="mx-auto flex min-h-screen max-w-md flex-col px-5 bg-flowBg">
         <Header />
 
-        <main className="flex-1 space-y-6 pt-20 pb-28">
+        <main className="flex-1 space-y-6 pt-14 pb-28">
           <SummaryCard
             salaryNet={salaryNet}
             totalExpenses={totalExpenses}

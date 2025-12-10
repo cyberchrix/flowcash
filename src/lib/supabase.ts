@@ -1,11 +1,11 @@
-import { createClient } from "@supabase/supabase-js";
+import { createBrowserClient } from "@supabase/ssr";
 
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
 const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
 
-// Create a client that will throw an error when used if env vars are missing
+// Create a browser client that properly handles cookies for SSR
 // This allows the module to be imported during build time without crashing
-export const supabase = createClient(
+export const supabase = createBrowserClient(
   supabaseUrl || "https://placeholder.supabase.co",
   supabaseAnonKey || "placeholder-key"
 );

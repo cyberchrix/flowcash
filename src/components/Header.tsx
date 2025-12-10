@@ -1,19 +1,11 @@
 "use client";
 
 import Image from "next/image";
+import Link from "next/link";
 import { useAuth } from "@/hooks/useAuth";
-import { supabase } from "@/lib/supabase";
-import { useRouter } from "next/navigation";
 
 export function Header() {
   const { user } = useAuth();
-  const router = useRouter();
-
-  const handleLogout = async () => {
-    await supabase.auth.signOut();
-    router.push("/auth");
-    router.refresh();
-  };
 
   // Initiales de l'utilisateur
   const getInitials = () => {
@@ -34,17 +26,23 @@ export function Header() {
         priority
       />
 
-      {/* User avatar on the right with logout option */}
+      {/* User avatar on the right - links to account page */}
       <div className="absolute right-4">
-        <button
-          onClick={handleLogout}
-          className="flex h-8 w-8 items-center justify-center rounded-full bg-flow-primary shadow-flowSoft hover:bg-flow-primary/90 transition-colors"
-          title="Déconnexion"
-        >
-          <span className="text-[10px] font-semibold text-white">
-            {getInitials()}
-          </span>
-        </button>
+        {user ? (
+          <Link
+            href="/account"
+            className="flex h-8 w-8 items-center justify-center rounded-full bg-flow-primary shadow-flowSoft hover:bg-flow-primary/90 transition-colors"
+            title="Mon compte"
+          >
+            <span className="text-[10px] font-semibold text-white">
+              {getInitials()}
+            </span>
+          </Link>
+        ) : (
+          <div className="flex h-8 w-8 items-center justify-center rounded-full bg-gray-200">
+            <span className="text-[10px] font-semibold text-gray-500">U</span>
+          </div>
+        )}
       </div>
     </header>
   );
