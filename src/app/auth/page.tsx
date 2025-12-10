@@ -45,20 +45,37 @@ export default function AuthPage() {
     setLoading(true);
 
     try {
-      const { error } = await supabase.auth.signInWithOAuth({
+      // Utiliser l'URL de redirection dynamique basée sur l'origine actuelle
+      const redirectTo = `${window.location.origin}/auth/callback`;
+      
+      const { data, error } = await supabase.auth.signInWithOAuth({
         provider,
         options: {
-          redirectTo: `${window.location.origin}/auth/callback`,
+          redirectTo,
         },
       });
 
-      if (error) throw error;
-      // La redirection est gérée par OAuth
+      if (error) {
+        console.error("OAuth error:", error);
+        throw error;
+      }
+      
+      // Si data.url existe, cela signifie que la redirection est gérée par OAuth
+      // Sinon, la redirection devrait se faire automatiquement
+      if (data?.url) {
+        // Optionnel : rediriger manuellement si nécessaire
+        // window.location.href = data.url;
+      }
     } catch (err: any) {
       console.error("OAuth error:", err);
-      setError(
-        err?.message || `Erreur lors de la connexion avec ${provider}`
-      );
+      let errorMessage = err?.message || `Erreur lors de la connexion avec ${provider}`;
+      
+      // Messages d'erreur plus spécifiques
+      if (errorMessage.includes("redirect_uri") || errorMessage.includes("redirect")) {
+        errorMessage = `URL de redirection non autorisée. Vérifiez la configuration dans ${provider === "google" ? "Google Cloud Console" : provider === "facebook" ? "Facebook Developers" : "GitHub Settings"}.`;
+      }
+      
+      setError(errorMessage);
       setLoading(false);
     }
   };
