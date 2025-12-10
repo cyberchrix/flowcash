@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { HomeIcon, Cog6ToothIcon, PlusIcon } from "@heroicons/react/24/outline";
+import { useModal } from "@/contexts/ModalContext";
 
 interface NavItemProps {
   href: string;
@@ -33,8 +34,8 @@ function NavItem({ href, icon, label, active }: NavItemProps) {
 export function BottomNav() {
   const pathname = usePathname();
   const isHomeActive = pathname === "/";
-  const isAddExpenseActive = pathname === "/add-expense";
   const isParametersActive = pathname === "/parameters";
+  const { openAddExpenseModal } = useModal();
 
   return (
     <nav className="fixed bottom-0 left-0 right-0 z-50 flex justify-center pb-4">
@@ -49,16 +50,12 @@ export function BottomNav() {
         </div>
 
         <div className="flex justify-center">
-          <Link
-            href="/add-expense"
-            className={`flex h-12 w-12 items-center justify-center rounded-full text-white shadow-flowSoft -mb-1.5 ${
-              isAddExpenseActive
-                ? "bg-flow-primary"
-                : "bg-flow-primary hover:bg-flow-primary/90"
-            }`}
+          <button
+            onClick={openAddExpenseModal}
+            className="flex h-12 w-12 items-center justify-center rounded-full bg-flow-primary text-white shadow-flowSoft -mb-1.5 hover:bg-flow-primary/90"
           >
             <PlusIcon className="h-6 w-6 text-white" />
-          </Link>
+          </button>
         </div>
 
         <div className="flex justify-end">

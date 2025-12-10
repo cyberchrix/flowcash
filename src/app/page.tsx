@@ -5,7 +5,9 @@ import { SummaryCard } from "@/components/SummaryCard";
 import { ChargesByCategoryCard } from "@/components/ChargesByCategoryCard";
 import { BottomNav } from "@/components/BottomNav";
 import { SplashScreen } from "@/components/SplashScreen";
+import { AddExpenseModal } from "@/components/AddExpenseModal";
 import { useNavigation } from "@/contexts/NavigationContext";
+import { useModal } from "@/contexts/ModalContext";
 import { Category } from "@/types";
 
 const salaryNet = 4645;
@@ -22,26 +24,35 @@ const categories: Category[] = [
 
 export default function Home() {
   const { showSplash } = useNavigation();
+  const { isAddExpenseModalOpen, closeAddExpenseModal } = useModal();
 
   if (showSplash) {
     return <SplashScreen />;
   }
 
   return (
-    <div className="mx-auto flex min-h-screen max-w-md flex-col px-5 bg-flowBg">
-      <Header />
+    <>
+      <div className="mx-auto flex min-h-screen max-w-md flex-col px-5 bg-flowBg">
+        <Header />
 
-      <main className="flex-1 space-y-6 pt-20 pb-28">
-        <SummaryCard
-          salaryNet={salaryNet}
-          totalExpenses={totalExpenses}
-          remaining={remaining}
-        />
+        <main className="flex-1 space-y-6 pt-20 pb-28">
+          <SummaryCard
+            salaryNet={salaryNet}
+            totalExpenses={totalExpenses}
+            remaining={remaining}
+          />
 
-        <ChargesByCategoryCard categories={categories} />
-      </main>
+          <ChargesByCategoryCard categories={categories} />
+        </main>
 
-      <BottomNav />
-    </div>
+        <BottomNav />
+      </div>
+
+      <AddExpenseModal
+        isOpen={isAddExpenseModalOpen}
+        onClose={closeAddExpenseModal}
+        categories={categories}
+      />
+    </>
   );
 }
