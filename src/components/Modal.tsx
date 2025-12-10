@@ -8,9 +8,10 @@ interface ModalProps {
   onClose: () => void;
   title: string;
   children: React.ReactNode;
+  disableClose?: boolean;
 }
 
-export function Modal({ isOpen, onClose, title, children }: ModalProps) {
+export function Modal({ isOpen, onClose, title, children, disableClose = false }: ModalProps) {
   return (
     <AnimatePresence>
       {isOpen && (
@@ -20,7 +21,7 @@ export function Modal({ isOpen, onClose, title, children }: ModalProps) {
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
-            onClick={onClose}
+            onClick={disableClose ? undefined : onClose}
             className="fixed inset-0 z-50 bg-black/50 backdrop-blur-sm"
           />
 
@@ -42,12 +43,14 @@ export function Modal({ isOpen, onClose, title, children }: ModalProps) {
               {/* Header */}
               <div className="flex items-center justify-between border-b border-gray-200 px-4 sm:px-6 py-4">
                 <h2 className="text-lg font-semibold text-flow-primary">{title}</h2>
-                <button
-                  onClick={onClose}
-                  className="rounded-lg p-1 text-gray-400 hover:bg-gray-100 hover:text-gray-600"
-                >
-                  <XMarkIcon className="h-5 w-5" />
-                </button>
+                {!disableClose && (
+                  <button
+                    onClick={onClose}
+                    className="rounded-lg p-1 text-gray-400 hover:bg-gray-100 hover:text-gray-600"
+                  >
+                    <XMarkIcon className="h-5 w-5" />
+                  </button>
+                )}
               </div>
 
               {/* Content */}
