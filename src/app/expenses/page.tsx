@@ -164,7 +164,7 @@ export default function ExpensesPage() {
 
       <main className="flex-1 space-y-6 pt-20 pb-28">
         <div
-          className="rounded-[28px] bg-white dark:bg-[#262A35] px-6 py-5"
+          className="rounded-[28px] bg-white dark:bg-white/2 px-6 py-5"
           style={{
             fontFamily:
               'Inter Variable, ui-sans-serif, system-ui, sans-serif, "Apple Color Emoji", "Segoe UI Emoji", Segoe UI Symbol, "Noto Color Emoji"',
@@ -203,7 +203,7 @@ export default function ExpensesPage() {
                 return (
                   <div
                     key={expense.id}
-                    className="flex items-center justify-between p-4 rounded-lg hover:bg-gray-50 dark:hover:bg-[#2E3340] transition-colors"
+                    className="flex items-center justify-between p-4 rounded-lg bg-white dark:bg-white/2 hover:bg-gray-50 dark:hover:bg-white/5 transition-colors"
                   >
                     <div className="flex items-center gap-3 flex-1 min-w-0">
                       {/* Indicateur de catégorie */}

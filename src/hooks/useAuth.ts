@@ -9,9 +9,33 @@ export function useAuth() {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    // Get initial session
-    supabase.auth.getSession().then(({ data: { session } }) => {
-      setUser(session?.user ?? null);
+    let mounted = true;
+    
+    // Get initial session first (fastest method)
+    supabase.auth.getSession().then(({ data: { session }, error }) => {
+      if (!mounted) return;
+      
+      if (session?.user) {
+        setUser(session.user);
+        setLoading(false);
+        
+        // Then try to refresh user metadata in background
+        supabase.auth.getUser().then(({ data: { user: fullUser } }) => {
+          if (!mounted) return;
+          if (fullUser) {
+            setUser(fullUser);
+          }
+        }).catch(() => {
+          // Ignore errors in background refresh
+        });
+      } else {
+        setUser(null);
+        setLoading(false);
+      }
+    }).catch((error) => {
+      console.error("Error getting session:", error);
+      if (!mounted) return;
+      setUser(null);
       setLoading(false);
     });
 
@@ -19,11 +43,30 @@ export function useAuth() {
     const {
       data: { subscription },
     } = supabase.auth.onAuthStateChange((_event, session) => {
-      setUser(session?.user ?? null);
+      if (!mounted) return;
+      
+      if (session?.user) {
+        setUser(session.user);
+        
+        // Try to refresh user metadata in background
+        supabase.auth.getUser().then(({ data: { user: fullUser } }) => {
+          if (!mounted) return;
+          if (fullUser) {
+            setUser(fullUser);
+          }
+        }).catch(() => {
+          // Ignore errors in background refresh
+        });
+      } else {
+        setUser(null);
+      }
       setLoading(false);
     });
 
-    return () => subscription.unsubscribe();
+    return () => {
+      mounted = false;
+      subscription.unsubscribe();
+    };
   }, []);
 
   return { user, loading };

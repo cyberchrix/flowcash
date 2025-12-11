@@ -164,7 +164,7 @@ export function ChargesByCategoryCard({
       }}
     >
       <div
-        className="rounded-[26px] bg-white dark:bg-[#262A35] p-6 h-full w-full hover:bg-gray-50 dark:hover:bg-[#2E3340] transition-colors"
+        className="rounded-[26px] bg-white dark:bg-white/2 p-6 h-full w-full hover:bg-gray-50 dark:hover:bg-white/5 transition-colors"
         style={{
           fontFamily:
             '"SF Mono", "Monaco", "Inconsolata", "Roboto Mono", "Courier New", monospace',

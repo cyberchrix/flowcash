@@ -106,7 +106,7 @@ export default function AccountPage() {
       <main className="flex-1 space-y-6 pt-20 pb-28">
         {/* Section Informations du compte */}
         <div
-          className="rounded-[28px] bg-white dark:bg-[#262A35] px-6 py-5"
+          className="rounded-[28px] bg-white dark:bg-white/2 px-6 py-5"
           style={{
             fontFamily:
               'Inter Variable, ui-sans-serif, system-ui, sans-serif, "Apple Color Emoji", "Segoe UI Emoji", Segoe UI Symbol, "Noto Color Emoji"',
@@ -144,7 +144,7 @@ export default function AccountPage() {
 
         {/* Section Déconnexion */}
         <div
-          className="rounded-[28px] bg-white dark:bg-[#262A35] px-6 py-5"
+          className="rounded-[28px] bg-white dark:bg-white/2 px-6 py-5"
           style={{
             fontFamily:
               'Inter Variable, ui-sans-serif, system-ui, sans-serif, "Apple Color Emoji", "Segoe UI Emoji", Segoe UI Symbol, "Noto Color Emoji"',

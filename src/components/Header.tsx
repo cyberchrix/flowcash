@@ -20,9 +20,22 @@ export function Header() {
   // Obtenir l'URL de la photo de profil
   const getAvatarUrl = () => {
     if (!user) return null;
-    return user.user_metadata?.avatar_url || 
-           user.user_metadata?.picture || 
-           null;
+    
+    // Chercher dans user_metadata (méthode standard)
+    if (user.user_metadata?.avatar_url) return user.user_metadata.avatar_url;
+    if (user.user_metadata?.picture) return user.user_metadata.picture;
+    if (user.user_metadata?.avatar) return user.user_metadata.avatar;
+    
+    // Chercher dans les identités (pour OAuth providers)
+    if (user.identities && user.identities.length > 0) {
+      for (const identity of user.identities) {
+        if (identity.identity_data?.avatar_url) return identity.identity_data.avatar_url;
+        if (identity.identity_data?.picture) return identity.identity_data.picture;
+        if (identity.identity_data?.avatar) return identity.identity_data.avatar;
+      }
+    }
+    
+    return null;
   };
 
   // Initiales de l'utilisateur

@@ -33,7 +33,7 @@ export function Modal({ isOpen, onClose, title, children, disableClose = false }
               exit={{ opacity: 0, scale: 0.95, y: 20 }}
               transition={{ type: "spring", duration: 0.3 }}
               onClick={(e) => e.stopPropagation()}
-              className="w-full max-w-md rounded-2xl bg-white shadow-xl overflow-hidden"
+              className="w-full max-w-md rounded-2xl bg-white dark:bg-white/2 shadow-xl overflow-hidden"
               style={{
                 fontFamily:
                   'Inter Variable, ui-sans-serif, system-ui, sans-serif, "Apple Color Emoji", "Segoe UI Emoji", Segoe UI Symbol, "Noto Color Emoji"',
@@ -41,12 +41,12 @@ export function Modal({ isOpen, onClose, title, children, disableClose = false }
               }}
             >
               {/* Header */}
-              <div className="flex items-center justify-between border-b border-gray-200 px-4 sm:px-6 py-4">
-                <h2 className="text-lg font-semibold text-flow-primary">{title}</h2>
+              <div className="flex items-center justify-between border-b border-gray-200 dark:border-white/10 px-4 sm:px-6 py-4">
+                <h2 className="text-lg font-semibold text-flow-primary dark:text-white/50">{title}</h2>
                 {!disableClose && (
                   <button
                     onClick={onClose}
-                    className="rounded-lg p-1 text-gray-400 hover:bg-gray-100 hover:text-gray-600"
+                    className="rounded-lg p-1 text-gray-400 dark:text-white/60 hover:bg-gray-100 dark:hover:bg-white/10 hover:text-gray-600 dark:hover:text-white"
                   >
                     <XMarkIcon className="h-5 w-5" />
                   </button>

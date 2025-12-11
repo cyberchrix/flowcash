@@ -108,11 +108,20 @@ export default function Home() {
     loadData();
   };
 
-  // Afficher le loading pendant la vérification de l'auth ou si pas connecté
-  if (authLoading || !user) {
+  // Afficher le loading pendant la vérification de l'auth
+  if (authLoading) {
     return (
       <div className="mx-auto flex min-h-screen max-w-md flex-col items-center justify-center px-5 bg-flowBg dark:bg-transparent">
         <div className="text-flowTextMuted dark:text-gray-400">Loading...</div>
+      </div>
+    );
+  }
+
+  // Rediriger si pas connecté (la redirection se fait dans useEffect)
+  if (!user) {
+    return (
+      <div className="mx-auto flex min-h-screen max-w-md flex-col items-center justify-center px-5 bg-flowBg dark:bg-transparent">
+        <div className="text-flowTextMuted dark:text-gray-400">Redirecting...</div>
       </div>
     );
   }
