@@ -98,9 +98,12 @@ export function ChargesByCategoryCard({
   const outerRadius = 60;
   const innerRadius = 42;
 
-  // Calculer les angles pour chaque catégorie
+  // Trier les catégories par pourcentage décroissant
+  const sortedCategories = [...categories].sort((a, b) => b.percent - a.percent);
+
+  // Calculer les angles pour chaque catégorie (triées)
   let currentAngle = 0;
-  const segments = categories.map((cat) => {
+  const segments = sortedCategories.map((cat) => {
     const angle = (cat.percent / 100) * 360;
     const startAngle = currentAngle;
     const endAngle = currentAngle + angle;
@@ -114,7 +117,7 @@ export function ChargesByCategoryCard({
   });
 
   // Calculer le pourcentage total affiché (pour la vérification)
-  const totalPercent = categories.reduce(
+  const totalPercent = sortedCategories.reduce(
     (sum, cat) => sum + cat.percent,
     0
   );
@@ -158,11 +161,12 @@ export function ChargesByCategoryCard({
       className="rounded-[28px] bg-white border border-gray-200 p-6 cursor-pointer hover:bg-gray-50 transition-colors"
       style={{
         fontFamily:
-          'Inter Variable, ui-sans-serif, system-ui, sans-serif, "Apple Color Emoji", "Segoe UI Emoji", Segoe UI Symbol, "Noto Color Emoji"',
+          '"SF Mono", "Monaco", "Inconsolata", "Roboto Mono", "Courier New", monospace',
         boxShadow: "0 1px 2px 0 rgba(0, 0, 0, 0.05)",
+        letterSpacing: "0.5px",
       }}
     >
-      <h2 className="text-sm font-semibold text-flow-primary">
+      <h2 className="text-sm font-semibold text-flow-primary uppercase">
         Expenses by Category
       </h2>
 
@@ -268,7 +272,7 @@ export function ChargesByCategoryCard({
           {/* center label */}
           <div className="absolute inset-0 flex flex-col items-center justify-center">
             <span className="text-[10px] text-flowTextMuted mb-0">TOTAL:</span>
-            <span className="text-base font-semibold text-flowText -mt-0.5">
+            <span className="text-base font-black text-flowText -mt-0.5">
               {animatedTotal.toLocaleString("fr-FR", {
                 minimumFractionDigits: 2,
                 maximumFractionDigits: 2,
@@ -280,7 +284,7 @@ export function ChargesByCategoryCard({
 
         {/* Categories with animated percentages */}
         <div className="flex-1 min-w-0 space-y-3 text-sm">
-          {categories.map((cat) => {
+          {sortedCategories.map((cat) => {
             const displayed = Math.round(cat.percent * progress);
             return (
               <div
@@ -291,8 +295,11 @@ export function ChargesByCategoryCard({
                   className="h-2.5 w-2.5 rounded-full flex-shrink-0"
                   style={{ backgroundColor: cat.color }}
                 />
-                <span className="text-flowText truncate flex-1 min-w-0">{cat.name}</span>
-                <span className="font-semibold text-flowText flex-shrink-0 ml-auto">
+                <span className="text-flowText truncate flex-1 min-w-0 uppercase">{cat.name}</span>
+                <span 
+                  className="font-semibold flex-shrink-0 ml-auto"
+                  style={{ color: cat.color }}
+                >
                   {displayed}%
                 </span>
               </div>
