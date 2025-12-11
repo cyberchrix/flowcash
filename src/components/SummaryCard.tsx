@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { motion } from "framer-motion";
 
 interface SummaryCardProps {
   salaryNet: number;
@@ -49,16 +50,34 @@ export function SummaryCard({
   const animatedSalaryNet = useAnimatedNumber(salaryNet, 800);
   const animatedTotalExpenses = useAnimatedNumber(totalExpenses, 800);
   const animatedRemaining = useAnimatedNumber(remaining, 800);
+  const [hasAnimated, setHasAnimated] = useState(false);
+
+  useEffect(() => {
+    // Déclencher l'animation seulement après que les données soient chargées
+    if (salaryNet > 0 || totalExpenses > 0) {
+      setHasAnimated(true);
+    }
+  }, [salaryNet, totalExpenses]);
 
   return (
-    <div>
+    <motion.div
+      initial={{ y: -100, opacity: 0 }}
+      animate={hasAnimated ? { y: 0, opacity: 1 } : { y: -100, opacity: 0 }}
+      transition={{
+        type: "spring",
+        stiffness: 120,
+        damping: 20,
+        mass: 0.8,
+      }}
+    >
       <section
         className="rounded-[28px] px-6 py-5 relative overflow-hidden"
         style={{
           fontFamily:
-            'Inter Variable, ui-sans-serif, system-ui, sans-serif, "Apple Color Emoji", "Segoe UI Emoji", Segoe UI Symbol, "Noto Color Emoji"',
+            '"SF Mono", "Monaco", "Inconsolata", "Roboto Mono", "Courier New", monospace',
           background: "linear-gradient(to right, #FF2D8A, #8A2BFF, #316CFF)",
           boxShadow: "0 8px 24px rgba(0, 0, 0, 0.15)",
+          letterSpacing: "0.5px",
         }}
       >
         {/* Wave background */}
@@ -82,11 +101,11 @@ export function SummaryCard({
           </svg>
         </div>
         <div className="relative z-10">
-          <h2 className="text-sm font-semibold text-white mb-4">
+          <h2 className="text-sm font-semibold text-white mb-4 uppercase">
             Summary
           </h2>
 
-          <div className="text-sm font-medium text-white/90">
+          <div className="text-sm font-medium text-white/90 uppercase">
             Net Income
           </div>
 
@@ -96,7 +115,7 @@ export function SummaryCard({
 
           <div className="mt-6 flex items-center justify-between gap-4">
             <div>
-              <div className="text-xs text-white/90">
+              <div className="text-xs text-white/90 uppercase">
                 Total Expenses
               </div>
               <div className="mt-1 text-xl font-bold text-white">
@@ -109,25 +128,32 @@ export function SummaryCard({
             </div>
 
             <div className="text-right">
-              <div className="text-xs text-white/90">
+              <div className="text-xs text-white/90 uppercase">
                 Disposable Income
               </div>
-              <div
-                className={`mt-1 text-xl font-bold ${
-                  remaining >= 0 ? "text-white" : "text-red-200"
-                }`}
+              <div className="mt-1 inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full font-bold text-white"
+                style={{
+                  backgroundColor: remaining >= 0 
+                    ? "rgba(34, 197, 94, 0.4)" // vert doux transparent
+                    : "rgba(239, 68, 68, 0.4)", // rouge doux transparent
+                }}
               >
-                {Math.round(animatedRemaining).toLocaleString("fr-FR", {
-                  minimumFractionDigits: 0,
-                  maximumFractionDigits: 0,
-                })}{" "}
-                €
+                <span className="text-xl">
+                  {remaining >= 0 ? "+" : "-"}
+                </span>
+                <span className="text-xl">
+                  {Math.abs(Math.round(animatedRemaining)).toLocaleString("fr-FR", {
+                    minimumFractionDigits: 0,
+                    maximumFractionDigits: 0,
+                  })}{" "}
+                  €
+                </span>
               </div>
             </div>
           </div>
         </div>
       </section>
-    </div>
+    </motion.div>
   );
 }
 
