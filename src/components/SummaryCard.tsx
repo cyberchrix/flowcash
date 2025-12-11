@@ -303,12 +303,12 @@ export function SummaryCard({
           }}
         >
         {/* Wave background */}
-        <div className="absolute inset-0 opacity-20">
+        <div className="absolute inset-0 opacity-20 overflow-hidden">
           <svg
             viewBox="0 0 1200 320"
-            className="absolute bottom-0 left-0 w-full h-full"
+            className="absolute bottom-0 left-0 w-full"
             preserveAspectRatio="none"
-            style={{ height: "100%", width: "100%", overflow: "visible" }}
+            style={{ height: "120%", width: "100%", bottom: "-20%" }}
           >
             <path
               d="M0,160L48,144C96,128,192,96,288,101.3C384,107,480,149,576,154.7C672,160,768,128,864,112C960,96,1056,96,1152,112C1248,128,1344,160,1392,176L1440,192L1440,320L1392,320C1344,320,1248,320,1152,320C1056,320,960,320,864,320C768,320,672,320,576,320C480,320,384,320,288,320C192,320,96,320,48,320L0,320Z"
