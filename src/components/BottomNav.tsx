@@ -39,7 +39,7 @@ export function BottomNav() {
 
   return (
     <nav className="fixed bottom-0 left-0 right-0 z-50 flex justify-center pb-4">
-      <div className="grid w-full max-w-xs grid-cols-3 items-end rounded-3xl border border-white/60 bg-white/80 px-8 py-4 shadow-flowNav backdrop-blur-flow">
+      <div className="grid w-full max-w-xs grid-cols-3 items-end rounded-3xl border border-white/60 bg-white/95 px-8 py-4 shadow-flowNav backdrop-blur-flow">
         <div className="flex justify-start">
           <NavItem
             href="/"

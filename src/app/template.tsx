@@ -33,7 +33,39 @@ export default function Template({ children }: { children: React.ReactNode }) {
 
   // Remettre le scroll en haut lors du changement de route
   useEffect(() => {
-    window.scrollTo(0, 0);
+    // Utiliser plusieurs méthodes pour garantir que ça fonctionne
+    const scrollToTop = () => {
+      // Essayer toutes les méthodes possibles
+      window.scrollTo({ top: 0, left: 0, behavior: 'instant' });
+      window.scrollTo(0, 0);
+      document.documentElement.scrollTop = 0;
+      document.documentElement.scrollLeft = 0;
+      document.body.scrollTop = 0;
+      document.body.scrollLeft = 0;
+      
+      // Vérifier s'il y a un conteneur scrollable principal
+      const mainContent = document.querySelector('main');
+      if (mainContent) {
+        mainContent.scrollTop = 0;
+      }
+      
+      // Vérifier le body et html
+      if (document.body) {
+        document.body.scrollTop = 0;
+      }
+    };
+
+    // Faire le scroll immédiatement et aussi après plusieurs délais pour gérer les animations et le chargement
+    scrollToTop();
+    const timeoutId1 = setTimeout(scrollToTop, 50);
+    const timeoutId2 = setTimeout(scrollToTop, 100);
+    const timeoutId3 = setTimeout(scrollToTop, 350); // Après la fin de l'animation (300ms + marge)
+
+    return () => {
+      clearTimeout(timeoutId1);
+      clearTimeout(timeoutId2);
+      clearTimeout(timeoutId3);
+    };
   }, [pathname]);
 
   const slideVariants = {
