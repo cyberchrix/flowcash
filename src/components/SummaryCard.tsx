@@ -297,6 +297,9 @@ export function SummaryCard({
             MozOsxFontSmoothing: "grayscale",
             textRendering: "optimizeLegibility",
             transform: "translateZ(0)",
+            position: "relative",
+            zIndex: 2, // Au-dessus du glow
+            isolation: "isolate", // Isoler le contenu du mix-blend-mode du glow
           }}
         >
         {/* Wave background */}
