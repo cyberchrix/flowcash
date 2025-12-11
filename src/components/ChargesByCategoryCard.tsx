@@ -6,6 +6,18 @@ import { Category } from "@/types";
 
 interface ChargesByCategoryCardProps {
   categories: Category[];
+  totalExpenses: number;
+  currency: string;
+}
+
+// Fonction pour obtenir le symbole de la devise
+function getCurrencySymbol(currency: string): string {
+  const symbols: { [key: string]: string } = {
+    EUR: "€",
+    USD: "$",
+    GBP: "£",
+  };
+  return symbols[currency] || currency;
 }
 
 // Fonction pour créer un arc SVG
@@ -55,6 +67,8 @@ function polarToCartesian(
 
 export function ChargesByCategoryCard({
   categories,
+  totalExpenses,
+  currency,
 }: ChargesByCategoryCardProps) {
   const router = useRouter();
   // progress: 0 → 1 to animate donut + percentages
@@ -79,10 +93,10 @@ export function ChargesByCategoryCard({
     return () => cancelAnimationFrame(frameId);
   }, []);
 
-  const centerX = 60;
-  const centerY = 60;
-  const outerRadius = 50;
-  const innerRadius = 35;
+  const centerX = 70;
+  const centerY = 70;
+  const outerRadius = 60;
+  const innerRadius = 42;
 
   // Calculer les angles pour chaque catégorie
   let currentAngle = 0;
@@ -99,11 +113,44 @@ export function ChargesByCategoryCard({
     };
   });
 
-  // Calculer le pourcentage total affiché
+  // Calculer le pourcentage total affiché (pour la vérification)
   const totalPercent = categories.reduce(
     (sum, cat) => sum + cat.percent,
     0
   );
+
+  // Animation du montant total
+  const [animatedTotal, setAnimatedTotal] = useState(0);
+  
+  useEffect(() => {
+    let frameId: number;
+    const duration = 800;
+    let start: number | null = null;
+    const startValue = animatedTotal;
+    const endValue = totalExpenses;
+    const difference = endValue - startValue;
+
+    const animate = (timestamp: number) => {
+      if (start === null) start = timestamp;
+      const elapsed = timestamp - start;
+      const progress = Math.min(elapsed / duration, 1);
+      
+      // Easing function (ease-out)
+      const easeOut = 1 - Math.pow(1 - progress, 3);
+      const current = startValue + difference * easeOut;
+      
+      setAnimatedTotal(current);
+      
+      if (progress < 1) {
+        frameId = requestAnimationFrame(animate);
+      } else {
+        setAnimatedTotal(endValue);
+      }
+    };
+
+    frameId = requestAnimationFrame(animate);
+    return () => cancelAnimationFrame(frameId);
+  }, [totalExpenses]);
 
   return (
     <section
@@ -121,9 +168,9 @@ export function ChargesByCategoryCard({
 
       <div className="mt-4 flex items-center justify-between gap-4">
         {/* Animated donut avec segments */}
-        <div className="relative h-36 w-36 flex-shrink-0">
+        <div className="relative h-44 w-44 flex-shrink-0">
           <svg
-            viewBox="0 0 120 120"
+            viewBox="0 0 140 140"
             className="absolute inset-0 h-full w-full -rotate-90"
           >
             {/* Cercle de fond */}
@@ -219,10 +266,14 @@ export function ChargesByCategoryCard({
           </svg>
 
           {/* center label */}
-          <div className="absolute inset-0 flex flex-col items-center justify-center text-xs">
-            <span className="text-flowTextMuted">Total</span>
-            <span className="text-lg font-semibold text-flowText">
-              {Math.round(totalPercent)}%
+          <div className="absolute inset-0 flex flex-col items-center justify-center">
+            <span className="text-[10px] text-flowTextMuted mb-0">TOTAL:</span>
+            <span className="text-base font-semibold text-flowText -mt-0.5">
+              {animatedTotal.toLocaleString("fr-FR", {
+                minimumFractionDigits: 2,
+                maximumFractionDigits: 2,
+              })}
+              <span className="ml-0.5">{getCurrencySymbol(currency)}</span>
             </span>
           </div>
         </div>

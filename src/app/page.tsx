@@ -25,6 +25,7 @@ export default function Home() {
   const [categories, setCategories] = useState<Category[]>([]);
   const [salaryNet, setSalaryNet] = useState(0);
   const [totalExpenses, setTotalExpenses] = useState(0);
+  const [currency, setCurrency] = useState("EUR");
   const [loading, setLoading] = useState(true);
   const [showSalaryOnboarding, setShowSalaryOnboarding] = useState(false);
   const [settingsLoaded, setSettingsLoaded] = useState(false);
@@ -73,6 +74,7 @@ export default function Home() {
       if (settings) {
         const salary = Number(settings.salary_net) || 0;
         setSalaryNet(salary);
+        setCurrency(settings.currency || "EUR");
         
         // Afficher l'onboarding si le salaire n'est pas configuré
         if (!settingsLoaded && salary === 0) {
@@ -141,7 +143,7 @@ export default function Home() {
             remaining={remaining}
           />
 
-          <ChargesByCategoryCard categories={categories} />
+          <ChargesByCategoryCard categories={categories} totalExpenses={totalExpenses} currency={currency} />
         </main>
 
         <BottomNav />

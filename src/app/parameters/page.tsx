@@ -8,6 +8,7 @@ import { useAuth } from "@/hooks/useAuth";
 import { getUserSettings, updateUserSettings } from "@/lib/supabase/settings";
 import { getCategories, createCategory, deleteCategory, updateCategory } from "@/lib/supabase/categories";
 import { TrashIcon, PlusIcon, PencilIcon, CheckIcon, XMarkIcon } from "@heroicons/react/24/outline";
+import { ColorPicker } from "@/components/ColorPicker";
 
 // Force dynamic rendering
 export const dynamic = 'force-dynamic';
@@ -422,28 +423,27 @@ export default function ParametersPage() {
               <label className="block text-sm font-medium text-gray-700 mb-2">
                 Color
               </label>
-              <div className="flex flex-wrap gap-2">
-                {predefinedColors.map((color) => (
-                  <button
-                    key={color}
-                    type="button"
-                    onClick={() => setNewCategoryColor(color)}
-                    className={`h-8 w-8 rounded-full border-2 transition-all ${
-                      newCategoryColor === color
-                        ? "border-gray-900 scale-110"
-                        : "border-gray-300 hover:border-gray-400"
-                    }`}
-                    style={{ backgroundColor: color }}
-                    title={color}
-                  />
-                ))}
-                <input
-                  type="color"
+              <div className="flex items-center gap-3">
+                <ColorPicker
                   value={newCategoryColor}
-                  onChange={(e) => setNewCategoryColor(e.target.value)}
-                  className="h-8 w-8 rounded-full border-2 border-gray-300 cursor-pointer"
-                  title="Custom color"
+                  onChange={(color) => setNewCategoryColor(color)}
                 />
+                <div className="flex flex-wrap gap-2 flex-1">
+                  {predefinedColors.map((color) => (
+                    <button
+                      key={color}
+                      type="button"
+                      onClick={() => setNewCategoryColor(color)}
+                      className={`h-8 w-8 rounded-full border-2 transition-all ${
+                        newCategoryColor === color
+                          ? "border-gray-900 scale-110"
+                          : "border-gray-300 hover:border-gray-400"
+                      }`}
+                      style={{ backgroundColor: color }}
+                      title={color}
+                    />
+                  ))}
+                </div>
               </div>
             </div>
 
