@@ -86,7 +86,7 @@ export function Header() {
         {user ? (
           <Link
             href="/account"
-            className="flex h-10 w-10 items-center justify-center rounded-full shadow-flowSoft hover:opacity-90 transition-opacity"
+            className="flex h-8 w-8 items-center justify-center rounded-full shadow-flowSoft hover:opacity-90 transition-opacity"
             style={getBorderStyle()}
             title="My account"
           >
@@ -104,7 +104,7 @@ export function Header() {
                   style={{ backgroundColor: provider === "email" ? initialsColor : "transparent" }}
                 >
                   <span
-                    className="text-xs font-semibold"
+                    className="text-[10px] font-semibold"
                     style={{
                       color: provider === "email" ? "white" : "#666",
                     }}
