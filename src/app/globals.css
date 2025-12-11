@@ -136,12 +136,12 @@ body {
   --glow-boost: 0%;
 
   position: relative;
-  padding: 1px;
+  padding: 0;
   border-radius: 24px;
-  background: linear-gradient(to bottom right, rgba(255, 255, 255, 0.6), rgba(255, 255, 255, 0.4), rgba(255, 255, 255, 0.2));
-  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.25), 0 4px 16px rgba(0, 0, 0, 0.15);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
   isolation: isolate;
   transform: translate3d(0, 0, 0.01px);
+  overflow: visible;
 }
 
 .summary-card-wrapper::before,
@@ -174,7 +174,7 @@ body {
     radial-gradient(at 82% 18%, hsla(52,100%,65%,0.3) 0px, transparent 50%) border-box,
     radial-gradient(at 51% 4%, hsla(12,100%,72%,0.3) 0px, transparent 50%) border-box,
     linear-gradient(#c299ff 0 100%) border-box;
-  opacity: calc(((var(--pointer-d) - var(--color-sens)) / (100 - var(--color-sens))) * 0.4);
+  opacity: calc(((var(--pointer-d) - var(--color-sens)) / (100 - var(--color-sens))) * 0.35);
   mask-image: 
     conic-gradient( 
       from var(--pointer-°) at center, black 25%, transparent 40%, transparent 60%, black 75%
@@ -202,15 +202,15 @@ body {
     radial-gradient( ellipse at 33% 66%, black 5%, transparent 40% ),
     conic-gradient( from var(--pointer-°) at center, transparent 5%, black 15%, black 85%, transparent 95% );
   mask-composite: subtract,add,add,add,add,add;
-  opacity: calc(((var(--pointer-d) - var(--color-sens)) / (100 - var(--color-sens))) * 0.3);
+  opacity: calc(((var(--pointer-d) - var(--color-sens)) / (100 - var(--color-sens))) * 0.25);
   mix-blend-mode: darken;
 }
 
 .summary-card-glow {
   content: "";
   position: absolute;
-  inset: -20px;
-  border-radius: inherit;
+  inset: -15px;
+  border-radius: 24px;
   pointer-events: none;
   z-index: 1;
   transition: opacity 0.25s ease-out;
@@ -218,7 +218,7 @@ body {
     conic-gradient( 
       from var(--pointer-°) at center, black 2.5%, transparent 10%, transparent 90%, black 97.5%
     );
-  opacity: calc((var(--pointer-d) - var(--glow-sens)) / (100 - var(--glow-sens)));
+  opacity: calc(((var(--pointer-d) - var(--glow-sens)) / (100 - var(--glow-sens))) * 1);
   mix-blend-mode: luminosity;
 }
 
@@ -230,22 +230,21 @@ body {
 .summary-card-glow::before {
   content: "";
   position: absolute;
-  inset: 20px;
-  border-radius: inherit;
+  inset: 15px;
+  border-radius: 24px;
   box-shadow: 
-    inset 0 0 0 1px hsl( var(--glow-color) / 40%), 
-    inset 0 0 1px 0 hsl( var(--glow-color) / calc(var(--glow-boost) + 30%)), 
-    inset 0 0 3px 0 hsl( var(--glow-color) / calc(var(--glow-boost) + 25%)), 
-    inset 0 0 6px 0 hsl( var(--glow-color) / calc(var(--glow-boost) + 20%)), 
-    inset 0 0 15px 0 hsl( var(--glow-color) / calc(var(--glow-boost) + 15%)), 
-    inset 0 0 25px 2px hsl( var(--glow-color) / calc(var(--glow-boost) + 10%)), 
-    inset 0 0 50px 2px hsl( var(--glow-color) / calc(var(--glow-boost) + 5%)), 
-    0 0 1px 0 hsl( var(--glow-color) / calc(var(--glow-boost) + 30%)), 
-    0 0 3px 0 hsl( var(--glow-color) / calc(var(--glow-boost) + 25%)), 
-    0 0 6px 0 hsl( var(--glow-color) / calc(var(--glow-boost) + 20%)), 
-    0 0 15px 0 hsl( var(--glow-color) / calc(var(--glow-boost) + 15%)), 
-    0 0 25px 2px hsl( var(--glow-color) / calc(var(--glow-boost) + 10%)), 
-    0 0 50px 2px hsl( var(--glow-color) / calc(var(--glow-boost) + 5%));
+    inset 0 0 0 1px hsl( var(--glow-color) / 50%), 
+    inset 0 0 2px 0 hsl( var(--glow-color) / calc(var(--glow-boost) + 40%)), 
+    inset 0 0 4px 0 hsl( var(--glow-color) / calc(var(--glow-boost) + 35%)), 
+    inset 0 0 8px 0 hsl( var(--glow-color) / calc(var(--glow-boost) + 30%)), 
+    inset 0 0 15px 0 hsl( var(--glow-color) / calc(var(--glow-boost) + 25%)), 
+    inset 0 0 25px 2px hsl( var(--glow-color) / calc(var(--glow-boost) + 20%)), 
+    0 0 1px 0 hsl( var(--glow-color) / calc(var(--glow-boost) + 40%)), 
+    0 0 2px 0 hsl( var(--glow-color) / calc(var(--glow-boost) + 35%)), 
+    0 0 4px 0 hsl( var(--glow-color) / calc(var(--glow-boost) + 30%)), 
+    0 0 8px 0 hsl( var(--glow-color) / calc(var(--glow-boost) + 25%)), 
+    0 0 15px 0 hsl( var(--glow-color) / calc(var(--glow-boost) + 20%)), 
+    0 0 25px 2px hsl( var(--glow-color) / calc(var(--glow-boost) + 18%));
 }
 
 /* === react-colorful customization === */
