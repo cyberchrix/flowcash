@@ -39,7 +39,7 @@ export default function ExpensesPage() {
       setError(null);
     } catch (err) {
       console.error("Error loading expenses:", err);
-      setError("Erreur lors du chargement des dépenses");
+      setError("Error loading expenses");
     } finally {
       setLoading(false);
     }
@@ -72,12 +72,12 @@ export default function ExpensesPage() {
   const handleSaveEdit = async (expenseId: string, currency: string) => {
     const parsedAmount = parseFloat(editAmount);
     if (isNaN(parsedAmount) || parsedAmount <= 0) {
-      setError("Le montant doit être un nombre positif");
+      setError("Amount must be a positive number");
       return;
     }
 
     if (!editLabel.trim()) {
-      setError("Le libellé ne peut pas être vide");
+      setError("Label cannot be empty");
       return;
     }
 
@@ -97,13 +97,13 @@ export default function ExpensesPage() {
       setError(
         err instanceof Error
           ? err.message
-          : "Erreur lors de la modification de la dépense"
+          : "Error updating expense"
       );
     }
   };
 
   const handleDelete = async (expenseId: string) => {
-    if (!confirm("Êtes-vous sûr de vouloir supprimer cette dépense ?")) {
+    if (!confirm("Are you sure you want to delete this expense?")) {
       return;
     }
 
@@ -119,7 +119,7 @@ export default function ExpensesPage() {
       setError(
         err instanceof Error
           ? err.message
-          : "Erreur lors de la suppression de la dépense"
+          : "Error deleting expense"
       );
     } finally {
       setDeletingId(null);
@@ -128,7 +128,7 @@ export default function ExpensesPage() {
 
   const formatDate = (dateString: string) => {
     const date = new Date(dateString);
-    return date.toLocaleDateString("fr-FR", {
+    return date.toLocaleDateString("en-US", {
       day: "2-digit",
       month: "short",
       year: "numeric",
@@ -136,7 +136,7 @@ export default function ExpensesPage() {
   };
 
   const formatCurrency = (amount: number, currency: string) => {
-    return new Intl.NumberFormat("fr-FR", {
+    return new Intl.NumberFormat("en-US", {
       style: "currency",
       currency: currency,
       minimumFractionDigits: 2,
@@ -147,7 +147,7 @@ export default function ExpensesPage() {
   if (authLoading || loading) {
     return (
       <div className="mx-auto flex min-h-screen max-w-md flex-col items-center justify-center px-5 bg-flowBg">
-        <div className="text-flowTextMuted">Chargement...</div>
+        <div className="text-flowTextMuted">Loading...</div>
       </div>
     );
   }
@@ -170,10 +170,10 @@ export default function ExpensesPage() {
           }}
         >
           <h1 className="text-2xl font-semibold text-flow-primary mb-2">
-            Mes dépenses
+            My Expenses
           </h1>
           <p className="text-sm text-flowTextMuted mb-6">
-            Gérez vos dépenses par catégorie
+            Manage your expenses by category
           </p>
 
           {error && (
@@ -185,10 +185,10 @@ export default function ExpensesPage() {
           {expenses.length === 0 ? (
             <div className="text-center py-12">
               <p className="text-gray-500 text-sm">
-                Aucune dépense enregistrée
+                No expenses recorded
               </p>
               <p className="text-gray-400 text-xs mt-2">
-                Ajoutez votre première dépense depuis la page d'accueil
+                Add your first expense from the home page
               </p>
             </div>
           ) : (
@@ -196,7 +196,7 @@ export default function ExpensesPage() {
               {expenses.map((expense) => {
                 const category = expense.categories;
                 const categoryColor = category?.color || "#A1A1A1";
-                const categoryName = category?.name || "Autre";
+                const categoryName = category?.name || "Other";
 
                 return (
                   <div
@@ -228,7 +228,7 @@ export default function ExpensesPage() {
                               value={editLabel}
                               onChange={(e) => setEditLabel(e.target.value)}
                               className="w-full text-sm font-medium text-gray-900 px-2 py-1 border border-gray-300 rounded focus:border-flow-primary focus:outline-none focus:ring-1 focus:ring-flow-primary mb-1"
-                              placeholder="Libellé"
+                              placeholder="Label"
                               autoFocus
                             />
                             <input
@@ -237,7 +237,7 @@ export default function ExpensesPage() {
                               value={editAmount}
                               onChange={(e) => setEditAmount(e.target.value)}
                               className="w-full text-xs text-gray-900 px-2 py-1 border border-gray-300 rounded focus:border-flow-primary focus:outline-none focus:ring-1 focus:ring-flow-primary"
-                              placeholder="Montant"
+                              placeholder="Amount"
                             />
                           </>
                         ) : (
@@ -262,7 +262,7 @@ export default function ExpensesPage() {
                                 handleSaveEdit(expense.id, expense.currency);
                               }}
                               className="p-2 text-green-600 hover:bg-green-50 rounded-lg transition-colors"
-                              title="Enregistrer"
+                              title="Save"
                             >
                               <CheckIcon className="h-5 w-5" />
                             </button>
@@ -272,7 +272,7 @@ export default function ExpensesPage() {
                                 handleCancelEdit();
                               }}
                               className="p-2 text-gray-500 hover:bg-gray-50 rounded-lg transition-colors"
-                              title="Annuler"
+                              title="Cancel"
                             >
                               <XMarkIcon className="h-5 w-5" />
                             </button>
@@ -292,7 +292,7 @@ export default function ExpensesPage() {
                               }}
                               disabled={deletingId === expense.id || editingId !== null}
                               className="p-2 text-blue-500 hover:bg-blue-50 rounded-lg transition-colors disabled:opacity-50"
-                              title="Modifier"
+                              title="Edit"
                             >
                               <PencilIcon className="h-5 w-5" />
                             </button>
@@ -303,7 +303,7 @@ export default function ExpensesPage() {
                               }}
                               disabled={deletingId === expense.id || editingId !== null}
                               className="p-2 text-red-500 hover:bg-red-50 rounded-lg transition-colors disabled:opacity-50"
-                              title="Supprimer"
+                              title="Delete"
                             >
                               <TrashIcon className="h-5 w-5" />
                             </button>
