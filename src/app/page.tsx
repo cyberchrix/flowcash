@@ -166,12 +166,12 @@ export default function Home() {
 
         <main className="flex-1 space-y-2 pt-20 pb-28">
           {/* Message de bienvenue */}
-          <div className="mb-4">
+          {/* <div className="mb-4">
             <h1 className="text-2xl font-bold text-gray-900 dark:text-white">
               Hello,<br />
               {getUserName()} 👋
             </h1>
-          </div>
+          </div> */}
           <SummaryCard
             salaryNet={salaryNet}
             totalExpenses={totalExpenses}
