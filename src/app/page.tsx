@@ -133,6 +133,7 @@ export default function Home() {
 
   return (
     <>
+      <div id="page-top-anchor" className="absolute top-0 left-0 w-1 h-1 opacity-0 pointer-events-none" aria-hidden="true" />
       <div className="mx-auto flex min-h-screen max-w-md flex-col px-5 bg-flowBg" data-scroll-container>
         <Header />
 
