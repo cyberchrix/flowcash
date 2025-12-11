@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, useRef } from "react";
 import { motion } from "framer-motion";
 
 interface SummaryCardProps {
@@ -51,13 +51,190 @@ export function SummaryCard({
   const animatedTotalExpenses = useAnimatedNumber(totalExpenses, 800);
   const animatedRemaining = useAnimatedNumber(remaining, 800);
   const [hasAnimated, setHasAnimated] = useState(false);
+  const cardRef = useRef<HTMLElement>(null);
 
   useEffect(() => {
     // Déclencher l'animation seulement après que les données soient chargées
     if (salaryNet > 0 || totalExpenses > 0) {
       setHasAnimated(true);
+      
+      // Attendre que l'animation de translation soit terminée
+      // Spring animation: durée approximative ~800-1000ms + délai pour fluidité
+      const timer = setTimeout(() => {
+        playGlowAnimation();
+      }, 1200);
+      
+      return () => clearTimeout(timer);
     }
   }, [salaryNet, totalExpenses]);
+
+  const playGlowAnimation = () => {
+    const $card = cardRef.current;
+    if (!$card) return;
+
+    // Initialiser les valeurs à 0 pour un démarrage propre
+    $card.style.setProperty('--pointer-°', '110deg');
+    $card.style.setProperty('--pointer-d', '0');
+    
+    // Petit délai avant de commencer l'animation pour plus de fluidité
+    setTimeout(() => {
+      $card.classList.add('animating');
+
+      // Animation initiale : distance de 0 à 100
+      let startTime = performance.now();
+      const duration1 = 500;
+    
+    const animate1 = () => {
+      const elapsed = performance.now() - startTime;
+      const progress = Math.min(elapsed / duration1, 1);
+      const eased = 1 - Math.pow(1 - progress, 3); // easeOutCubic
+      const value = eased * 100;
+      
+      $card.style.setProperty('--pointer-d', `${value}`);
+      
+      if (progress < 1) {
+        requestAnimationFrame(animate1);
+      } else {
+        // Animation de rotation : angle de 110 à 465 deg
+        startTime = performance.now();
+        const duration2 = 1500;
+        const angleStart = 110;
+        const angleEnd = 465;
+        
+        const animate2 = () => {
+          const elapsed = performance.now() - startTime;
+          const progress = Math.min(elapsed / duration2, 1);
+          const eased = Math.pow(progress, 3); // easeInCubic
+          const angle = angleStart + (angleEnd - angleStart) * eased;
+          
+          $card.style.setProperty('--pointer-°', `${angle}deg`);
+          
+          if (progress < 1) {
+            requestAnimationFrame(animate2);
+          } else {
+            // Animation finale : rotation continue puis fade out
+            startTime = performance.now();
+            const duration3 = 2250;
+            
+            const animate3 = () => {
+              const elapsed = performance.now() - startTime;
+              const progress = Math.min(elapsed / duration3, 1);
+              const eased = 1 - Math.pow(1 - progress, 3); // easeOutCubic
+              const angle = angleStart + (angleEnd - angleStart) * (1 - eased * 0.5);
+              
+              $card.style.setProperty('--pointer-°', `${angle}deg`);
+              
+              if (progress < 1) {
+                requestAnimationFrame(animate3);
+              } else {
+                // Fade out de la distance
+                startTime = performance.now();
+                const duration4 = 1500;
+                
+                const animate4 = () => {
+                  const elapsed = performance.now() - startTime;
+                  const progress = Math.min(elapsed / duration4, 1);
+                  const eased = Math.pow(progress, 3); // easeInCubic
+                  const value = 100 * (1 - eased);
+                  
+                  $card.style.setProperty('--pointer-d', `${value}`);
+                  
+                  if (progress < 1) {
+                    requestAnimationFrame(animate4);
+                  } else {
+                    $card.classList.remove('animating');
+                  }
+                };
+                
+                requestAnimationFrame(animate4);
+              }
+            };
+            
+            requestAnimationFrame(animate3);
+          }
+        };
+        
+        requestAnimationFrame(animate2);
+      }
+    };
+    
+    requestAnimationFrame(animate1);
+    }, 200); // Délai de 200ms après la fin de la translation
+  };
+
+  useEffect(() => {
+    const $card = cardRef.current;
+    if (!$card) return;
+
+    const centerOfElement = ($el: HTMLElement) => {
+      const { width, height } = $el.getBoundingClientRect();
+      return [width / 2, height / 2];
+    };
+
+    const pointerPositionRelativeToElement = ($el: HTMLElement, e: PointerEvent) => {
+      const pos = [e.clientX, e.clientY];
+      const { left, top, width, height } = $el.getBoundingClientRect();
+      const x = pos[0] - left;
+      const y = pos[1] - top;
+      const px = clamp((100 / width) * x, 0, 100);
+      const py = clamp((100 / height) * y, 0, 100);
+      return { pixels: [x, y], percent: [px, py] };
+    };
+
+    const angleFromPointerEvent = ($el: HTMLElement, dx: number, dy: number) => {
+      let angleDegrees = 0;
+      if (dx !== 0 || dy !== 0) {
+        const angleRadians = Math.atan2(dy, dx);
+        angleDegrees = angleRadians * (180 / Math.PI) + 90;
+        if (angleDegrees < 0) {
+          angleDegrees += 360;
+        }
+      }
+      return angleDegrees;
+    };
+
+    const distanceFromCenter = ($card: HTMLElement, x: number, y: number) => {
+      const [cx, cy] = centerOfElement($card);
+      return [x - cx, y - cy];
+    };
+
+    const closenessToEdge = ($card: HTMLElement, x: number, y: number) => {
+      const [cx, cy] = centerOfElement($card);
+      const [dx, dy] = distanceFromCenter($card, x, y);
+      let k_x = Infinity;
+      let k_y = Infinity;
+      if (dx !== 0) {
+        k_x = cx / Math.abs(dx);
+      }
+      if (dy !== 0) {
+        k_y = cy / Math.abs(dy);
+      }
+      return clamp(1 / Math.min(k_x, k_y), 0, 1);
+    };
+
+    const clamp = (value: number, min: number = 0, max: number = 100) =>
+      Math.min(Math.max(value, min), max);
+
+    const round = (value: number, precision: number = 3) => parseFloat(value.toFixed(precision));
+
+    const cardUpdate = (e: PointerEvent) => {
+      const position = pointerPositionRelativeToElement($card, e);
+      const [px, py] = position.pixels;
+      const [dx, dy] = distanceFromCenter($card, px, py);
+      const edge = closenessToEdge($card, px, py);
+      const angle = angleFromPointerEvent($card, dx, dy);
+
+      $card.style.setProperty('--pointer-°', `${round(angle)}deg`);
+      $card.style.setProperty('--pointer-d', `${round(edge * 100)}`);
+      $card.classList.remove('animating');
+    };
+
+    $card.addEventListener("pointermove", cardUpdate);
+
+    return () => {
+      $card.removeEventListener("pointermove", cardUpdate);
+    };
+  }, []);
 
   return (
     <motion.div
@@ -70,12 +247,8 @@ export function SummaryCard({
         mass: 0.8,
       }}
     >
-      <section
-        className="p-[1px] rounded-3xl bg-gradient-to-br from-white/60 via-white/40 to-white/20"
-        style={{
-          boxShadow: "0 8px 32px rgba(0, 0, 0, 0.25), 0 4px 16px rgba(0, 0, 0, 0.15)",
-        }}
-      >
+      <section ref={cardRef} className="summary-card-wrapper">
+        <div className="summary-card-glow" />
         <div
           className="rounded-3xl relative overflow-hidden h-full w-full"
           style={{
