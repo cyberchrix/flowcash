@@ -2,7 +2,7 @@
 
 import { AnimatePresence, motion } from "framer-motion";
 import { usePathname } from "next/navigation";
-import { useRef } from "react";
+import { useRef, useEffect } from "react";
 
 const routeOrder: Record<string, number> = {
   "/": 0,
@@ -30,6 +30,11 @@ export default function Template({ children }: { children: React.ReactNode }) {
   };
 
   const direction = getDirection();
+
+  // Remettre le scroll en haut lors du changement de route
+  useEffect(() => {
+    window.scrollTo(0, 0);
+  }, [pathname]);
 
   const slideVariants = {
     initial: (dir: "left" | "right") => ({

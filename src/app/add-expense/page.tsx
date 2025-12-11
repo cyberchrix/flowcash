@@ -17,7 +17,7 @@ export default function AddExpensePage() {
             Add Expense
           </h1>
           <p className="mt-2 text-sm text-flowTextMuted">
-            Formulaire d'ajout de dépense à venir...
+            Expense form coming soon...
           </p>
         </div>
       </main>

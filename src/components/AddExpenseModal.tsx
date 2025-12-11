@@ -49,26 +49,26 @@ export function AddExpenseModal({
 
     try {
       if (!user) {
-        setError("Vous devez être connecté pour ajouter une dépense");
+        setError("You must be logged in to add an expense");
         setIsSubmitting(false);
         return;
       }
 
       if (!selectedCategory || !selectedCategory.id) {
-        setError("Veuillez sélectionner une catégorie");
+        setError("Please select a category");
         setIsSubmitting(false);
         return;
       }
 
       if (!label.trim()) {
-        setError("Veuillez saisir un libellé");
+        setError("Please enter a label");
         setIsSubmitting(false);
         return;
       }
 
       const parsedAmount = parseFloat(amount);
       if (isNaN(parsedAmount) || parsedAmount <= 0) {
-        setError("Veuillez saisir un montant valide");
+        setError("Please enter a valid amount");
         setIsSubmitting(false);
         return;
       }
@@ -94,7 +94,7 @@ export function AddExpenseModal({
       setError(
         err instanceof Error
           ? err.message
-          : "Erreur lors de l'ajout de la dépense. Veuillez réessayer."
+          : "Error adding expense. Please try again."
       );
     } finally {
       setIsSubmitting(false);
@@ -102,7 +102,7 @@ export function AddExpenseModal({
   };
 
   return (
-    <Modal isOpen={isOpen} onClose={onClose} title="Ajouter une dépense">
+    <Modal isOpen={isOpen} onClose={onClose} title="Add Expense">
       <form onSubmit={handleSubmit} className="space-y-6">
         {error && (
           <div className="rounded-lg bg-red-50 border border-red-200 px-4 py-3 text-sm text-red-700">
@@ -112,29 +112,29 @@ export function AddExpenseModal({
 
         {categories.length === 0 && (
           <div className="rounded-lg bg-yellow-50 border border-yellow-200 px-4 py-3 text-sm text-yellow-700">
-            ⚠️ Aucune catégorie disponible. Les catégories par défaut devraient être créées automatiquement à l'inscription.
+            ⚠️ No categories available. Default categories should be created automatically on registration.
           </div>
         )}
 
-        {/* Libellé */}
+        {/* Label */}
         <div>
           <label className="block text-sm font-medium text-gray-700 mb-2">
-            Libellé
+            Label
           </label>
           <input
             type="text"
             value={label}
             onChange={(e) => setLabel(e.target.value)}
-            placeholder="ex: Courses alimentaires"
+            placeholder="e.g. Groceries"
             required
             className="w-full rounded-lg border border-gray-300 px-4 py-2 focus:border-flow-primary focus:outline-none focus:ring-2 focus:ring-flow-primary/20"
           />
         </div>
 
-        {/* Montant */}
+        {/* Amount */}
         <div>
           <label className="block text-sm font-medium text-gray-700 mb-2">
-            Montant
+            Amount
           </label>
           <div className="flex gap-2">
             <input
@@ -163,15 +163,15 @@ export function AddExpenseModal({
           </div>
         </div>
 
-        {/* Catégorie */}
+        {/* Category */}
         <div>
           <label className="block text-sm font-medium text-gray-700 mb-2">
-            Catégorie
+            Category
           </label>
           <div className="grid grid-cols-2 gap-3">
             {categories.length === 0 ? (
               <div className="col-span-2 text-sm text-gray-500 text-center py-4">
-                Aucune catégorie disponible. Veuillez créer des catégories dans les paramètres.
+                No categories available. Please create categories in settings.
               </div>
             ) : (
               categories.map((category) => (
@@ -212,14 +212,14 @@ export function AddExpenseModal({
             className="flex-1 rounded-lg border border-gray-300 px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50"
             disabled={isSubmitting}
           >
-            Annuler
+            Cancel
           </button>
           <button
             type="submit"
             disabled={isSubmitting || categories.length === 0}
             className="flex-1 rounded-lg bg-flow-primary px-4 py-2 text-sm font-medium text-white hover:bg-flow-primary/90 disabled:opacity-50 disabled:cursor-not-allowed"
           >
-            {isSubmitting ? "Ajout en cours..." : "Ajouter la dépense"}
+            {isSubmitting ? "Adding..." : "Add Expense"}
           </button>
         </div>
       </form>

@@ -166,7 +166,7 @@ export function ChargesByCategoryCard({
         Expenses by Category
       </h2>
 
-      <div className="mt-4 flex items-center justify-between gap-4">
+      <div className="mt-4 flex items-center gap-4">
         {/* Animated donut avec segments */}
         <div className="relative h-44 w-44 flex-shrink-0">
           <svg
@@ -279,22 +279,20 @@ export function ChargesByCategoryCard({
         </div>
 
         {/* Categories with animated percentages */}
-        <div className="flex-1 space-y-3 text-sm">
+        <div className="flex-1 min-w-0 space-y-3 text-sm">
           {categories.map((cat) => {
             const displayed = Math.round(cat.percent * progress);
             return (
               <div
                 key={cat.name}
-                className="flex items-center justify-between gap-2"
+                className="flex items-center gap-2 min-w-0"
               >
-                <div className="flex items-center gap-2 min-w-0 flex-1">
-                  <span
-                    className="h-2.5 w-2.5 rounded-full flex-shrink-0"
-                    style={{ backgroundColor: cat.color }}
-                  />
-                  <span className="text-flowText truncate">{cat.name}</span>
-                </div>
-                <span className="font-semibold text-flowText flex-shrink-0">
+                <span
+                  className="h-2.5 w-2.5 rounded-full flex-shrink-0"
+                  style={{ backgroundColor: cat.color }}
+                />
+                <span className="text-flowText truncate flex-1 min-w-0">{cat.name}</span>
+                <span className="font-semibold text-flowText flex-shrink-0 ml-auto">
                   {displayed}%
                 </span>
               </div>
