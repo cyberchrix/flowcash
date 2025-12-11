@@ -285,16 +285,16 @@ export function ChargesByCategoryCard({
             return (
               <div
                 key={cat.name}
-                className="flex items-center justify-between"
+                className="flex items-center justify-between gap-2"
               >
-                <div className="flex items-center gap-2">
+                <div className="flex items-center gap-2 min-w-0 flex-1">
                   <span
-                    className="h-2.5 w-2.5 rounded-full"
+                    className="h-2.5 w-2.5 rounded-full flex-shrink-0"
                     style={{ backgroundColor: cat.color }}
                   />
-                  <span className="text-flowText">{cat.name}</span>
+                  <span className="text-flowText truncate">{cat.name}</span>
                 </div>
-                <span className="font-semibold text-flowText">
+                <span className="font-semibold text-flowText flex-shrink-0">
                   {displayed}%
                 </span>
               </div>
