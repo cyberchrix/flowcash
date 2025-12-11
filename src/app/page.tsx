@@ -111,8 +111,8 @@ export default function Home() {
   // Afficher le loading pendant la vérification de l'auth ou si pas connecté
   if (authLoading || !user) {
     return (
-      <div className="mx-auto flex min-h-screen max-w-md flex-col items-center justify-center px-5 bg-flowBg">
-        <div className="text-flowTextMuted">Loading...</div>
+      <div className="mx-auto flex min-h-screen max-w-md flex-col items-center justify-center px-5 bg-flowBg dark:bg-transparent">
+        <div className="text-flowTextMuted dark:text-gray-400">Loading...</div>
       </div>
     );
   }
@@ -123,8 +123,8 @@ export default function Home() {
 
   if (loading) {
     return (
-      <div className="mx-auto flex min-h-screen max-w-md flex-col items-center justify-center px-5 bg-flowBg">
-        <div className="text-flowTextMuted">Chargement des données...</div>
+      <div className="mx-auto flex min-h-screen max-w-md flex-col items-center justify-center px-5 bg-flowBg dark:bg-transparent">
+        <div className="text-flowTextMuted dark:text-gray-400">Chargement des données...</div>
       </div>
     );
   }
@@ -134,7 +134,7 @@ export default function Home() {
   return (
     <>
       <div id="page-top-anchor" className="absolute top-0 left-0 w-1 h-1 opacity-0 pointer-events-none" aria-hidden="true" />
-      <div className="mx-auto flex min-h-screen max-w-md flex-col px-5 bg-flowBg" data-scroll-container>
+      <div className="mx-auto flex min-h-screen max-w-md flex-col px-5 bg-flowBg dark:bg-transparent" data-scroll-container>
         <Header />
 
         <main className="flex-1 space-y-2 pt-20 pb-28">

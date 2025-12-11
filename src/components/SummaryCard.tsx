@@ -71,15 +71,21 @@ export function SummaryCard({
       }}
     >
       <section
-        className="rounded-[28px] px-6 py-5 relative overflow-hidden"
+        className="p-[1px] rounded-3xl bg-gradient-to-br from-white/30 via-white/15 to-white/5"
         style={{
-          fontFamily:
-            '"SF Mono", "Monaco", "Inconsolata", "Roboto Mono", "Courier New", monospace',
-          background: "linear-gradient(to right, #FF2D8A, #8A2BFF, #316CFF)",
-          boxShadow: "0 8px 24px rgba(0, 0, 0, 0.15)",
-          letterSpacing: "0.5px",
+          boxShadow: "0 8px 32px rgba(0, 0, 0, 0.25), 0 4px 16px rgba(0, 0, 0, 0.15)",
         }}
       >
+        <div
+          className="rounded-3xl relative overflow-hidden h-full w-full"
+          style={{
+            fontFamily:
+              '"SF Mono", "Monaco", "Inconsolata", "Roboto Mono", "Courier New", monospace',
+            background: "linear-gradient(to right, #FF2D8A, #8A2BFF, #316CFF)",
+            letterSpacing: "0.5px",
+            padding: "1.5rem",
+          }}
+        >
         {/* Wave background */}
         <div className="absolute inset-0 opacity-20">
           <svg
@@ -151,6 +157,7 @@ export function SummaryCard({
               </div>
             </div>
           </div>
+        </div>
         </div>
       </section>
     </motion.div>

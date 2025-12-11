@@ -87,7 +87,7 @@ export default function AccountPage() {
 
   if (authLoading || loading) {
     return (
-      <div className="mx-auto flex min-h-screen max-w-md flex-col items-center justify-center px-5 bg-flowBg">
+      <div className="mx-auto flex min-h-screen max-w-md flex-col items-center justify-center px-5 bg-flowBg dark:bg-transparent">
         <div className="text-flowTextMuted">Chargement...</div>
       </div>
     );
@@ -100,20 +100,20 @@ export default function AccountPage() {
   return (
     <>
       <div id="page-top-anchor" className="absolute top-0 left-0 w-1 h-1 opacity-0 pointer-events-none" aria-hidden="true" />
-      <div className="mx-auto flex min-h-screen max-w-md flex-col px-5 bg-flowBg">
+      <div className="mx-auto flex min-h-screen max-w-md flex-col px-5 bg-flowBg dark:bg-transparent">
       <Header />
 
       <main className="flex-1 space-y-6 pt-20 pb-28">
         {/* Section Informations du compte */}
         <div
-          className="rounded-[28px] bg-white border border-gray-200 px-6 py-5"
+          className="rounded-[28px] bg-white dark:bg-[#262A35] px-6 py-5"
           style={{
             fontFamily:
               'Inter Variable, ui-sans-serif, system-ui, sans-serif, "Apple Color Emoji", "Segoe UI Emoji", Segoe UI Symbol, "Noto Color Emoji"',
             boxShadow: "0 1px 2px 0 rgba(0, 0, 0, 0.05)",
           }}
         >
-          <h1 className="text-2xl font-semibold text-flow-primary mb-2">
+          <h1 className="text-lg font-semibold text-flow-primary dark:text-white/50 mb-2">
             Mon compte
           </h1>
           <p className="text-sm text-flowTextMuted mb-6">
@@ -126,7 +126,7 @@ export default function AccountPage() {
               <label className="block text-xs font-medium text-gray-500 mb-1">
                 Email
               </label>
-              <div className="text-sm font-medium text-gray-900">
+              <div className="text-sm font-medium text-gray-900 dark:text-white">
                 {user.email}
               </div>
             </div>
@@ -135,7 +135,7 @@ export default function AccountPage() {
               <label className="block text-xs font-medium text-gray-500 mb-1">
                 Identifiant
               </label>
-              <div className="text-xs font-mono text-gray-600 break-all">
+              <div className="text-xs font-mono text-gray-600 dark:text-gray-400 break-all">
                 {user.id}
               </div>
             </div>
@@ -144,14 +144,14 @@ export default function AccountPage() {
 
         {/* Section Déconnexion */}
         <div
-          className="rounded-[28px] bg-white border border-gray-200 px-6 py-5"
+          className="rounded-[28px] bg-white dark:bg-[#262A35] px-6 py-5"
           style={{
             fontFamily:
               'Inter Variable, ui-sans-serif, system-ui, sans-serif, "Apple Color Emoji", "Segoe UI Emoji", Segoe UI Symbol, "Noto Color Emoji"',
             boxShadow: "0 1px 2px 0 rgba(0, 0, 0, 0.05)",
           }}
         >
-          <h2 className="text-lg font-semibold text-flow-primary mb-2">
+          <h2 className="text-base font-semibold text-flow-primary dark:text-white/50 mb-2">
             Déconnexion
           </h2>
           <p className="text-sm text-gray-600 mb-4">
@@ -160,7 +160,7 @@ export default function AccountPage() {
 
           <button
             onClick={handleLogout}
-            className="w-full flex items-center justify-center gap-2 rounded-lg border-2 border-gray-300 bg-white px-4 py-3 text-sm font-medium text-gray-700 hover:bg-gray-50 transition-colors"
+            className="w-full flex items-center justify-center gap-2 rounded-lg border-2 border-gray-300 dark:border-gray-600 bg-white dark:bg-transparent px-4 py-3 text-sm font-medium text-gray-700 dark:text-white hover:bg-gray-50 dark:hover:bg-white/10 transition-colors"
           >
             <ArrowRightOnRectangleIcon className="h-5 w-5" />
             Se déconnecter
@@ -192,7 +192,7 @@ export default function AccountPage() {
           {!showDeleteAccount ? (
             <button
               onClick={() => setShowDeleteAccount(true)}
-              className="w-full flex items-center justify-center gap-2 rounded-lg border-2 border-red-500 bg-white px-4 py-3 text-sm font-medium text-red-600 hover:bg-red-50 transition-colors"
+              className="w-full flex items-center justify-center gap-2 rounded-lg border-2 border-red-500 dark:border-red-600 bg-white dark:bg-transparent px-4 py-3 text-sm font-medium text-red-600 dark:text-white hover:bg-red-50 dark:hover:bg-white/10 transition-colors"
             >
               <TrashIcon className="h-5 w-5" />
               Supprimer mon compte

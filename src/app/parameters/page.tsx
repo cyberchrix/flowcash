@@ -9,6 +9,7 @@ import { getUserSettings, updateUserSettings } from "@/lib/supabase/settings";
 import { getCategories, createCategory, deleteCategory, updateCategory } from "@/lib/supabase/categories";
 import { TrashIcon, PlusIcon, PencilIcon, CheckIcon, XMarkIcon } from "@heroicons/react/24/outline";
 import { ColorPicker } from "@/components/ColorPicker";
+import { useTheme } from "@/contexts/ThemeContext";
 
 // Force dynamic rendering
 export const dynamic = 'force-dynamic';
@@ -21,6 +22,7 @@ const currencies = [
 
 export default function ParametersPage() {
   const { user, loading: authLoading } = useAuth();
+  const { theme, toggleTheme } = useTheme();
   const router = useRouter();
   const [salaryNet, setSalaryNet] = useState("");
   const [selectedCurrency, setSelectedCurrency] = useState(currencies[0]);
@@ -221,8 +223,8 @@ export default function ParametersPage() {
 
   if (authLoading || loading) {
     return (
-      <div className="mx-auto flex min-h-screen max-w-md flex-col items-center justify-center px-5 bg-flowBg">
-        <div className="text-flowTextMuted">Loading...</div>
+      <div className="mx-auto flex min-h-screen max-w-md flex-col items-center justify-center px-5 bg-flowBg dark:bg-transparent">
+        <div className="text-flowTextMuted dark:text-gray-400">Loading...</div>
       </div>
     );
   }
@@ -234,22 +236,22 @@ export default function ParametersPage() {
   return (
     <>
       <div id="page-top-anchor" className="absolute top-0 left-0 w-1 h-1 opacity-0 pointer-events-none" aria-hidden="true" />
-      <div className="mx-auto flex min-h-screen max-w-md flex-col px-5 bg-flowBg">
+      <div className="mx-auto flex min-h-screen max-w-md flex-col px-5 bg-flowBg dark:bg-transparent">
       <Header />
 
       <main className="flex-1 space-y-6 pt-20 pb-28">
         <div
-          className="rounded-[28px] bg-white border border-gray-200 px-6 py-5"
+          className="rounded-[28px] bg-white dark:bg-[#262A35] px-6 py-5"
           style={{
             fontFamily:
               'Inter Variable, ui-sans-serif, system-ui, sans-serif, "Apple Color Emoji", "Segoe UI Emoji", Segoe UI Symbol, "Noto Color Emoji"',
             boxShadow: "0 1px 2px 0 rgba(0, 0, 0, 0.05)",
           }}
         >
-          <h1 className="text-2xl font-semibold text-flow-primary mb-2">
+          <h1 className="text-lg font-semibold text-flow-primary dark:text-white/50 mb-2">
             Settings
           </h1>
-          <p className="text-sm text-flowTextMuted mb-6">
+          <p className="text-sm text-flowTextMuted dark:text-gray-400 mb-6">
             Manage your financial settings
           </p>
 
@@ -266,9 +268,43 @@ export default function ParametersPage() {
           )}
 
           <form onSubmit={handleSubmit} className="space-y-6">
+            {/* Theme Toggle */}
+            <div>
+              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-3">
+                Appearance
+              </label>
+              <div className="flex items-center justify-between p-4 rounded-lg bg-gray-50 dark:bg-[#262A35]/80">
+                <div className="flex items-center gap-3">
+                  <div className="text-sm">
+                    <div className="font-medium text-gray-900 dark:text-gray-100">
+                      {theme === "dark" ? "Dark Mode" : "Light Mode"}
+                    </div>
+                    <div className="text-xs text-gray-500 dark:text-gray-400 mt-0.5">
+                      {theme === "dark" ? "Dark theme enabled" : "Light theme enabled"}
+                    </div>
+                  </div>
+                </div>
+                <button
+                  type="button"
+                  onClick={toggleTheme}
+                  className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors focus:outline-none focus:ring-2 focus:ring-flow-primary focus:ring-offset-2 ${
+                    theme === "dark" ? "bg-flow-primary" : "bg-gray-300"
+                  }`}
+                  role="switch"
+                  aria-checked={theme === "dark"}
+                >
+                  <span
+                    className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${
+                      theme === "dark" ? "translate-x-6" : "translate-x-1"
+                    }`}
+                  />
+                </button>
+              </div>
+            </div>
+
             {/* Salaire net */}
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">
+              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
                 Monthly net salary
               </label>
               <div className="flex gap-2">
@@ -279,7 +315,7 @@ export default function ParametersPage() {
                   onChange={(e) => setSalaryNet(e.target.value)}
                   placeholder="0.00"
                   required
-                  className="flex-1 min-w-0 rounded-lg border border-gray-300 px-4 py-2 focus:border-flow-primary focus:outline-none focus:ring-2 focus:ring-flow-primary/20"
+                  className="flex-1 min-w-0 rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 px-4 py-2 focus:border-flow-primary focus:outline-none focus:ring-2 focus:ring-flow-primary/20"
                 />
                 <select
                   value={selectedCurrency.code}
@@ -287,7 +323,7 @@ export default function ParametersPage() {
                     const currency = currencies.find((c) => c.code === e.target.value);
                     if (currency) setSelectedCurrency(currency);
                   }}
-                  className="flex-shrink-0 rounded-lg border border-gray-300 px-4 py-2 focus:border-flow-primary focus:outline-none focus:ring-2 focus:ring-flow-primary/20"
+                  className="flex-shrink-0 rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 px-4 py-2 focus:border-flow-primary focus:outline-none focus:ring-2 focus:ring-flow-primary/20"
                 >
                   {currencies.map((currency) => (
                     <option key={currency.code} value={currency.code}>
@@ -296,7 +332,7 @@ export default function ParametersPage() {
                   ))}
                 </select>
               </div>
-              <p className="mt-1 text-xs text-gray-500">
+              <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">
                 Net amount after taxes
               </p>
             </div>
@@ -316,17 +352,17 @@ export default function ParametersPage() {
 
         {/* Section Catégories */}
         <div
-          className="rounded-[28px] bg-white border border-gray-200 px-6 py-5"
+          className="rounded-[28px] bg-white dark:bg-[#262A35] px-6 py-5"
           style={{
             fontFamily:
               'Inter Variable, ui-sans-serif, system-ui, sans-serif, "Apple Color Emoji", "Segoe UI Emoji", Segoe UI Symbol, "Noto Color Emoji"',
             boxShadow: "0 1px 2px 0 rgba(0, 0, 0, 0.05)",
           }}
         >
-          <h2 className="text-lg font-semibold text-flow-primary mb-2">
+          <h2 className="text-base font-semibold text-flow-primary dark:text-white/50 mb-2">
             Categories
           </h2>
-          <p className="text-sm text-flowTextMuted mb-6">
+          <p className="text-sm text-flowTextMuted dark:text-gray-400 mb-6">
             Manage your expense categories
           </p>
 
@@ -335,7 +371,7 @@ export default function ParametersPage() {
             {categories.map((category) => (
               <div
                 key={category.id}
-                className="flex items-center justify-between p-3 rounded-lg border border-gray-200"
+                className="flex items-center justify-between p-3 rounded-lg bg-gray-50 dark:bg-[#262A35]/50"
               >
                 <div className="flex items-center gap-3 flex-1 min-w-0">
                   <div
@@ -354,11 +390,11 @@ export default function ParametersPage() {
                           handleCancelCategoryEdit();
                         }
                       }}
-                      className="flex-1 min-w-0 text-sm font-medium text-gray-900 border border-gray-300 rounded px-2 py-1 focus:border-flow-primary focus:outline-none focus:ring-2 focus:ring-flow-primary/20"
+                      className="flex-1 min-w-0 text-sm font-medium text-gray-900 dark:text-gray-100 bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded px-2 py-1 focus:border-flow-primary focus:outline-none focus:ring-2 focus:ring-flow-primary/20"
                       autoFocus
                     />
                   ) : (
-                    <span className="text-sm font-medium text-gray-900">
+                    <span className="text-sm font-medium text-gray-900 dark:text-white">
                       {category.name}
                     </span>
                   )}
@@ -368,14 +404,14 @@ export default function ParametersPage() {
                     <>
                       <button
                         onClick={() => handleSaveCategoryEdit(category.id)}
-                        className="p-1.5 text-green-600 hover:bg-green-50 rounded-lg transition-colors"
+                        className="p-1.5 text-green-600 dark:text-white hover:bg-green-50 dark:hover:bg-white/10 rounded-lg transition-colors"
                         title="Save"
                       >
                         <CheckIcon className="h-4 w-4" />
                       </button>
                       <button
                         onClick={handleCancelCategoryEdit}
-                        className="p-1.5 text-gray-500 hover:bg-gray-50 rounded-lg transition-colors"
+                        className="p-1.5 text-gray-500 dark:text-white hover:bg-gray-50 dark:hover:bg-white/10 rounded-lg transition-colors"
                         title="Cancel"
                       >
                         <XMarkIcon className="h-4 w-4" />
@@ -386,7 +422,7 @@ export default function ParametersPage() {
                       <button
                         onClick={() => handleEditCategory(category.id, category.name)}
                         disabled={deletingCategoryId === category.id || editingCategoryId !== null}
-                        className="p-1.5 text-blue-500 hover:bg-blue-50 rounded-lg transition-colors disabled:opacity-50"
+                        className="p-1.5 text-blue-500 dark:text-white hover:bg-blue-50 dark:hover:bg-white/10 rounded-lg transition-colors disabled:opacity-50"
                         title="Edit"
                       >
                         <PencilIcon className="h-4 w-4" />
@@ -394,7 +430,7 @@ export default function ParametersPage() {
                       <button
                         onClick={() => handleDeleteCategory(category.id, category.name)}
                         disabled={deletingCategoryId === category.id || editingCategoryId !== null}
-                        className="p-1.5 text-red-500 hover:bg-red-50 rounded-lg transition-colors disabled:opacity-50"
+                        className="p-1.5 text-red-500 dark:text-white hover:bg-red-50 dark:hover:bg-white/10 rounded-lg transition-colors disabled:opacity-50"
                         title="Delete"
                       >
                         <TrashIcon className="h-4 w-4" />
@@ -417,7 +453,7 @@ export default function ParametersPage() {
                 value={newCategoryName}
                 onChange={(e) => setNewCategoryName(e.target.value)}
                 placeholder="e.g. Credit, Food, Transport"
-                className="w-full rounded-lg border border-gray-300 px-4 py-2 focus:border-flow-primary focus:outline-none focus:ring-2 focus:ring-flow-primary/20"
+                className="w-full rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 px-4 py-2 focus:border-flow-primary focus:outline-none focus:ring-2 focus:ring-flow-primary/20"
               />
             </div>
 

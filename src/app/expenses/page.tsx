@@ -159,22 +159,22 @@ export default function ExpensesPage() {
   return (
     <>
       <div id="page-top-anchor" className="absolute top-0 left-0 w-1 h-1 opacity-0 pointer-events-none" aria-hidden="true" />
-      <div className="mx-auto flex min-h-screen max-w-md flex-col px-5 bg-flowBg">
+      <div className="mx-auto flex min-h-screen max-w-md flex-col px-5 bg-flowBg dark:bg-transparent">
       <Header />
 
       <main className="flex-1 space-y-6 pt-20 pb-28">
         <div
-          className="rounded-[28px] bg-white border border-gray-200 px-6 py-5"
+          className="rounded-[28px] bg-white dark:bg-[#262A35] px-6 py-5"
           style={{
             fontFamily:
               'Inter Variable, ui-sans-serif, system-ui, sans-serif, "Apple Color Emoji", "Segoe UI Emoji", Segoe UI Symbol, "Noto Color Emoji"',
             boxShadow: "0 1px 2px 0 rgba(0, 0, 0, 0.05)",
           }}
         >
-          <h1 className="text-2xl font-semibold text-flow-primary mb-2">
+          <h1 className="text-lg font-semibold text-flow-primary dark:text-white/50 mb-2">
             My Expenses
           </h1>
-          <p className="text-sm text-flowTextMuted mb-6">
+          <p className="text-sm text-flowTextMuted dark:text-gray-400 mb-6">
             Manage your expenses by category
           </p>
 
@@ -203,7 +203,7 @@ export default function ExpensesPage() {
                 return (
                   <div
                     key={expense.id}
-                    className="flex items-center justify-between p-4 rounded-lg border border-gray-200 hover:bg-gray-50 transition-colors"
+                    className="flex items-center justify-between p-4 rounded-lg hover:bg-gray-50 dark:hover:bg-[#2E3340] transition-colors"
                   >
                     <div className="flex items-center gap-3 flex-1 min-w-0">
                       {/* Indicateur de catégorie */}
@@ -244,10 +244,10 @@ export default function ExpensesPage() {
                           </>
                         ) : (
                           <>
-                            <p className="text-sm font-medium text-gray-900 truncate">
+                            <p className="text-sm font-medium text-gray-900 dark:text-white truncate">
                               {expense.label}
                             </p>
-                            <p className="text-xs text-gray-500 mt-1">
+                            <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
                               {formatDate(expense.expense_date)}
                             </p>
                           </>
@@ -263,7 +263,7 @@ export default function ExpensesPage() {
                                 e.stopPropagation();
                                 handleSaveEdit(expense.id, expense.currency);
                               }}
-                              className="p-2 text-green-600 hover:bg-green-50 rounded-lg transition-colors"
+                              className="p-2 text-green-600 dark:text-white hover:bg-green-50 dark:hover:bg-white/10 rounded-lg transition-colors"
                               title="Save"
                             >
                               <CheckIcon className="h-5 w-5" />
@@ -273,7 +273,7 @@ export default function ExpensesPage() {
                                 e.stopPropagation();
                                 handleCancelEdit();
                               }}
-                              className="p-2 text-gray-500 hover:bg-gray-50 rounded-lg transition-colors"
+                              className="p-2 text-gray-500 dark:text-white hover:bg-gray-50 dark:hover:bg-white/10 rounded-lg transition-colors"
                               title="Cancel"
                             >
                               <XMarkIcon className="h-5 w-5" />
@@ -293,7 +293,7 @@ export default function ExpensesPage() {
                                 handleEdit(expense);
                               }}
                               disabled={deletingId === expense.id || editingId !== null}
-                              className="p-2 text-blue-500 hover:bg-blue-50 rounded-lg transition-colors disabled:opacity-50"
+                              className="p-2 text-blue-500 dark:text-white hover:bg-blue-50 dark:hover:bg-white/10 rounded-lg transition-colors disabled:opacity-50"
                               title="Edit"
                             >
                               <PencilIcon className="h-5 w-5" />
@@ -304,7 +304,7 @@ export default function ExpensesPage() {
                                 handleDelete(expense.id);
                               }}
                               disabled={deletingId === expense.id || editingId !== null}
-                              className="p-2 text-red-500 hover:bg-red-50 rounded-lg transition-colors disabled:opacity-50"
+                              className="p-2 text-red-500 dark:text-white hover:bg-red-50 dark:hover:bg-white/10 rounded-lg transition-colors disabled:opacity-50"
                               title="Delete"
                             >
                               <TrashIcon className="h-5 w-5" />

@@ -71,7 +71,7 @@ export function Header() {
   };
 
   return (
-    <header className="fixed top-0 left-0 right-0 z-50 flex items-center justify-center py-2 backdrop-blur-md border-b border-white/10 pt-3">
+    <header className="fixed top-0 left-0 right-0 z-50 flex items-center justify-center py-2 backdrop-blur-md pt-3 bg-white/80 dark:bg-transparent">
       {/* Availo icon centered */}
       <Image
         src="/availo-icon.png"
@@ -116,8 +116,8 @@ export function Header() {
             </div>
           </Link>
         ) : (
-          <div className="flex h-8 w-8 items-center justify-center rounded-full bg-gray-200">
-            <span className="text-[10px] font-semibold text-gray-500">U</span>
+          <div className="flex h-8 w-8 items-center justify-center rounded-full bg-gray-200 dark:bg-gray-700">
+            <span className="text-[10px] font-semibold text-gray-500 dark:text-gray-300">U</span>
           </div>
         )}
       </div>

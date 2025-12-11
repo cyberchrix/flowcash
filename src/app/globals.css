@@ -15,6 +15,8 @@
 html {
   overflow-x: hidden;
   width: 100%;
+  min-height: 100%;
+  position: relative;
 }
 
 body {
@@ -28,6 +30,22 @@ body {
   position: relative;
   /* Fix pour iOS Safari */
   -webkit-overflow-scrolling: touch;
+  transition: background-color 0.3s ease, color 0.3s ease;
+  min-height: 100vh;
+}
+
+/* Dark mode styles */
+.dark body {
+  background: #191A1F !important;
+  background-image: none !important;
+  min-height: 100vh !important;
+  color: #F5F7FA;           /* Light text */
+}
+
+.dark html {
+  background: #191A1F !important;
+  background-image: none !important;
+  min-height: 100vh !important;
 }
 
 /* Fix spécifique pour iOS */

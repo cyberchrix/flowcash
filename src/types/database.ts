@@ -69,6 +69,7 @@ export interface Database {
           user_id: string;
           salary_net: number;
           currency: string;
+          theme?: string;
           created_at: string;
           updated_at: string;
         };
@@ -77,6 +78,7 @@ export interface Database {
           user_id: string;
           salary_net?: number;
           currency?: string;
+          theme?: string;
           created_at?: string;
           updated_at?: string;
         };
@@ -85,6 +87,7 @@ export interface Database {
           user_id?: string;
           salary_net?: number;
           currency?: string;
+          theme?: string;
           created_at?: string;
           updated_at?: string;
         };

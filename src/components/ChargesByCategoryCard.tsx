@@ -158,15 +158,20 @@ export function ChargesByCategoryCard({
   return (
     <section
       onClick={() => router.push("/expenses")}
-      className="rounded-[28px] bg-white border border-gray-200 p-6 cursor-pointer hover:bg-gray-50 transition-colors"
+      className="rounded-[28px] relative cursor-pointer transition-colors"
       style={{
-        fontFamily:
-          '"SF Mono", "Monaco", "Inconsolata", "Roboto Mono", "Courier New", monospace',
         boxShadow: "0 1px 2px 0 rgba(0, 0, 0, 0.05)",
-        letterSpacing: "0.5px",
       }}
     >
-      <h2 className="text-sm font-semibold text-flow-primary uppercase">
+      <div
+        className="rounded-[26px] bg-white dark:bg-[#262A35] p-6 h-full w-full hover:bg-gray-50 dark:hover:bg-[#2E3340] transition-colors"
+        style={{
+          fontFamily:
+            '"SF Mono", "Monaco", "Inconsolata", "Roboto Mono", "Courier New", monospace',
+          letterSpacing: "0.5px",
+        }}
+      >
+      <h2 className="text-xs font-semibold text-flow-primary dark:text-white/50 uppercase">
         Expenses by Category
       </h2>
 
@@ -177,15 +182,6 @@ export function ChargesByCategoryCard({
             viewBox="0 0 140 140"
             className="absolute inset-0 h-full w-full -rotate-90"
           >
-            {/* Cercle de fond */}
-            <circle
-              cx={centerX}
-              cy={centerY}
-              r={outerRadius}
-              fill="#E4E4E7"
-              opacity={0.15}
-            />
-
             {/* Segments du camembert */}
             {segments.map((segment) => {
               const totalAngle = segment.endAngle - segment.startAngle;
@@ -271,8 +267,8 @@ export function ChargesByCategoryCard({
 
           {/* center label */}
           <div className="absolute inset-0 flex flex-col items-center justify-center">
-            <span className="text-[10px] text-flowTextMuted mb-0">TOTAL:</span>
-            <span className="text-base font-black text-flowText -mt-0.5">
+                    <span className="text-[10px] text-flowTextMuted dark:text-gray-400 mb-0">TOTAL:</span>
+                    <span className="text-base font-black text-flowText dark:text-gray-100 -mt-0.5">
               {animatedTotal.toLocaleString("fr-FR", {
                 minimumFractionDigits: 2,
                 maximumFractionDigits: 2,
@@ -295,7 +291,7 @@ export function ChargesByCategoryCard({
                   className="h-2.5 w-2.5 rounded-full flex-shrink-0"
                   style={{ backgroundColor: cat.color }}
                 />
-                <span className="text-flowText truncate flex-1 min-w-0 uppercase">{cat.name}</span>
+                        <span className="text-flowText dark:text-gray-200 truncate flex-1 min-w-0 uppercase">{cat.name}</span>
                 <span 
                   className="font-semibold flex-shrink-0 ml-auto"
                   style={{ color: cat.color }}
@@ -306,6 +302,7 @@ export function ChargesByCategoryCard({
             );
           })}
         </div>
+      </div>
       </div>
     </section>
   );

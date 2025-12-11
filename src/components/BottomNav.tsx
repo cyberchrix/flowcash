@@ -15,14 +15,14 @@ interface NavItemProps {
 function NavItem({ href, icon, label, active }: NavItemProps) {
   return (
     <Link href={href} className="flex flex-col items-center gap-1 text-xs">
-      <span className={active ? "text-flow-primary" : "text-flowTextMuted"}>
+      <span className={active ? "text-white" : "text-flowTextMuted/40 dark:text-gray-500"}>
         {icon}
       </span>
       <span
         className={
           active
-            ? "font-semibold text-flow-primary"
-            : "font-medium text-flowTextMuted"
+            ? "font-semibold text-white"
+            : "font-medium text-flowTextMuted/40 dark:text-gray-500"
         }
       >
         {label}
@@ -39,7 +39,7 @@ export function BottomNav() {
 
   return (
     <nav className="fixed bottom-0 left-0 right-0 z-50 flex justify-center pb-4">
-      <div className="grid w-full max-w-xs grid-cols-3 items-end rounded-3xl border border-white/60 bg-white/95 px-8 py-4 shadow-flowNav backdrop-blur-flow">
+      <div className="grid w-full max-w-xs grid-cols-3 items-end rounded-3xl bg-white/95 dark:bg-black/80 px-8 py-4 shadow-flowNav backdrop-blur-flow">
         <div className="flex justify-start">
           <NavItem
             href="/"
