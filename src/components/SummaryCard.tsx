@@ -113,7 +113,7 @@ export function SummaryCard({
             {Math.round(animatedSalaryNet).toLocaleString("fr-FR")} €
           </div>
 
-          <div className="mt-6 flex items-center justify-between gap-4">
+          <div className="mt-3 flex items-center justify-between gap-4">
             <div>
               <div className="text-xs text-white/90 uppercase">
                 Total Expenses
