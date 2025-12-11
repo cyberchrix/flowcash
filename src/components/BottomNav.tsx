@@ -38,24 +38,45 @@ export function BottomNav() {
   const isParametersActive = pathname === "/parameters";
   const { openAddExpenseModal } = useModal();
   const [isScrolled, setIsScrolled] = useState(false);
+  const [hasOverflow, setHasOverflow] = useState(false);
 
   useEffect(() => {
+    const checkOverflow = () => {
+      // Vérifier si le contenu dépasse la hauteur de l'écran
+      const body = document.body;
+      const html = document.documentElement;
+      const hasVerticalScrollbar = body.scrollHeight > html.clientHeight;
+      setHasOverflow(hasVerticalScrollbar);
+    };
+
     const handleScroll = () => {
       const scrollY = window.scrollY || document.documentElement.scrollTop;
       setIsScrolled(scrollY > 50);
     };
 
+    // Vérifier au chargement et au redimensionnement
+    checkOverflow();
+    window.addEventListener("resize", checkOverflow);
     window.addEventListener("scroll", handleScroll);
-    return () => window.removeEventListener("scroll", handleScroll);
+    
+    // Re-vérifier après un court délai pour tenir compte du chargement dynamique
+    const timeout = setTimeout(checkOverflow, 500);
+
+    return () => {
+      window.removeEventListener("resize", checkOverflow);
+      window.removeEventListener("scroll", handleScroll);
+      clearTimeout(timeout);
+    };
   }, []);
 
   return (
     <nav className="fixed bottom-0 left-0 right-0 z-50 flex justify-center pb-4">
-      <div className={`grid w-full max-w-xs grid-cols-3 items-end rounded-3xl px-8 py-4 backdrop-blur-flow transition-all duration-300 ${
-        isScrolled 
-          ? "bg-white/98 dark:bg-[#262A35]/95 shadow-lg" 
-          : "bg-white/95 dark:bg-white/2 shadow-flowNav"
-      }`}>
+      <div className="w-full max-w-md mx-auto px-5">
+        <div className={`grid w-full grid-cols-3 items-end rounded-3xl px-6 py-4 backdrop-blur-flow transition-all duration-300 border border-gray-200 dark:border-transparent ${
+          hasOverflow || isScrolled
+            ? "bg-white/98 dark:bg-[#262A35]/95 shadow-lg" 
+            : "bg-white dark:bg-white/2 shadow-flowNav"
+        }`}>
         <div className="flex justify-start">
           <NavItem
             href="/"
@@ -81,6 +102,7 @@ export function BottomNav() {
             label="Parameters"
             active={isParametersActive}
           />
+        </div>
         </div>
       </div>
     </nav>

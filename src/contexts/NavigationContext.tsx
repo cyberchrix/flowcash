@@ -36,12 +36,12 @@ export function NavigationProvider({ children }: { children: ReactNode }) {
     setPreviousPath(pathname);
   }, [pathname, previousPath]);
 
-  // Cache le splash après 2.5 secondes uniquement si on est sur la page Home
+  // Cache le splash après 800ms uniquement si on est sur la page Home
   useEffect(() => {
     if (showSplash && pathname === "/") {
       const timer = setTimeout(() => {
         setShowSplash(false);
-      }, 2500);
+      }, 800);
 
       return () => clearTimeout(timer);
     }

@@ -42,7 +42,7 @@ export function Modal({ isOpen, onClose, title, children, disableClose = false }
             >
               {/* Header */}
               <div className="flex items-center justify-between border-b border-gray-200 dark:border-white/10 px-4 sm:px-6 py-4">
-                <h2 className="text-lg font-semibold text-flow-primary dark:text-white/50">{title}</h2>
+                <h2 className="text-lg font-semibold text-gray-900 dark:text-white/50">{title}</h2>
                 {!disableClose && (
                   <button
                     onClick={onClose}

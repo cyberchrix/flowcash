@@ -10,6 +10,7 @@ import { SummaryCard } from "@/components/SummaryCard";
 import { ChargesByCategoryCard } from "@/components/ChargesByCategoryCard";
 import { BottomNav } from "@/components/BottomNav";
 import { SplashScreen } from "@/components/SplashScreen";
+import { LoadingScreen } from "@/components/LoadingScreen";
 import { SalaryOnboardingModal } from "@/components/SalaryOnboardingModal";
 import { useNavigation } from "@/contexts/NavigationContext";
 import { useAuth } from "@/hooks/useAuth";
@@ -131,14 +132,31 @@ export default function Home() {
   }
 
   if (loading) {
-    return (
-      <div className="mx-auto flex min-h-screen max-w-md flex-col items-center justify-center px-5 bg-flowBg dark:bg-transparent">
-        <div className="text-flowTextMuted dark:text-gray-400">Chargement des données...</div>
-      </div>
-    );
+    return <LoadingScreen />;
   }
 
   const remaining = salaryNet - totalExpenses;
+
+  // Fonction pour obtenir le nom de l'utilisateur
+  const getUserName = () => {
+    if (!user) return "User";
+    
+    // Chercher dans user_metadata
+    const name = user.user_metadata?.full_name || 
+                 user.user_metadata?.name || 
+                 user.user_metadata?.display_name;
+    
+    if (name) return name;
+    
+    // Sinon, extraire le prénom de l'email
+    if (user.email) {
+      const emailName = user.email.split("@")[0];
+      // Capitaliser la première lettre
+      return emailName.charAt(0).toUpperCase() + emailName.slice(1);
+    }
+    
+    return "User";
+  };
 
   return (
     <>
@@ -147,6 +165,13 @@ export default function Home() {
         <Header />
 
         <main className="flex-1 space-y-2 pt-20 pb-28">
+          {/* Message de bienvenue */}
+          <div className="mb-4">
+            <h1 className="text-2xl font-bold text-gray-900 dark:text-white">
+              Hello,<br />
+              {getUserName()} 👋
+            </h1>
+          </div>
           <SummaryCard
             salaryNet={salaryNet}
             totalExpenses={totalExpenses}

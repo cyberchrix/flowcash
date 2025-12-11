@@ -35,7 +35,7 @@ export function ColorPicker({ value, onChange }: ColorPickerProps) {
       <button
         type="button"
         onClick={() => setIsOpen(!isOpen)}
-        className="h-10 w-10 rounded-lg border-2 border-gray-300 hover:border-gray-400 transition-colors"
+        className="h-10 w-10 rounded-lg border-2 border-gray-300 dark:border-gray-600 hover:border-gray-400 dark:hover:border-gray-500 transition-colors"
         style={{ backgroundColor: value }}
         title="Choose color"
       />
@@ -50,7 +50,7 @@ export function ColorPicker({ value, onChange }: ColorPickerProps) {
           />
           {/* Color picker popup */}
           <div 
-            className="fixed left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 z-[100] bg-gray-50 rounded-[32px] shadow-2xl border border-gray-200 p-6"
+            className="fixed left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 z-[100] bg-gray-50 dark:bg-[#262A35] rounded-[32px] shadow-2xl border border-gray-200 dark:border-white/10 p-6"
             onClick={(e) => e.stopPropagation()}
             style={{
               boxShadow: "0 20px 60px rgba(0, 0, 0, 0.15), inset 0 1px 0 rgba(255, 255, 255, 0.8)",
@@ -70,15 +70,15 @@ export function ColorPicker({ value, onChange }: ColorPickerProps) {
               <div className="flex flex-col gap-4">
                 <div>
                   <div
-                    className="w-16 h-16 rounded-xl border-2 border-gray-300 mb-3 shadow-inner"
+                    className="w-16 h-16 rounded-xl border-2 border-gray-300 dark:border-gray-600 mb-3 shadow-inner"
                     style={{ backgroundColor: value }}
                   />
-                  <div className="text-xs font-mono text-gray-700 font-semibold">{value.toUpperCase()}</div>
+                  <div className="text-xs font-mono text-gray-700 dark:text-white font-semibold">{value.toUpperCase()}</div>
                 </div>
                 <button
                   type="button"
                   onClick={() => setIsOpen(false)}
-                  className="px-4 py-2 text-sm font-medium bg-gray-100 hover:bg-gray-200 rounded-lg transition-colors shadow-sm"
+                  className="px-4 py-2 text-sm font-medium bg-gray-100 dark:bg-gray-700 hover:bg-gray-200 dark:hover:bg-gray-600 text-gray-900 dark:text-white rounded-lg transition-colors shadow-sm"
                 >
                   Done
                 </button>

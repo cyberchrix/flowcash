@@ -133,6 +133,10 @@ body {
   box-shadow: inset 8px 8px 16px rgba(0, 0, 0, 0.1), inset -8px -8px 16px rgba(255, 255, 255, 0.9), 4px 4px 8px rgba(0, 0, 0, 0.1) !important;
 }
 
+.dark .react-colorful {
+  box-shadow: inset 8px 8px 16px rgba(0, 0, 0, 0.3), inset -8px -8px 16px rgba(255, 255, 255, 0.05), 4px 4px 8px rgba(0, 0, 0, 0.3) !important;
+}
+
 .react-colorful__saturation {
   border-radius: 28px 28px 0 0 !important;
 }

@@ -171,7 +171,7 @@ export default function AuthPage() {
 
         {/* Card */}
         <div
-          className="rounded-[28px] bg-white dark:bg-white/2 border border-gray-200 dark:border-white/10 px-6 py-8 shadow-sm"
+          className="rounded-[28px] bg-white dark:bg-white/2 border border-gray-200 dark:border-transparent px-6 py-8 shadow-sm"
           style={{
             fontFamily:
               'Inter Variable, ui-sans-serif, system-ui, sans-serif, "Apple Color Emoji", "Segoe UI Emoji", Segoe UI Symbol, "Noto Color Emoji"',

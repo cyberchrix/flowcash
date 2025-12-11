@@ -164,14 +164,14 @@ export function ChargesByCategoryCard({
       }}
     >
       <div
-        className="rounded-[26px] bg-white dark:bg-white/2 p-6 h-full w-full hover:bg-gray-50 dark:hover:bg-white/5 transition-colors"
+        className="rounded-[26px] bg-white dark:bg-white/2 border border-gray-200 dark:border-transparent p-6 h-full w-full hover:bg-gray-50 dark:hover:bg-white/5 transition-colors"
         style={{
           fontFamily:
             '"SF Mono", "Monaco", "Inconsolata", "Roboto Mono", "Courier New", monospace',
           letterSpacing: "0.5px",
         }}
       >
-      <h2 className="text-xs font-semibold text-flow-primary dark:text-white/50 uppercase">
+      <h2 className="text-xs font-semibold text-gray-900 dark:text-white/50 uppercase">
         Expenses by Category
       </h2>
 
@@ -267,8 +267,8 @@ export function ChargesByCategoryCard({
 
           {/* center label */}
           <div className="absolute inset-0 flex flex-col items-center justify-center">
-                    <span className="text-[10px] text-flowTextMuted dark:text-gray-400 mb-0">TOTAL:</span>
-                    <span className="text-base font-black text-flowText dark:text-gray-100 -mt-0.5">
+                    <span className="text-[10px] text-gray-700 dark:text-gray-400 mb-0">TOTAL:</span>
+                    <span className="text-base font-black text-gray-900 dark:text-gray-100 -mt-0.5">
               {animatedTotal.toLocaleString("fr-FR", {
                 minimumFractionDigits: 2,
                 maximumFractionDigits: 2,
@@ -291,7 +291,7 @@ export function ChargesByCategoryCard({
                   className="h-2.5 w-2.5 rounded-full flex-shrink-0"
                   style={{ backgroundColor: cat.color }}
                 />
-                        <span className="text-flowText dark:text-gray-200 truncate flex-1 min-w-0 uppercase">{cat.name}</span>
+                        <span className="text-gray-900 dark:text-gray-200 truncate flex-1 min-w-0 uppercase">{cat.name}</span>
                 <span 
                   className="font-semibold flex-shrink-0 ml-auto"
                   style={{ color: cat.color }}

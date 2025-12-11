@@ -14,8 +14,8 @@ export default function AddExpensePage() {
       <Header />
 
       <main className="flex-1 space-y-6 pt-20 pb-28">
-        <div className="rounded-[28px] bg-white/90 dark:bg-white/2 px-6 py-5 backdrop-blur-xl">
-          <h1 className="text-lg font-semibold text-flow-primary dark:text-white/50">
+        <div className="rounded-[28px] bg-white dark:bg-white/2 border border-gray-200 dark:border-transparent px-6 py-5 backdrop-blur-xl">
+          <h1 className="text-lg font-semibold text-gray-900 dark:text-white/50">
             Add Expense
           </h1>
           <p className="mt-2 text-sm text-flowTextMuted dark:text-gray-400">

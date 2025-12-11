@@ -241,17 +241,17 @@ export default function ParametersPage() {
 
       <main className="flex-1 space-y-6 pt-20 pb-28">
         <div
-          className="rounded-[28px] bg-white dark:bg-white/2 px-6 py-5"
+          className="rounded-[28px] bg-white dark:bg-white/2 border border-gray-200 dark:border-transparent px-6 py-5"
           style={{
             fontFamily:
               'Inter Variable, ui-sans-serif, system-ui, sans-serif, "Apple Color Emoji", "Segoe UI Emoji", Segoe UI Symbol, "Noto Color Emoji"',
             boxShadow: "0 1px 2px 0 rgba(0, 0, 0, 0.05)",
           }}
         >
-          <h1 className="text-lg font-semibold text-flow-primary dark:text-white/50 mb-2">
+          <h1 className="text-lg font-semibold text-gray-900 dark:text-white/50 mb-2">
             Settings
           </h1>
-          <p className="text-sm text-flowTextMuted dark:text-gray-400 mb-6">
+          <p className="text-sm text-gray-700 dark:text-gray-400 mb-6">
             Manage your financial settings
           </p>
 
@@ -270,16 +270,16 @@ export default function ParametersPage() {
           <form onSubmit={handleSubmit} className="space-y-6">
             {/* Theme Toggle */}
             <div>
-              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-3">
+              <label className="block text-sm font-medium text-gray-900 dark:text-gray-300 mb-3">
                 Appearance
               </label>
-              <div className="flex items-center justify-between p-4 rounded-lg bg-gray-50 dark:bg-white/2">
+              <div className="flex items-center justify-between p-4 rounded-lg bg-white dark:bg-white/2 border border-gray-200 dark:border-transparent">
                 <div className="flex items-center gap-3">
                   <div className="text-sm">
                     <div className="font-medium text-gray-900 dark:text-gray-100">
                       {theme === "dark" ? "Dark Mode" : "Light Mode"}
                     </div>
-                    <div className="text-xs text-gray-500 dark:text-gray-400 mt-0.5">
+                    <div className="text-xs text-gray-700 dark:text-gray-400 mt-0.5">
                       {theme === "dark" ? "Dark theme enabled" : "Light theme enabled"}
                     </div>
                   </div>
@@ -352,17 +352,17 @@ export default function ParametersPage() {
 
         {/* Section Catégories */}
         <div
-          className="rounded-[28px] bg-white dark:bg-white/2 px-6 py-5"
+          className="rounded-[28px] bg-white dark:bg-white/2 border border-gray-200 dark:border-transparent px-6 py-5"
           style={{
             fontFamily:
               'Inter Variable, ui-sans-serif, system-ui, sans-serif, "Apple Color Emoji", "Segoe UI Emoji", Segoe UI Symbol, "Noto Color Emoji"',
             boxShadow: "0 1px 2px 0 rgba(0, 0, 0, 0.05)",
           }}
         >
-          <h2 className="text-base font-semibold text-flow-primary dark:text-white/50 mb-2">
+          <h2 className="text-base font-semibold text-gray-900 dark:text-white/50 mb-2">
             Categories
           </h2>
-          <p className="text-sm text-flowTextMuted dark:text-gray-400 mb-6">
+          <p className="text-sm text-gray-700 dark:text-gray-400 mb-6">
             Manage your expense categories
           </p>
 
@@ -371,7 +371,7 @@ export default function ParametersPage() {
             {categories.map((category) => (
               <div
                 key={category.id}
-                className="flex items-center justify-between p-3 rounded-lg bg-gray-50 dark:bg-white/2"
+                className="flex items-center justify-between p-3 rounded-lg bg-white dark:bg-white/2 border border-gray-200 dark:border-transparent"
               >
                 <div className="flex items-center gap-3 flex-1 min-w-0">
                   <div
