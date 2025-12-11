@@ -75,6 +75,7 @@ export function SummaryCard({
     // Initialiser les valeurs à 0 pour un démarrage propre
     $card.style.setProperty('--pointer-°', '110deg');
     $card.style.setProperty('--pointer-d', '0');
+    $card.style.setProperty('--glow-intensity', '0');
     
     // Petit délai avant de commencer l'animation pour plus de fluidité
     setTimeout(() => {
@@ -83,14 +84,17 @@ export function SummaryCard({
       // Animation initiale : distance de 0 à 100
       let startTime = performance.now();
       const duration1 = 500;
+      const glowSens = 50;
     
     const animate1 = () => {
       const elapsed = performance.now() - startTime;
       const progress = Math.min(elapsed / duration1, 1);
       const eased = 1 - Math.pow(1 - progress, 3); // easeOutCubic
       const value = eased * 100;
+      const glowIntensity = Math.max(0, Math.min(1, (value - glowSens) / (100 - glowSens)));
       
       $card.style.setProperty('--pointer-d', `${value}`);
+      $card.style.setProperty('--glow-intensity', `${glowIntensity}`);
       
       if (progress < 1) {
         requestAnimationFrame(animate1);
@@ -136,12 +140,16 @@ export function SummaryCard({
                   const progress = Math.min(elapsed / duration4, 1);
                   const eased = Math.pow(progress, 3); // easeInCubic
                   const value = 100 * (1 - eased);
+                  const glowSens = 50;
+                  const glowIntensity = Math.max(0, Math.min(1, (value - glowSens) / (100 - glowSens)));
                   
                   $card.style.setProperty('--pointer-d', `${value}`);
+                  $card.style.setProperty('--glow-intensity', `${glowIntensity}`);
                   
                   if (progress < 1) {
                     requestAnimationFrame(animate4);
                   } else {
+                    $card.style.setProperty('--glow-intensity', '0');
                     $card.classList.remove('animating');
                   }
                 };
@@ -223,9 +231,12 @@ export function SummaryCard({
       const [dx, dy] = distanceFromCenter($card, px, py);
       const edge = closenessToEdge($card, px, py);
       const angle = angleFromPointerEvent($card, dx, dy);
+      const glowSens = 50; // Same as CSS --glow-sens
+      const glowIntensity = Math.max(0, Math.min(1, (edge * 100 - glowSens) / (100 - glowSens)));
 
       $card.style.setProperty('--pointer-°', `${round(angle)}deg`);
       $card.style.setProperty('--pointer-d', `${round(edge * 100)}`);
+      $card.style.setProperty('--glow-intensity', `${glowIntensity}`);
       $card.classList.remove('animating');
     };
 
@@ -246,11 +257,12 @@ export function SummaryCard({
         damping: 20,
         mass: 0.8,
       }}
+      style={{ overflow: "visible" }}
     >
       <section ref={cardRef} className="summary-card-wrapper">
         <div className="summary-card-glow" />
         <div
-          className="rounded-3xl relative overflow-hidden h-full w-full"
+          className="rounded-[24px] relative overflow-hidden h-full w-full"
           style={{
             fontFamily:
               '"SF Mono", "Monaco", "Inconsolata", "Roboto Mono", "Courier New", monospace',
