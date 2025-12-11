@@ -71,7 +71,7 @@ export function SummaryCard({
       }}
     >
       <section
-        className="p-[1px] rounded-3xl bg-gradient-to-br from-white/30 via-white/15 to-white/5"
+        className="p-[1px] rounded-3xl bg-gradient-to-br from-white/60 via-white/40 to-white/20"
         style={{
           boxShadow: "0 8px 32px rgba(0, 0, 0, 0.25), 0 4px 16px rgba(0, 0, 0, 0.15)",
         }}
@@ -115,7 +115,10 @@ export function SummaryCard({
             Net Income
           </div>
 
-          <div className="mt-1 text-3xl font-bold text-white">
+          <div 
+            className="mt-1 text-3xl font-bold text-white"
+            style={{ textShadow: "0 1px 2px rgba(0, 0, 0, 0.4), 0 0.5px 1px rgba(0, 0, 0, 0.6)" }}
+          >
             {Math.round(animatedSalaryNet).toLocaleString("fr-FR")} €
           </div>
 
@@ -124,7 +127,10 @@ export function SummaryCard({
               <div className="text-xs text-white/90 uppercase">
                 Total Expenses
               </div>
-              <div className="mt-1 text-xl font-bold text-white">
+              <div 
+                className="mt-1 text-xl font-bold text-white"
+                style={{ textShadow: "0 1px 2px rgba(0, 0, 0, 0.4), 0 0.5px 1px rgba(0, 0, 0, 0.6)" }}
+              >
                 {animatedTotalExpenses.toLocaleString("fr-FR", {
                   minimumFractionDigits: 2,
                   maximumFractionDigits: 2,
@@ -144,10 +150,16 @@ export function SummaryCard({
                     : "rgba(239, 68, 68, 0.4)", // rouge doux transparent
                 }}
               >
-                <span className="text-xl">
+                <span 
+                  className="text-xl"
+                  style={{ textShadow: "0 1px 2px rgba(0, 0, 0, 0.4), 0 0.5px 1px rgba(0, 0, 0, 0.6)" }}
+                >
                   {remaining >= 0 ? "+" : "-"}
                 </span>
-                <span className="text-xl">
+                <span 
+                  className="text-xl"
+                  style={{ textShadow: "0 1px 2px rgba(0, 0, 0, 0.4), 0 0.5px 1px rgba(0, 0, 0, 0.6)" }}
+                >
                   {Math.abs(Math.round(animatedRemaining)).toLocaleString("fr-FR", {
                     minimumFractionDigits: 0,
                     maximumFractionDigits: 0,
