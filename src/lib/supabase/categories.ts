@@ -3,6 +3,7 @@ import { Database } from "@/types/database";
 
 type Category = Database["public"]["Tables"]["categories"]["Row"];
 type CategoryInsert = Database["public"]["Tables"]["categories"]["Insert"];
+type CategoryUpdate = Database["public"]["Tables"]["categories"]["Update"];
 
 export async function getCategories(userId: string) {
   ensureSupabaseConfigured();
@@ -29,6 +30,22 @@ export async function createCategory(category: CategoryInsert) {
 
   if (error) {
     throw new Error(`Error creating category: ${error.message}`);
+  }
+
+  return data;
+}
+
+export async function updateCategory(categoryId: string, updates: CategoryUpdate) {
+  ensureSupabaseConfigured();
+  const { data, error } = await supabase
+    .from("categories")
+    .update(updates)
+    .eq("id", categoryId)
+    .select()
+    .single();
+
+  if (error) {
+    throw new Error(`Error updating category: ${error.message}`);
   }
 
   return data;

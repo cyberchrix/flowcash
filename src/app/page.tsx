@@ -10,10 +10,8 @@ import { SummaryCard } from "@/components/SummaryCard";
 import { ChargesByCategoryCard } from "@/components/ChargesByCategoryCard";
 import { BottomNav } from "@/components/BottomNav";
 import { SplashScreen } from "@/components/SplashScreen";
-import { AddExpenseModal } from "@/components/AddExpenseModal";
 import { SalaryOnboardingModal } from "@/components/SalaryOnboardingModal";
 import { useNavigation } from "@/contexts/NavigationContext";
-import { useModal } from "@/contexts/ModalContext";
 import { useAuth } from "@/hooks/useAuth";
 import { getCategories } from "@/lib/supabase/categories";
 import { getExpensesByCategory } from "@/lib/supabase/expenses";
@@ -22,7 +20,6 @@ import { Category } from "@/types";
 
 export default function Home() {
   const { showSplash } = useNavigation();
-  const { isAddExpenseModalOpen, closeAddExpenseModal } = useModal();
   const { user, loading: authLoading } = useAuth();
   const router = useRouter();
   const [categories, setCategories] = useState<Category[]>([]);
@@ -101,9 +98,6 @@ export default function Home() {
     }
   }, [user, authLoading, router]);
 
-  const handleExpenseAdded = () => {
-    loadData();
-  };
 
   const handleSalaryOnboardingComplete = (newSalaryNet: number) => {
     setSalaryNet(newSalaryNet);
@@ -140,7 +134,7 @@ export default function Home() {
       <div className="mx-auto flex min-h-screen max-w-md flex-col px-5 bg-flowBg">
         <Header />
 
-        <main className="flex-1 space-y-6 pt-14 pb-28">
+        <main className="flex-1 space-y-4 pt-20 pb-28">
           <SummaryCard
             salaryNet={salaryNet}
             totalExpenses={totalExpenses}
@@ -152,13 +146,6 @@ export default function Home() {
 
         <BottomNav />
       </div>
-
-      <AddExpenseModal
-        isOpen={isAddExpenseModalOpen}
-        onClose={closeAddExpenseModal}
-        categories={categories}
-        onExpenseAdded={handleExpenseAdded}
-      />
 
       <SalaryOnboardingModal
         isOpen={showSalaryOnboarding}

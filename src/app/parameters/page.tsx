@@ -6,8 +6,8 @@ import { Header } from "@/components/Header";
 import { BottomNav } from "@/components/BottomNav";
 import { useAuth } from "@/hooks/useAuth";
 import { getUserSettings, updateUserSettings } from "@/lib/supabase/settings";
-import { getCategories, createCategory, deleteCategory } from "@/lib/supabase/categories";
-import { TrashIcon, PlusIcon } from "@heroicons/react/24/outline";
+import { getCategories, createCategory, deleteCategory, updateCategory } from "@/lib/supabase/categories";
+import { TrashIcon, PlusIcon, PencilIcon, CheckIcon, XMarkIcon } from "@heroicons/react/24/outline";
 
 // Force dynamic rendering
 export const dynamic = 'force-dynamic';
@@ -31,6 +31,8 @@ export default function ParametersPage() {
   const [newCategoryName, setNewCategoryName] = useState("");
   const [newCategoryColor, setNewCategoryColor] = useState("#6366F1");
   const [deletingCategoryId, setDeletingCategoryId] = useState<string | null>(null);
+  const [editingCategoryId, setEditingCategoryId] = useState<string | null>(null);
+  const [editingCategoryName, setEditingCategoryName] = useState("");
 
   // Charger les paramètres actuels et les catégories
   useEffect(() => {
@@ -58,7 +60,7 @@ export default function ParametersPage() {
         })));
       } catch (err) {
         console.error("Error loading data:", err);
-        setError("Erreur lors du chargement des paramètres");
+        setError("Error loading settings");
       } finally {
         setLoading(false);
       }
@@ -82,14 +84,14 @@ export default function ParametersPage() {
 
     try {
       if (!user) {
-        setError("Vous devez être connecté");
+        setError("You must be logged in");
         setSaving(false);
         return;
       }
 
       const parsedSalary = parseFloat(salaryNet);
       if (isNaN(parsedSalary) || parsedSalary < 0) {
-        setError("Veuillez saisir un montant valide");
+        setError("Please enter a valid amount");
         setSaving(false);
         return;
       }
@@ -106,7 +108,7 @@ export default function ParametersPage() {
       setError(
         err instanceof Error
           ? err.message
-          : "Erreur lors de la sauvegarde. Veuillez réessayer."
+          : "Error saving. Please try again."
       );
     } finally {
       setSaving(false);
@@ -138,13 +140,49 @@ export default function ParametersPage() {
       setError(
         err instanceof Error
           ? err.message
-          : "Erreur lors de la création de la catégorie"
+          : "Error creating category"
       );
     }
   };
 
+  const handleEditCategory = (categoryId: string, currentName: string) => {
+    setEditingCategoryId(categoryId);
+    setEditingCategoryName(currentName);
+  };
+
+  const handleSaveCategoryEdit = async (categoryId: string) => {
+    if (!editingCategoryName.trim()) {
+      setError("Category name cannot be empty");
+      return;
+    }
+
+    setError(null);
+
+    try {
+      await updateCategory(categoryId, { name: editingCategoryName.trim() });
+      setCategories(categories.map(cat => 
+        cat.id === categoryId ? { ...cat, name: editingCategoryName.trim() } : cat
+      ));
+      setEditingCategoryId(null);
+      setEditingCategoryName("");
+    } catch (err) {
+      console.error("Error updating category:", err);
+      setError(
+        err instanceof Error
+          ? err.message
+          : "Error updating category"
+      );
+    }
+  };
+
+  const handleCancelCategoryEdit = () => {
+    setEditingCategoryId(null);
+    setEditingCategoryName("");
+    setError(null);
+  };
+
   const handleDeleteCategory = async (categoryId: string, categoryName: string) => {
-    if (!confirm(`Êtes-vous sûr de vouloir supprimer la catégorie "${categoryName}" ? Les dépenses associées ne seront pas supprimées.`)) {
+    if (!confirm(`Are you sure you want to delete the category "${categoryName}"? Associated expenses will not be deleted.`)) {
       return;
     }
 
@@ -159,7 +197,7 @@ export default function ParametersPage() {
       setError(
         err instanceof Error
           ? err.message
-          : "Erreur lors de la suppression de la catégorie"
+          : "Error deleting category"
       );
     } finally {
       setDeletingCategoryId(null);
@@ -183,7 +221,7 @@ export default function ParametersPage() {
   if (authLoading || loading) {
     return (
       <div className="mx-auto flex min-h-screen max-w-md flex-col items-center justify-center px-5 bg-flowBg">
-        <div className="text-flowTextMuted">Chargement...</div>
+        <div className="text-flowTextMuted">Loading...</div>
       </div>
     );
   }
@@ -206,10 +244,10 @@ export default function ParametersPage() {
           }}
         >
           <h1 className="text-2xl font-semibold text-flow-primary mb-2">
-            Paramètres
+            Settings
           </h1>
           <p className="text-sm text-flowTextMuted mb-6">
-            Gérez vos paramètres financiers
+            Manage your financial settings
           </p>
 
           {error && (
@@ -220,7 +258,7 @@ export default function ParametersPage() {
 
           {success && (
             <div className="mb-4 rounded-lg bg-green-50 border border-green-200 px-4 py-3 text-sm text-green-700">
-              ✅ Paramètres sauvegardés avec succès
+              ✅ Settings saved successfully
             </div>
           )}
 
@@ -228,7 +266,7 @@ export default function ParametersPage() {
             {/* Salaire net */}
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-2">
-                Salaire net mensuel
+                Monthly net salary
               </label>
               <div className="flex gap-2">
                 <input
@@ -256,7 +294,7 @@ export default function ParametersPage() {
                 </select>
               </div>
               <p className="mt-1 text-xs text-gray-500">
-                Montant net après impôts
+                Net amount after taxes
               </p>
             </div>
 
@@ -267,7 +305,7 @@ export default function ParametersPage() {
                 disabled={saving}
                 className="w-full rounded-lg bg-flow-primary px-4 py-3 text-sm font-medium text-white hover:bg-flow-primary/90 disabled:opacity-50 disabled:cursor-not-allowed"
               >
-                {saving ? "Enregistrement..." : "Enregistrer les paramètres"}
+                {saving ? "Saving..." : "Save settings"}
               </button>
             </div>
           </form>
@@ -283,10 +321,10 @@ export default function ParametersPage() {
           }}
         >
           <h2 className="text-lg font-semibold text-flow-primary mb-2">
-            Catégories
+            Categories
           </h2>
           <p className="text-sm text-flowTextMuted mb-6">
-            Gérez vos catégories de dépenses
+            Manage your expense categories
           </p>
 
           {/* Liste des catégories */}
@@ -296,23 +334,71 @@ export default function ParametersPage() {
                 key={category.id}
                 className="flex items-center justify-between p-3 rounded-lg border border-gray-200"
               >
-                <div className="flex items-center gap-3">
+                <div className="flex items-center gap-3 flex-1 min-w-0">
                   <div
-                    className="h-4 w-4 rounded-full"
+                    className="h-4 w-4 rounded-full flex-shrink-0"
                     style={{ backgroundColor: category.color }}
                   />
-                  <span className="text-sm font-medium text-gray-900">
-                    {category.name}
-                  </span>
+                  {editingCategoryId === category.id ? (
+                    <input
+                      type="text"
+                      value={editingCategoryName}
+                      onChange={(e) => setEditingCategoryName(e.target.value)}
+                      onKeyDown={(e) => {
+                        if (e.key === "Enter") {
+                          handleSaveCategoryEdit(category.id);
+                        } else if (e.key === "Escape") {
+                          handleCancelCategoryEdit();
+                        }
+                      }}
+                      className="flex-1 min-w-0 text-sm font-medium text-gray-900 border border-gray-300 rounded px-2 py-1 focus:border-flow-primary focus:outline-none focus:ring-2 focus:ring-flow-primary/20"
+                      autoFocus
+                    />
+                  ) : (
+                    <span className="text-sm font-medium text-gray-900">
+                      {category.name}
+                    </span>
+                  )}
                 </div>
-                <button
-                  onClick={() => handleDeleteCategory(category.id, category.name)}
-                  disabled={deletingCategoryId === category.id}
-                  className="p-1.5 text-red-500 hover:bg-red-50 rounded-lg transition-colors disabled:opacity-50"
-                  title="Supprimer"
-                >
-                  <TrashIcon className="h-4 w-4" />
-                </button>
+                <div className="flex items-center gap-2">
+                  {editingCategoryId === category.id ? (
+                    <>
+                      <button
+                        onClick={() => handleSaveCategoryEdit(category.id)}
+                        className="p-1.5 text-green-600 hover:bg-green-50 rounded-lg transition-colors"
+                        title="Save"
+                      >
+                        <CheckIcon className="h-4 w-4" />
+                      </button>
+                      <button
+                        onClick={handleCancelCategoryEdit}
+                        className="p-1.5 text-gray-500 hover:bg-gray-50 rounded-lg transition-colors"
+                        title="Cancel"
+                      >
+                        <XMarkIcon className="h-4 w-4" />
+                      </button>
+                    </>
+                  ) : (
+                    <>
+                      <button
+                        onClick={() => handleEditCategory(category.id, category.name)}
+                        disabled={deletingCategoryId === category.id || editingCategoryId !== null}
+                        className="p-1.5 text-blue-500 hover:bg-blue-50 rounded-lg transition-colors disabled:opacity-50"
+                        title="Edit"
+                      >
+                        <PencilIcon className="h-4 w-4" />
+                      </button>
+                      <button
+                        onClick={() => handleDeleteCategory(category.id, category.name)}
+                        disabled={deletingCategoryId === category.id || editingCategoryId !== null}
+                        className="p-1.5 text-red-500 hover:bg-red-50 rounded-lg transition-colors disabled:opacity-50"
+                        title="Delete"
+                      >
+                        <TrashIcon className="h-4 w-4" />
+                      </button>
+                    </>
+                  )}
+                </div>
               </div>
             ))}
           </div>
@@ -321,20 +407,20 @@ export default function ParametersPage() {
           <form onSubmit={handleCreateCategory} className="space-y-4">
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-2">
-                Nouvelle catégorie
+                New category
               </label>
               <input
                 type="text"
                 value={newCategoryName}
                 onChange={(e) => setNewCategoryName(e.target.value)}
-                placeholder="ex: Crédit"
+                placeholder="e.g. Credit, Food, Transport"
                 className="w-full rounded-lg border border-gray-300 px-4 py-2 focus:border-flow-primary focus:outline-none focus:ring-2 focus:ring-flow-primary/20"
               />
             </div>
 
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-2">
-                Couleur
+                Color
               </label>
               <div className="flex flex-wrap gap-2">
                 {predefinedColors.map((color) => (
@@ -356,7 +442,7 @@ export default function ParametersPage() {
                   value={newCategoryColor}
                   onChange={(e) => setNewCategoryColor(e.target.value)}
                   className="h-8 w-8 rounded-full border-2 border-gray-300 cursor-pointer"
-                  title="Couleur personnalisée"
+                  title="Custom color"
                 />
               </div>
             </div>
@@ -367,7 +453,7 @@ export default function ParametersPage() {
               className="w-full rounded-lg bg-flow-primary px-4 py-2 text-sm font-medium text-white hover:bg-flow-primary/90 disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
             >
               <PlusIcon className="h-4 w-4" />
-              Ajouter la catégorie
+              Add category
             </button>
           </form>
         </div>
