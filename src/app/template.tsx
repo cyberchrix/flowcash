@@ -2,7 +2,7 @@
 
 import { AnimatePresence, motion } from "framer-motion";
 import { usePathname } from "next/navigation";
-import { useRef, useEffect } from "react";
+import { useRef, useEffect, useLayoutEffect } from "react";
 
 const routeOrder: Record<string, number> = {
   "/": 0,
@@ -32,84 +32,98 @@ export default function Template({ children }: { children: React.ReactNode }) {
   const direction = getDirection();
 
   // Remettre le scroll en haut lors du changement de route
+  // Utiliser useLayoutEffect pour iOS afin de scroller avant le rendu
+  useLayoutEffect(() => {
+    // Scroll immédiat avant le rendu (critique pour iOS)
+    if (typeof window !== 'undefined') {
+      window.scrollTo(0, 0);
+      document.documentElement.scrollTop = 0;
+      if (document.body) {
+        (document.body as any).scrollTop = 0;
+      }
+    }
+  }, [pathname]);
+
   useEffect(() => {
-    // Utiliser plusieurs méthodes pour garantir que ça fonctionne, surtout sur iOS
+    // Fonction robuste pour scroller vers le haut, spécialement pour iOS
     const scrollToTop = () => {
-      // Méthode 1: window.scrollTo (standard)
-      if (window.scrollTo) {
-        window.scrollTo({ top: 0, left: 0, behavior: 'instant' });
+      // Méthode 1: window.scrollTo avec différentes options
+      try {
         window.scrollTo(0, 0);
+        if ('scrollBehavior' in document.documentElement.style) {
+          window.scrollTo({ top: 0, left: 0, behavior: 'auto' });
+        }
+      } catch (e) {
+        // Ignore
       }
       
-      // Méthode 2: Propriétés directes (importantes pour iOS)
+      // Méthode 2: Propriétés directes (critique pour iOS Safari)
       if (document.documentElement) {
         document.documentElement.scrollTop = 0;
         document.documentElement.scrollLeft = 0;
       }
       
       if (document.body) {
-        document.body.scrollTop = 0;
-        document.body.scrollLeft = 0;
+        (document.body as any).scrollTop = 0;
+        (document.body as any).scrollLeft = 0;
       }
       
-      // Méthode 3: scrollIntoView pour iOS
-      const scrollableElements = [
-        document.documentElement,
-        document.body,
-        document.querySelector('main'),
-        document.querySelector('[data-scroll-container]'),
-      ].filter(Boolean) as Element[];
+      // Méthode 3: Tous les éléments potentiellement scrollables
+      const scrollableSelectors = [
+        'main',
+        '[role="main"]',
+        '[data-scroll-container]',
+        '.scroll-container',
+        'div[style*="overflow"]',
+      ];
       
-      scrollableElements.forEach((el) => {
-        if (el.scrollTop > 0) {
-          el.scrollTop = 0;
-          el.scrollLeft = 0;
-          // Utiliser scrollIntoView comme fallback pour iOS
-          try {
-            el.scrollIntoView({ behavior: 'instant', block: 'start' });
-          } catch (e) {
-            // Ignore si scrollIntoView n'est pas supporté avec ces options
+      scrollableSelectors.forEach(selector => {
+        const elements = document.querySelectorAll(selector);
+        elements.forEach((el: any) => {
+          if (el && el.scrollTop !== undefined) {
+            el.scrollTop = 0;
+            el.scrollLeft = 0;
           }
-        }
-      });
-      
-      // Méthode 4: Forcer le scroll sur tous les éléments scrollables trouvés
-      const allElements = document.querySelectorAll('*');
-      allElements.forEach((el) => {
-        const element = el as HTMLElement;
-        if (element.scrollTop && element.scrollTop > 0) {
-          element.scrollTop = 0;
-        }
+        });
       });
     };
 
-    // Sur iOS, il faut parfois attendre que le rendu soit complet
-    const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent) || 
-                  (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
-
-    // Faire le scroll immédiatement et aussi après plusieurs délais
-    scrollToTop();
-    const timeoutId1 = setTimeout(scrollToTop, 50);
-    const timeoutId2 = setTimeout(scrollToTop, 100);
-    const timeoutId3 = setTimeout(scrollToTop, 200);
-    const timeoutId4 = setTimeout(scrollToTop, 350); // Après la fin de l'animation (300ms + marge)
+    // Utiliser requestAnimationFrame pour s'assurer que le DOM est prêt
+    const rafId1 = requestAnimationFrame(() => {
+      scrollToTop();
+      
+      // Sur iOS, utiliser plusieurs frames pour garantir
+      const rafId2 = requestAnimationFrame(() => {
+        scrollToTop();
+        
+        const rafId3 = requestAnimationFrame(() => {
+          scrollToTop();
+        });
+        
+        return () => cancelAnimationFrame(rafId3);
+      });
+      
+      return () => cancelAnimationFrame(rafId2);
+    });
     
-    // Sur iOS, ajouter des tentatives supplémentaires
-    let iosTimeouts: NodeJS.Timeout[] = [];
-    if (isIOS) {
-      iosTimeouts = [
-        setTimeout(scrollToTop, 400),
-        setTimeout(scrollToTop, 500),
-        setTimeout(scrollToTop, 700),
-      ];
-    }
+    // Délais supplémentaires après l'animation de transition
+    const timeoutId1 = setTimeout(() => {
+      requestAnimationFrame(scrollToTop);
+    }, 100);
+    
+    const timeoutId2 = setTimeout(() => {
+      requestAnimationFrame(scrollToTop);
+    }, 300); // Après l'animation (300ms)
+    
+    const timeoutId3 = setTimeout(() => {
+      requestAnimationFrame(scrollToTop);
+    }, 500);
 
     return () => {
+      cancelAnimationFrame(rafId1);
       clearTimeout(timeoutId1);
       clearTimeout(timeoutId2);
       clearTimeout(timeoutId3);
-      clearTimeout(timeoutId4);
-      iosTimeouts.forEach(clearTimeout);
     };
   }, [pathname]);
 

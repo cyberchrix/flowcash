@@ -133,7 +133,7 @@ export default function Home() {
 
   return (
     <>
-      <div className="mx-auto flex min-h-screen max-w-md flex-col px-5 bg-flowBg">
+      <div className="mx-auto flex min-h-screen max-w-md flex-col px-5 bg-flowBg" data-scroll-container>
         <Header />
 
         <main className="flex-1 space-y-2 pt-20 pb-28">
