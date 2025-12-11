@@ -59,10 +59,10 @@ export function SummaryCard({
       setHasAnimated(true);
       
       // Attendre que l'animation de translation soit terminée
-      // Spring animation: durée approximative ~800-1000ms + délai pour fluidité
+      // Spring animation: durée approximative ~400-600ms + petit délai
       const timer = setTimeout(() => {
         playGlowAnimation();
-      }, 1200);
+      }, 400);
       
       return () => clearTimeout(timer);
     }
@@ -167,7 +167,7 @@ export function SummaryCard({
     };
     
     requestAnimationFrame(animate1);
-    }, 200); // Délai de 200ms après la fin de la translation
+    }, 0); // Pas de délai supplémentaire
   };
 
   useEffect(() => {
@@ -225,6 +225,8 @@ export function SummaryCard({
 
     const round = (value: number, precision: number = 3) => parseFloat(value.toFixed(precision));
 
+    let isHovering = false;
+
     const cardUpdate = (e: PointerEvent) => {
       const position = pointerPositionRelativeToElement($card, e);
       const [px, py] = position.pixels;
@@ -236,14 +238,36 @@ export function SummaryCard({
 
       $card.style.setProperty('--pointer-°', `${round(angle)}deg`);
       $card.style.setProperty('--pointer-d', `${round(edge * 100)}`);
-      $card.style.setProperty('--glow-intensity', `${glowIntensity}`);
+      // Si on est en hover, utiliser au minimum 0.6, sinon utiliser la valeur calculée
+      const minIntensity = isHovering ? 0.6 : 0;
+      $card.style.setProperty('--glow-intensity', `${Math.max(minIntensity, glowIntensity)}`);
       $card.classList.remove('animating');
     };
 
+    const handleMouseEnter = () => {
+      isHovering = true;
+      if (!$card.classList.contains('animating')) {
+        // Le CSS :hover devrait déjà définir --glow-intensity: 0.6
+        // Mais on peut aussi le définir explicitement pour être sûr
+        $card.style.setProperty('--glow-intensity', '0.6');
+      }
+    };
+
+    const handleMouseLeave = () => {
+      isHovering = false;
+      if (!$card.classList.contains('animating')) {
+        $card.style.setProperty('--glow-intensity', '0');
+      }
+    };
+
     $card.addEventListener("pointermove", cardUpdate);
+    $card.addEventListener("mouseenter", handleMouseEnter);
+    $card.addEventListener("mouseleave", handleMouseLeave);
 
     return () => {
       $card.removeEventListener("pointermove", cardUpdate);
+      $card.removeEventListener("mouseenter", handleMouseEnter);
+      $card.removeEventListener("mouseleave", handleMouseLeave);
     };
   }, []);
 
@@ -269,6 +293,10 @@ export function SummaryCard({
             background: "linear-gradient(to right, #FF2D8A, #8A2BFF, #316CFF)",
             letterSpacing: "0.5px",
             padding: "1.5rem",
+            WebkitFontSmoothing: "antialiased",
+            MozOsxFontSmoothing: "grayscale",
+            textRendering: "optimizeLegibility",
+            transform: "translateZ(0)",
           }}
         >
         {/* Wave background */}

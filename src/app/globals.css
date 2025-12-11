@@ -145,11 +145,18 @@ body {
   overflow: visible;
   --glow-intensity: 0;
   transform: translate3d(0, calc(var(--glow-intensity) * -4px), calc(var(--glow-intensity) * 20px)) 
-             perspective(1000px) 
-             scale(calc(1 + var(--glow-intensity) * 0.02));
+             perspective(1000px);
+  will-change: transform;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  backface-visibility: hidden;
 }
 
-.summary-card-wrapper:hover,
+.summary-card-wrapper:hover {
+  --glow-intensity: 0.6;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.15), 0 4px 12px rgba(0, 0, 0, 0.1);
+}
+
 .summary-card-wrapper.animating {
   box-shadow: 0 8px 24px rgba(0, 0, 0, 0.15), 0 4px 12px rgba(0, 0, 0, 0.1);
 }
