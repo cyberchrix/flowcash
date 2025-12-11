@@ -33,38 +33,83 @@ export default function Template({ children }: { children: React.ReactNode }) {
 
   // Remettre le scroll en haut lors du changement de route
   useEffect(() => {
-    // Utiliser plusieurs méthodes pour garantir que ça fonctionne
+    // Utiliser plusieurs méthodes pour garantir que ça fonctionne, surtout sur iOS
     const scrollToTop = () => {
-      // Essayer toutes les méthodes possibles
-      window.scrollTo({ top: 0, left: 0, behavior: 'instant' });
-      window.scrollTo(0, 0);
-      document.documentElement.scrollTop = 0;
-      document.documentElement.scrollLeft = 0;
-      document.body.scrollTop = 0;
-      document.body.scrollLeft = 0;
-      
-      // Vérifier s'il y a un conteneur scrollable principal
-      const mainContent = document.querySelector('main');
-      if (mainContent) {
-        mainContent.scrollTop = 0;
+      // Méthode 1: window.scrollTo (standard)
+      if (window.scrollTo) {
+        window.scrollTo({ top: 0, left: 0, behavior: 'instant' });
+        window.scrollTo(0, 0);
       }
       
-      // Vérifier le body et html
+      // Méthode 2: Propriétés directes (importantes pour iOS)
+      if (document.documentElement) {
+        document.documentElement.scrollTop = 0;
+        document.documentElement.scrollLeft = 0;
+      }
+      
       if (document.body) {
         document.body.scrollTop = 0;
+        document.body.scrollLeft = 0;
       }
+      
+      // Méthode 3: scrollIntoView pour iOS
+      const scrollableElements = [
+        document.documentElement,
+        document.body,
+        document.querySelector('main'),
+        document.querySelector('[data-scroll-container]'),
+      ].filter(Boolean) as Element[];
+      
+      scrollableElements.forEach((el) => {
+        if (el.scrollTop > 0) {
+          el.scrollTop = 0;
+          el.scrollLeft = 0;
+          // Utiliser scrollIntoView comme fallback pour iOS
+          try {
+            el.scrollIntoView({ behavior: 'instant', block: 'start' });
+          } catch (e) {
+            // Ignore si scrollIntoView n'est pas supporté avec ces options
+          }
+        }
+      });
+      
+      // Méthode 4: Forcer le scroll sur tous les éléments scrollables trouvés
+      const allElements = document.querySelectorAll('*');
+      allElements.forEach((el) => {
+        const element = el as HTMLElement;
+        if (element.scrollTop && element.scrollTop > 0) {
+          element.scrollTop = 0;
+        }
+      });
     };
 
-    // Faire le scroll immédiatement et aussi après plusieurs délais pour gérer les animations et le chargement
+    // Sur iOS, il faut parfois attendre que le rendu soit complet
+    const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent) || 
+                  (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
+
+    // Faire le scroll immédiatement et aussi après plusieurs délais
     scrollToTop();
     const timeoutId1 = setTimeout(scrollToTop, 50);
     const timeoutId2 = setTimeout(scrollToTop, 100);
-    const timeoutId3 = setTimeout(scrollToTop, 350); // Après la fin de l'animation (300ms + marge)
+    const timeoutId3 = setTimeout(scrollToTop, 200);
+    const timeoutId4 = setTimeout(scrollToTop, 350); // Après la fin de l'animation (300ms + marge)
+    
+    // Sur iOS, ajouter des tentatives supplémentaires
+    let iosTimeouts: NodeJS.Timeout[] = [];
+    if (isIOS) {
+      iosTimeouts = [
+        setTimeout(scrollToTop, 400),
+        setTimeout(scrollToTop, 500),
+        setTimeout(scrollToTop, 700),
+      ];
+    }
 
     return () => {
       clearTimeout(timeoutId1);
       clearTimeout(timeoutId2);
       clearTimeout(timeoutId3);
+      clearTimeout(timeoutId4);
+      iosTimeouts.forEach(clearTimeout);
     };
   }, [pathname]);
 
