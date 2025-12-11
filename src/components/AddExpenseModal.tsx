@@ -105,20 +105,20 @@ export function AddExpenseModal({
     <Modal isOpen={isOpen} onClose={onClose} title="Add Expense">
       <form onSubmit={handleSubmit} className="space-y-6">
         {error && (
-          <div className="rounded-lg bg-red-50 border border-red-200 px-4 py-3 text-sm text-red-700">
+          <div className="rounded-lg bg-red-50 dark:bg-red-900/30 border border-red-200 dark:border-red-800 px-4 py-3 text-sm text-red-700 dark:text-red-300">
             {error}
           </div>
         )}
 
         {categories.length === 0 && (
-          <div className="rounded-lg bg-yellow-50 border border-yellow-200 px-4 py-3 text-sm text-yellow-700">
+          <div className="rounded-lg bg-yellow-50 dark:bg-yellow-900/30 border border-yellow-200 dark:border-yellow-800 px-4 py-3 text-sm text-yellow-700 dark:text-yellow-300">
             ⚠️ No categories available. Default categories should be created automatically on registration.
           </div>
         )}
 
         {/* Label */}
         <div>
-          <label className="block text-sm font-medium text-gray-700 mb-2">
+          <label className="block text-sm font-medium text-gray-700 dark:text-white mb-2">
             Label
           </label>
           <input
@@ -127,13 +127,13 @@ export function AddExpenseModal({
             onChange={(e) => setLabel(e.target.value)}
             placeholder="e.g. Groceries"
             required
-            className="w-full rounded-lg border border-gray-300 px-4 py-2 focus:border-flow-primary focus:outline-none focus:ring-2 focus:ring-flow-primary/20"
+            className="w-full rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-white px-4 py-2 focus:border-flow-primary focus:outline-none focus:ring-2 focus:ring-flow-primary/20"
           />
         </div>
 
         {/* Amount */}
         <div>
-          <label className="block text-sm font-medium text-gray-700 mb-2">
+          <label className="block text-sm font-medium text-gray-700 dark:text-white mb-2">
             Amount
           </label>
           <div className="flex gap-2">
@@ -144,7 +144,7 @@ export function AddExpenseModal({
               onChange={(e) => setAmount(e.target.value)}
               placeholder="0.00"
               required
-              className="flex-1 min-w-0 rounded-lg border border-gray-300 px-4 py-2 focus:border-flow-primary focus:outline-none focus:ring-2 focus:ring-flow-primary/20"
+              className="flex-1 min-w-0 rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-white px-4 py-2 focus:border-flow-primary focus:outline-none focus:ring-2 focus:ring-flow-primary/20"
             />
             <select
               value={selectedCurrency.code}
@@ -152,7 +152,7 @@ export function AddExpenseModal({
                 const currency = currencies.find((c) => c.code === e.target.value);
                 if (currency) setSelectedCurrency(currency);
               }}
-              className="flex-shrink-0 rounded-lg border border-gray-300 px-4 py-2 focus:border-flow-primary focus:outline-none focus:ring-2 focus:ring-flow-primary/20"
+              className="flex-shrink-0 rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-white px-4 py-2 focus:border-flow-primary focus:outline-none focus:ring-2 focus:ring-flow-primary/20"
             >
               {currencies.map((currency) => (
                 <option key={currency.code} value={currency.code}>
@@ -165,12 +165,12 @@ export function AddExpenseModal({
 
         {/* Category */}
         <div>
-          <label className="block text-sm font-medium text-gray-700 mb-2">
+          <label className="block text-sm font-medium text-gray-700 dark:text-white mb-2">
             Category
           </label>
           <div className="grid grid-cols-2 gap-3">
             {categories.length === 0 ? (
-              <div className="col-span-2 text-sm text-gray-500 text-center py-4">
+              <div className="col-span-2 text-sm text-gray-500 dark:text-gray-400 text-center py-4">
                 No categories available. Please create categories in settings.
               </div>
             ) : (
@@ -181,8 +181,8 @@ export function AddExpenseModal({
                   onClick={() => setSelectedCategory(category)}
                   className={`flex items-center gap-2 rounded-lg border-2 px-4 py-3 transition-all ${
                     selectedCategory?.id === category.id
-                      ? "border-flow-primary bg-flow-primary/5"
-                      : "border-gray-200 hover:border-gray-300"
+                      ? "border-flow-primary bg-flow-primary/5 dark:bg-flow-primary/20"
+                      : "border-gray-200 dark:border-gray-600 hover:border-gray-300 dark:hover:border-gray-500 bg-white dark:bg-gray-700"
                   }`}
                 >
                   <span
@@ -192,8 +192,8 @@ export function AddExpenseModal({
                   <span
                     className={`text-sm font-medium ${
                       selectedCategory?.id === category.id
-                        ? "text-flow-primary"
-                        : "text-gray-700"
+                        ? "text-flow-primary dark:text-flow-primary"
+                        : "text-gray-700 dark:text-white"
                     }`}
                   >
                     {category.name}
@@ -209,7 +209,7 @@ export function AddExpenseModal({
           <button
             type="button"
             onClick={onClose}
-            className="flex-1 rounded-lg border border-gray-300 px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50"
+            className="flex-1 rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 px-4 py-2 text-sm font-medium text-gray-700 dark:text-white hover:bg-gray-50 dark:hover:bg-gray-600"
             disabled={isSubmitting}
           >
             Cancel

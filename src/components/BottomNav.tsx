@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
+import { useState, useEffect } from "react";
 import { HomeIcon, Cog6ToothIcon, PlusIcon } from "@heroicons/react/24/outline";
 import { useModal } from "@/contexts/ModalContext";
 
@@ -36,10 +37,25 @@ export function BottomNav() {
   const isHomeActive = pathname === "/";
   const isParametersActive = pathname === "/parameters";
   const { openAddExpenseModal } = useModal();
+  const [isScrolled, setIsScrolled] = useState(false);
+
+  useEffect(() => {
+    const handleScroll = () => {
+      const scrollY = window.scrollY || document.documentElement.scrollTop;
+      setIsScrolled(scrollY > 50);
+    };
+
+    window.addEventListener("scroll", handleScroll);
+    return () => window.removeEventListener("scroll", handleScroll);
+  }, []);
 
   return (
     <nav className="fixed bottom-0 left-0 right-0 z-50 flex justify-center pb-4">
-      <div className="grid w-full max-w-xs grid-cols-3 items-end rounded-3xl bg-white/95 dark:bg-white/2 px-8 py-4 shadow-flowNav backdrop-blur-flow">
+      <div className={`grid w-full max-w-xs grid-cols-3 items-end rounded-3xl px-8 py-4 backdrop-blur-flow transition-all duration-300 ${
+        isScrolled 
+          ? "bg-white/98 dark:bg-[#262A35]/95 shadow-lg" 
+          : "bg-white/95 dark:bg-white/2 shadow-flowNav"
+      }`}>
         <div className="flex justify-start">
           <NavItem
             href="/"

@@ -33,7 +33,7 @@ export function Modal({ isOpen, onClose, title, children, disableClose = false }
               exit={{ opacity: 0, scale: 0.95, y: 20 }}
               transition={{ type: "spring", duration: 0.3 }}
               onClick={(e) => e.stopPropagation()}
-              className="w-full max-w-md rounded-2xl bg-white dark:bg-white/2 shadow-xl overflow-hidden"
+              className="w-full max-w-md rounded-2xl bg-white dark:bg-[#262A35] shadow-xl overflow-hidden"
               style={{
                 fontFamily:
                   'Inter Variable, ui-sans-serif, system-ui, sans-serif, "Apple Color Emoji", "Segoe UI Emoji", Segoe UI Symbol, "Noto Color Emoji"',
