@@ -149,7 +149,11 @@ body {
   will-change: transform;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
+  -webkit-backface-visibility: hidden;
   backface-visibility: hidden;
+  /* Force GPU acceleration on iOS */
+  -webkit-transform: translate3d(0, calc(var(--glow-intensity) * -4px), calc(var(--glow-intensity) * 20px)) 
+                     perspective(1000px);
 }
 
 .summary-card-wrapper:hover {
@@ -178,7 +182,7 @@ body {
 }
 
 .summary-card-wrapper::before {
-  /* mesh gradient border */
+  /* mesh gradient border - simplified for iOS */
   border: 1px solid transparent;
   background:
     linear-gradient(to right, #FF2D8A, #8A2BFF, #316CFF) padding-box,
@@ -192,14 +196,21 @@ body {
     radial-gradient(at 51% 4%, hsla(12,100%,72%,0.3) 0px, transparent 50%) border-box,
     linear-gradient(#c299ff 0 100%) border-box;
   opacity: calc(((var(--pointer-d) - var(--color-sens)) / (100 - var(--color-sens))) * 0.35);
+  -webkit-mask-image: 
+    conic-gradient( 
+      from var(--pointer-°) at center, black 25%, transparent 40%, transparent 60%, black 75%
+    );
   mask-image: 
     conic-gradient( 
       from var(--pointer-°) at center, black 25%, transparent 40%, transparent 60%, black 75%
     );
+  /* Force GPU acceleration on iOS */
+  transform: translateZ(0);
+  -webkit-transform: translateZ(0);
 }
 
 .summary-card-wrapper::after {
-  /* mesh gradient background */
+  /* mesh gradient background - simplified mask for iOS */
   border: 1px solid transparent;
   background:
     radial-gradient(at 80% 55%, hsla(268,100%,76%,0.3) 0px, transparent 50%) padding-box,
@@ -210,17 +221,30 @@ body {
     radial-gradient(at 82% 18%, hsla(52,100%,65%,0.3) 0px, transparent 50%) padding-box,
     radial-gradient(at 51% 4%, hsla(12,100%,72%,0.3) 0px, transparent 50%) padding-box,
     linear-gradient(#c299ff 0 100%) padding-box;
-  mask-image:
-    linear-gradient( to bottom, black, black ),
-    radial-gradient( ellipse at 50% 50%, black 40%, transparent 65% ),
-    radial-gradient( ellipse at 66% 66%, black 5%, transparent 40% ),
-    radial-gradient( ellipse at 33% 33%, black 5%, transparent 40% ),
-    radial-gradient( ellipse at 66% 33%, black 5%, transparent 40% ),
-    radial-gradient( ellipse at 33% 66%, black 5%, transparent 40% ),
+  /* Simplified mask for iOS compatibility */
+  -webkit-mask-image:
     conic-gradient( from var(--pointer-°) at center, transparent 5%, black 15%, black 85%, transparent 95% );
-  mask-composite: subtract,add,add,add,add,add;
+  mask-image:
+    conic-gradient( from var(--pointer-°) at center, transparent 5%, black 15%, black 85%, transparent 95% );
   opacity: calc(((var(--pointer-d) - var(--color-sens)) / (100 - var(--color-sens))) * 0.25);
   mix-blend-mode: darken;
+  /* Force GPU acceleration on iOS */
+  transform: translateZ(0);
+  -webkit-transform: translateZ(0);
+}
+
+/* iOS-specific fixes */
+@supports (-webkit-touch-callout: none) {
+  .summary-card-wrapper::after {
+    mix-blend-mode: normal;
+  }
+  .summary-card-glow {
+    mix-blend-mode: normal;
+  }
+  .summary-card-wrapper {
+    transform-style: flat;
+    -webkit-transform-style: flat;
+  }
 }
 
 .summary-card-glow {
@@ -231,12 +255,22 @@ body {
   pointer-events: none;
   z-index: 1;
   transition: opacity 0.25s ease-out;
+  -webkit-mask-image: 
+    conic-gradient( 
+      from var(--pointer-°) at center, black 2.5%, transparent 10%, transparent 90%, black 97.5%
+    );
   mask-image: 
     conic-gradient( 
       from var(--pointer-°) at center, black 2.5%, transparent 10%, transparent 90%, black 97.5%
     );
   opacity: calc(((var(--pointer-d) - var(--glow-sens)) / (100 - var(--glow-sens))) * 1);
   mix-blend-mode: luminosity;
+  /* Force GPU acceleration on iOS */
+  transform: translateZ(0);
+  -webkit-transform: translateZ(0);
+  will-change: opacity;
+  -webkit-backface-visibility: hidden;
+  backface-visibility: hidden;
 }
 
 .summary-card-wrapper:not(:hover):not(.animating) .summary-card-glow {
