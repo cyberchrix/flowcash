@@ -37,6 +37,7 @@ export interface Database {
           currency: string;
           category_id: string | null;
           expense_date: string;
+          active?: boolean;
           created_at: string;
           updated_at: string;
         };
@@ -48,6 +49,7 @@ export interface Database {
           currency?: string;
           category_id?: string | null;
           expense_date?: string;
+          active?: boolean;
           created_at?: string;
           updated_at?: string;
         };
@@ -59,6 +61,7 @@ export interface Database {
           currency?: string;
           category_id?: string | null;
           expense_date?: string;
+          active?: boolean;
           created_at?: string;
           updated_at?: string;
         };

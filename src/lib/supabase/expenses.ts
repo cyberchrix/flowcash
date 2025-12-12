@@ -21,9 +21,11 @@ export async function getExpenses(userId: string) {
 
 export async function createExpense(expense: ExpenseInsert) {
   ensureSupabaseConfigured();
+  // Par défaut, les dépenses sont actives
+  const expenseWithActive = { ...expense, active: expense.active ?? true };
   const { data, error } = await supabase
     .from("expenses")
-    .insert(expense)
+    .insert(expenseWithActive)
     .select()
     .single();
 
@@ -36,7 +38,7 @@ export async function createExpense(expense: ExpenseInsert) {
 
 export async function updateExpense(
   expenseId: string,
-  updates: { label?: string; amount?: number }
+  updates: { label?: string; amount?: number; active?: boolean; category_id?: string | null }
 ) {
   ensureSupabaseConfigured();
   const { data, error } = await supabase
@@ -71,6 +73,7 @@ export async function getExpensesByCategory(userId: string) {
     .from("expenses")
     .select("*, categories(name, color)")
     .eq("user_id", userId);
+    // Filtrer les dépenses actives côté client (active !== false pour gérer les anciennes dépenses sans ce champ)
 
   if (error) {
     throw new Error(`Error fetching expenses by category: ${error.message}`);
@@ -83,8 +86,11 @@ export async function getExpensesByCategory(userId: string) {
   // Type for category totals
   type CategoryTotal = { name: string; total: number; color: string };
 
+  // Filtrer les dépenses actives (active !== false pour gérer les anciennes dépenses sans ce champ)
+  const activeExpenses = data.filter((expense) => expense.active !== false);
+
   // Group by category and calculate totals
-  const grouped = data.reduce((acc, expense) => {
+  const grouped = activeExpenses.reduce((acc, expense) => {
     const category = expense.categories as { name: string; color: string } | null;
     const categoryName = category?.name || "Other";
     const categoryColor = category?.color || "#A1A1A1";
