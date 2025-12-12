@@ -16,6 +16,11 @@ const geistMono = Geist_Mono({
 export const metadata: Metadata = {
   title: "Availo",
   description: "Available cash tracker",
+  icons: {
+    icon: "/availo-icon.png",
+    apple: "/availo-icon.png",
+    shortcut: "/availo-icon.png",
+  },
   viewport: {
     width: "device-width",
     initialScale: 1,
