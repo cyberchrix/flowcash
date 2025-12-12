@@ -86,6 +86,20 @@ export default function ExpensesPage() {
     setEditAmount("");
     setEditCategoryId(null);
     setError(null);
+    
+    // Restaurer le zoom sur iOS après l'annulation
+    if (typeof window !== 'undefined') {
+      setTimeout(() => {
+        const viewport = document.querySelector('meta[name="viewport"]');
+        if (viewport) {
+          viewport.setAttribute('content', 'width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no');
+          setTimeout(() => {
+            viewport.setAttribute('content', 'width=device-width, initial-scale=1.0, maximum-scale=5.0, user-scalable=yes');
+          }, 100);
+        }
+        window.scrollTo(0, window.scrollY);
+      }, 100);
+    }
   };
 
   const handleSaveEdit = async (expenseId: string, currency: string) => {
@@ -113,6 +127,23 @@ export default function ExpensesPage() {
       setEditLabel("");
       setEditAmount("");
       setEditCategoryId(null);
+      
+      // Restaurer le zoom sur iOS après la validation
+      if (typeof window !== 'undefined') {
+        // Attendre un peu pour que le DOM se mette à jour
+        setTimeout(() => {
+          // Forcer le zoom à 1 et restaurer la position de scroll
+          const viewport = document.querySelector('meta[name="viewport"]');
+          if (viewport) {
+            viewport.setAttribute('content', 'width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no');
+            setTimeout(() => {
+              viewport.setAttribute('content', 'width=device-width, initial-scale=1.0, maximum-scale=5.0, user-scalable=yes');
+            }, 100);
+          }
+          // Restaurer la position de scroll
+          window.scrollTo(0, window.scrollY);
+        }, 100);
+      }
     } catch (err) {
       console.error("Error updating expense:", err);
       setError(
@@ -389,14 +420,16 @@ export default function ExpensesPage() {
                   type="text"
                   value={editLabel}
                   onChange={(e) => setEditLabel(e.target.value)}
-                  className="w-full text-sm font-medium text-gray-900 dark:text-white bg-white dark:bg-gray-700 px-2 py-1 border border-gray-300 dark:border-gray-600 rounded focus:border-flow-primary focus:outline-none focus:ring-1 focus:ring-flow-primary mb-1"
+                  className="w-full text-base font-medium text-gray-900 dark:text-white bg-white dark:bg-gray-700 px-2 py-1 border border-gray-300 dark:border-gray-600 rounded focus:border-flow-primary focus:outline-none focus:ring-1 focus:ring-flow-primary mb-1"
                   placeholder="Label"
                   autoFocus
+                  style={{ fontSize: '16px' }}
                 />
                 <select
                   value={editCategoryId || ""}
                   onChange={(e) => setEditCategoryId(e.target.value || null)}
-                  className="w-full text-xs text-gray-900 dark:text-white bg-white dark:bg-gray-700 px-2 py-1 border border-gray-300 dark:border-gray-600 rounded focus:border-flow-primary focus:outline-none focus:ring-1 focus:ring-flow-primary mb-1"
+                  className="w-full text-base text-gray-900 dark:text-white bg-white dark:bg-gray-700 px-2 py-1 border border-gray-300 dark:border-gray-600 rounded focus:border-flow-primary focus:outline-none focus:ring-1 focus:ring-flow-primary mb-1"
+                  style={{ fontSize: '16px' }}
                 >
                   <option value="">No category</option>
                   {categories.map((cat) => (
@@ -410,8 +443,9 @@ export default function ExpensesPage() {
                   step="0.01"
                   value={editAmount}
                   onChange={(e) => setEditAmount(e.target.value)}
-                  className="w-full text-xs text-gray-900 dark:text-white bg-white dark:bg-gray-700 px-2 py-1 border border-gray-300 dark:border-gray-600 rounded focus:border-flow-primary focus:outline-none focus:ring-1 focus:ring-flow-primary"
+                  className="w-full text-base text-gray-900 dark:text-white bg-white dark:bg-gray-700 px-2 py-1 border border-gray-300 dark:border-gray-600 rounded focus:border-flow-primary focus:outline-none focus:ring-1 focus:ring-flow-primary"
                   placeholder="Amount"
+                  style={{ fontSize: '16px' }}
                 />
               </>
             ) : (
