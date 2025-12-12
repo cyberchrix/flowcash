@@ -16,7 +16,7 @@ import { useNavigation } from "@/contexts/NavigationContext";
 import { useAuth } from "@/hooks/useAuth";
 import { getCategories } from "@/lib/supabase/categories";
 import { getExpensesByCategory } from "@/lib/supabase/expenses";
-import { getUserSettings } from "@/lib/supabase/settings";
+import { getUserSettings, updateUserSettings } from "@/lib/supabase/settings";
 import { Category } from "@/types";
 
 export default function Home() {
@@ -109,6 +109,12 @@ export default function Home() {
     loadData();
   };
 
+  const handleSalaryUpdate = async (newSalary: number) => {
+    if (!user) return;
+    await updateUserSettings(user.id, { salary_net: newSalary });
+    setSalaryNet(newSalary);
+  };
+
   // Afficher le loading pendant la vérification de l'auth
   if (authLoading) {
     return <LoadingScreen />;
@@ -172,6 +178,7 @@ export default function Home() {
             salaryNet={salaryNet}
             totalExpenses={totalExpenses}
             remaining={remaining}
+            onSalaryUpdate={handleSalaryUpdate}
           />
 
           <ChargesByCategoryCard categories={categories} totalExpenses={totalExpenses} currency={currency} />

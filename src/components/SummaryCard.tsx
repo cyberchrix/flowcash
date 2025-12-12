@@ -7,6 +7,7 @@ interface SummaryCardProps {
   salaryNet: number;
   totalExpenses: number;
   remaining: number;
+  onSalaryUpdate?: (newSalary: number) => Promise<void>;
 }
 
 // Hook pour animer un nombre
@@ -46,12 +47,41 @@ export function SummaryCard({
   salaryNet,
   totalExpenses,
   remaining,
+  onSalaryUpdate,
 }: SummaryCardProps) {
   const animatedSalaryNet = useAnimatedNumber(salaryNet, 800);
   const animatedTotalExpenses = useAnimatedNumber(totalExpenses, 800);
   const animatedRemaining = useAnimatedNumber(remaining, 800);
   const [hasAnimated, setHasAnimated] = useState(false);
   const cardRef = useRef<HTMLElement>(null);
+  const [isEditingSalary, setIsEditingSalary] = useState(false);
+  const [editSalaryValue, setEditSalaryValue] = useState("");
+  const [isSavingSalary, setIsSavingSalary] = useState(false);
+  const salaryInputRef = useRef<HTMLInputElement>(null);
+
+  const handleSaveSalary = async () => {
+    if (!onSalaryUpdate || isSavingSalary) return;
+
+    const parsedValue = parseFloat(editSalaryValue.replace(/,/g, ""));
+    if (isNaN(parsedValue) || parsedValue < 0) {
+      setIsEditingSalary(false);
+      setEditSalaryValue("");
+      return;
+    }
+
+    setIsSavingSalary(true);
+    try {
+      await onSalaryUpdate(parsedValue);
+      setIsEditingSalary(false);
+      setEditSalaryValue("");
+    } catch (error) {
+      console.error("Error updating salary:", error);
+      setIsEditingSalary(false);
+      setEditSalaryValue("");
+    } finally {
+      setIsSavingSalary(false);
+    }
+  };
 
   useEffect(() => {
     // Déclencher l'animation seulement après que les données soient chargées
@@ -333,12 +363,48 @@ export function SummaryCard({
             Net Income
           </div>
 
-          <div 
-            className="mt-1 text-3xl font-bold text-white"
-            style={{ textShadow: "0 1px 2px rgba(0, 0, 0, 0.4), 0 0.5px 1px rgba(0, 0, 0, 0.6)" }}
-          >
-            {Math.round(animatedSalaryNet).toLocaleString("fr-FR")} €
-          </div>
+          {isEditingSalary ? (
+            <div className="mt-1 flex items-center gap-2">
+              <input
+                ref={salaryInputRef}
+                type="number"
+                step="0.01"
+                value={editSalaryValue}
+                onChange={(e) => setEditSalaryValue(e.target.value)}
+                onKeyDown={(e) => {
+                  if (e.key === "Enter") {
+                    handleSaveSalary();
+                  } else if (e.key === "Escape") {
+                    setIsEditingSalary(false);
+                    setEditSalaryValue("");
+                  }
+                }}
+                onBlur={handleSaveSalary}
+                className="text-3xl font-bold text-white bg-transparent border-b-2 border-white/50 focus:border-white focus:outline-none w-32"
+                style={{ textShadow: "0 1px 2px rgba(0, 0, 0, 0.4), 0 0.5px 1px rgba(0, 0, 0, 0.6)" }}
+                disabled={isSavingSalary}
+                autoFocus
+              />
+              <span className="text-3xl font-bold text-white" style={{ textShadow: "0 1px 2px rgba(0, 0, 0, 0.4), 0 0.5px 1px rgba(0, 0, 0, 0.6)" }}>
+                €
+              </span>
+            </div>
+          ) : (
+            <div 
+              className="mt-1 text-3xl font-bold text-white cursor-pointer hover:opacity-80 transition-opacity"
+              onClick={() => {
+                if (onSalaryUpdate) {
+                  setIsEditingSalary(true);
+                  setEditSalaryValue(Math.round(salaryNet).toString());
+                  setTimeout(() => salaryInputRef.current?.focus(), 0);
+                }
+              }}
+              style={{ textShadow: "0 1px 2px rgba(0, 0, 0, 0.4), 0 0.5px 1px rgba(0, 0, 0, 0.6)" }}
+              title={onSalaryUpdate ? "Click to edit" : undefined}
+            >
+              {Math.round(animatedSalaryNet).toLocaleString("fr-FR")} €
+            </div>
+          )}
 
           <div className="mt-3 flex items-center justify-between gap-4">
             <div>
