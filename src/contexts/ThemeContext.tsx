@@ -16,7 +16,7 @@ const ThemeContext = createContext<ThemeContextType | undefined>(undefined);
 
 export function ThemeProvider({ children }: { children: ReactNode }) {
   const { user } = useAuth();
-  const [theme, setThemeState] = useState<Theme>("light");
+  const [theme, setThemeState] = useState<Theme>("dark");
   const [isInitialized, setIsInitialized] = useState(false);
 
   // Charger le thème depuis localStorage au démarrage
@@ -26,9 +26,9 @@ export function ThemeProvider({ children }: { children: ReactNode }) {
       setThemeState(storedTheme);
       applyTheme(storedTheme);
     } else {
-      // Par défaut: light
-      setThemeState("light");
-      applyTheme("light");
+      // Par défaut: dark
+      setThemeState("dark");
+      applyTheme("dark");
     }
     setIsInitialized(true);
   }, []);
