@@ -8,7 +8,7 @@ import { useAuth } from "@/hooks/useAuth";
 import { getExpenses, deleteExpense, updateExpense } from "@/lib/supabase/expenses";
 import { getCategories } from "@/lib/supabase/categories";
 import { Category } from "@/types";
-import { TrashIcon, PencilIcon, CheckIcon, XMarkIcon, ArrowDownIcon, ArrowUpIcon, EyeIcon, EyeSlashIcon } from "@heroicons/react/24/outline";
+import { TrashIcon, PencilIcon, CheckIcon, XMarkIcon, ArrowDownIcon, ArrowUpIcon, EyeIcon, EyeSlashIcon, ChevronDownIcon, ChevronUpIcon } from "@heroicons/react/24/outline";
 import { Database } from "@/types/database";
 import { useToast } from "@/contexts/ToastContext";
 
@@ -34,6 +34,7 @@ export default function ExpensesPage() {
   const [error, setError] = useState<string | null>(null);
   const [sortOrder, setSortOrder] = useState<"asc" | "desc">("desc");
   const [groupByCategory, setGroupByCategory] = useState(true);
+  const [expandedCategories, setExpandedCategories] = useState<Set<string>>(new Set());
 
   const loadExpenses = async () => {
     if (!user) {
@@ -73,6 +74,25 @@ export default function ExpensesPage() {
       router.push("/auth");
     }
   }, [user, authLoading, router]);
+
+  // Initialiser toutes les catégories comme expandées au premier chargement
+  useEffect(() => {
+    if (groupByCategory && expenses.length > 0 && expandedCategories.size === 0) {
+      const grouped = expenses.reduce((acc, expense) => {
+        const categoryName = expense.categories?.name || "Other";
+        if (!acc[categoryName]) {
+          acc[categoryName] = [];
+        }
+        acc[categoryName].push(expense);
+        return acc;
+      }, {} as Record<string, Expense[]>);
+      
+      const categoryNames = Object.keys(grouped);
+      if (categoryNames.length > 0) {
+        setExpandedCategories(new Set(categoryNames));
+      }
+    }
+  }, [expenses, groupByCategory]);
 
   const handleEdit = (expense: Expense) => {
     setEditingId(expense.id);
@@ -340,6 +360,18 @@ export default function ExpensesPage() {
                   return sortOrder === "desc" ? totalB - totalA : totalA - totalB;
                 });
 
+                const toggleCategory = (categoryName: string) => {
+                  setExpandedCategories((prev) => {
+                    const newSet = new Set(prev);
+                    if (newSet.has(categoryName)) {
+                      newSet.delete(categoryName);
+                    } else {
+                      newSet.add(categoryName);
+                    }
+                    return newSet;
+                  });
+                };
+
                 return (
                   <div className="space-y-6">
                     {sortedCategories.map(([categoryName, categoryExpenses]) => {
@@ -353,10 +385,14 @@ export default function ExpensesPage() {
                         0
                       );
                       const currency = categoryExpenses[0]?.currency || "EUR";
+                      const isExpanded = expandedCategories.has(categoryName);
 
                       return (
                         <div key={categoryName} className="space-y-3">
-                          <div className="flex items-center justify-between pb-2 border-b border-gray-200 dark:border-gray-700">
+                          <button
+                            onClick={() => toggleCategory(categoryName)}
+                            className="w-full flex items-center justify-between pb-2 border-b border-gray-200 dark:border-gray-700 hover:opacity-80 transition-opacity"
+                          >
                             <div className="flex items-center gap-2">
                               <span
                                 className="h-3 w-3 rounded-full"
@@ -366,11 +402,22 @@ export default function ExpensesPage() {
                                 {categoryName}
                               </span>
                             </div>
-                            <span className="text-xs font-medium text-gray-700 dark:text-gray-300">
-                              {formatCurrency(totalAmount, currency)}
-                            </span>
-                          </div>
-                          {categoryExpenses.map((expense) => renderExpenseItem(expense))}
+                            <div className="flex items-center gap-2">
+                              <span className="text-xs font-medium text-gray-700 dark:text-gray-300">
+                                {formatCurrency(totalAmount, currency)}
+                              </span>
+                              {isExpanded ? (
+                                <ChevronUpIcon className="h-4 w-4 text-gray-500 dark:text-gray-400" />
+                              ) : (
+                                <ChevronDownIcon className="h-4 w-4 text-gray-500 dark:text-gray-400" />
+                              )}
+                            </div>
+                          </button>
+                          {isExpanded && (
+                            <div className="space-y-3">
+                              {categoryExpenses.map((expense) => renderExpenseItem(expense))}
+                            </div>
+                          )}
                         </div>
                       );
                     })}
