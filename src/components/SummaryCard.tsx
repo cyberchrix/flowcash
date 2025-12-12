@@ -364,8 +364,8 @@ export function SummaryCard({
               <div className="mt-1 inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full font-bold text-white"
                 style={{
                   backgroundColor: remaining >= 0 
-                    ? "rgba(34, 197, 94, 0.4)" // vert doux transparent
-                    : "rgba(239, 68, 68, 0.4)", // rouge doux transparent
+                    ? "rgba(99, 216, 179, 0.8)" // #63D8B3
+                    : "rgba(239, 68, 68, 0.8)", // rouge
                 }}
               >
                 <span 

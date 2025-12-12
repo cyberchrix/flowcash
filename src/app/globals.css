@@ -23,8 +23,7 @@ body {
   background-color: #F5F7FA; /* flowBg */
   color: #1A1A1A;           /* flowText */
   -webkit-font-smoothing: antialiased;
-  font-family: system-ui, -apple-system, BlinkMacSystemFont, "SF Pro Text",
-    "SF Pro Display", sans-serif;
+  font-family: "SF Mono", "Monaco", "Inconsolata", "Roboto Mono", "Courier New", monospace;
   overflow-x: hidden;
   width: 100%;
   position: relative;

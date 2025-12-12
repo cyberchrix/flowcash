@@ -35,8 +35,6 @@ export function Modal({ isOpen, onClose, title, children, disableClose = false }
               onClick={(e) => e.stopPropagation()}
               className="w-full max-w-md rounded-2xl bg-white dark:bg-[#262A35] shadow-xl overflow-hidden"
               style={{
-                fontFamily:
-                  'Inter Variable, ui-sans-serif, system-ui, sans-serif, "Apple Color Emoji", "Segoe UI Emoji", Segoe UI Symbol, "Noto Color Emoji"',
                 maxWidth: "calc(100vw - 2rem)",
               }}
             >

@@ -108,12 +108,10 @@ export default function AccountPage() {
         <div
           className="rounded-[28px] bg-white dark:bg-white/2 border border-gray-200 dark:border-transparent px-6 py-5"
           style={{
-            fontFamily:
-              'Inter Variable, ui-sans-serif, system-ui, sans-serif, "Apple Color Emoji", "Segoe UI Emoji", Segoe UI Symbol, "Noto Color Emoji"',
             boxShadow: "0 1px 2px 0 rgba(0, 0, 0, 0.05)",
           }}
         >
-          <h1 className="text-lg font-semibold text-gray-900 dark:text-white/50 mb-2">
+          <h1 className="text-xs font-semibold text-gray-900 dark:text-white/50 uppercase mb-2">
             Mon compte
           </h1>
           <p className="text-sm text-flowTextMuted mb-6">
@@ -146,12 +144,10 @@ export default function AccountPage() {
         <div
           className="rounded-[28px] bg-white dark:bg-white/2 border border-gray-200 dark:border-transparent px-6 py-5"
           style={{
-            fontFamily:
-              'Inter Variable, ui-sans-serif, system-ui, sans-serif, "Apple Color Emoji", "Segoe UI Emoji", Segoe UI Symbol, "Noto Color Emoji"',
             boxShadow: "0 1px 2px 0 rgba(0, 0, 0, 0.05)",
           }}
         >
-          <h2 className="text-base font-semibold text-gray-900 dark:text-white/50 mb-2">
+          <h2 className="text-xs font-semibold text-gray-900 dark:text-white/50 uppercase mb-2">
             Déconnexion
           </h2>
           <p className="text-sm text-gray-600 mb-4">
@@ -171,12 +167,10 @@ export default function AccountPage() {
         <div
           className="rounded-[28px] bg-white border border-red-200 px-6 py-5"
           style={{
-            fontFamily:
-              'Inter Variable, ui-sans-serif, system-ui, sans-serif, "Apple Color Emoji", "Segoe UI Emoji", Segoe UI Symbol, "Noto Color Emoji"',
             boxShadow: "0 1px 2px 0 rgba(0, 0, 0, 0.05)",
           }}
         >
-          <h2 className="text-lg font-semibold text-red-600 mb-2">
+          <h2 className="text-xs font-semibold text-red-600 uppercase mb-2">
             Zone de danger
           </h2>
           <p className="text-sm text-gray-600 mb-4">

@@ -7,6 +7,9 @@ export default {
   ],
   theme: {
     extend: {
+      fontFamily: {
+        sans: ['"SF Mono"', '"Monaco"', '"Inconsolata"', '"Roboto Mono"', '"Courier New"', 'monospace'],
+      },
       colors: {
         flowBg: "#F5F7FA",
         flowText: "#1A1A1A",

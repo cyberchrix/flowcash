@@ -173,8 +173,6 @@ export default function AuthPage() {
         <div
           className="rounded-[28px] bg-white dark:bg-white/2 border border-gray-200 dark:border-transparent px-6 py-8 shadow-sm"
           style={{
-            fontFamily:
-              'Inter Variable, ui-sans-serif, system-ui, sans-serif, "Apple Color Emoji", "Segoe UI Emoji", Segoe UI Symbol, "Noto Color Emoji"',
             boxShadow: "0 1px 2px 0 rgba(0, 0, 0, 0.05)",
           }}
         >
