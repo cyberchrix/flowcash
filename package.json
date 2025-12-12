@@ -15,7 +15,7 @@
     "@supabase/ssr": "^0.8.0",
     "@supabase/supabase-js": "^2.87.1",
     "framer-motion": "^12.23.25",
-    "next": "16.0.7",
+    "next": "16.0.10",
     "react": "19.2.0",
     "react-colorful": "^5.6.1",
     "react-dom": "19.2.0"
@@ -29,7 +29,7 @@
     "babel-plugin-react-compiler": "1.0.0",
     "dotenv": "^17.2.3",
     "eslint": "^9",
-    "eslint-config-next": "16.0.7",
+    "eslint-config-next": "16.0.10",
     "postcss": "^8.5.6",
     "tailwindcss": "^4.1.17",
     "tsx": "^4.21.0",
