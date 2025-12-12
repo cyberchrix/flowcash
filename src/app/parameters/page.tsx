@@ -27,11 +27,11 @@ export default function ParametersPage() {
   const { showSuccess, showError } = useToast();
   const router = useRouter();
   const [salaryNet, setSalaryNet] = useState("");
+  const [taxWithholdingRate, setTaxWithholdingRate] = useState("");
   const [selectedCurrency, setSelectedCurrency] = useState(currencies[0]);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [success, setSuccess] = useState(false);
   const [categories, setCategories] = useState<Array<{ id: string; name: string; color: string }>>([]);
   const [newCategoryName, setNewCategoryName] = useState("");
   const [newCategoryColor, setNewCategoryColor] = useState("#6366F1");
@@ -52,6 +52,7 @@ export default function ParametersPage() {
         const settings = await getUserSettings(user.id);
         if (settings) {
           setSalaryNet(settings.salary_net.toString());
+          setTaxWithholdingRate(settings.tax_withholding_rate?.toString() || "");
           const currency = currencies.find(c => c.code === settings.currency) || currencies[0];
           setSelectedCurrency(currency);
         }
@@ -84,7 +85,6 @@ export default function ParametersPage() {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError(null);
-    setSuccess(false);
     setSaving(true);
 
     try {
@@ -101,14 +101,23 @@ export default function ParametersPage() {
         return;
       }
 
+      const parsedTaxRate = taxWithholdingRate.trim() 
+        ? parseFloat(taxWithholdingRate) 
+        : null;
+      
+      if (taxWithholdingRate.trim() && (isNaN(parsedTaxRate!) || parsedTaxRate! < 0 || parsedTaxRate! > 100)) {
+        setError("Tax withholding rate must be between 0 and 100");
+        setSaving(false);
+        return;
+      }
+
       await updateUserSettings(user.id, {
         salary_net: parsedSalary,
+        tax_withholding_rate: parsedTaxRate,
         currency: selectedCurrency.code,
       });
 
-      setSuccess(true);
       showSuccess("Settings saved successfully");
-      setTimeout(() => setSuccess(false), 3000);
     } catch (err) {
       console.error("Error updating settings:", err);
       const errorMessage = err instanceof Error
@@ -260,14 +269,8 @@ export default function ParametersPage() {
           </p>
 
           {error && (
-            <div className="mb-4 rounded-lg bg-red-50 border border-red-200 px-4 py-3 text-sm text-red-700">
+            <div className="mb-4 rounded-lg bg-red-50 border border-red-200 dark:bg-red-900/30 dark:border-red-800 px-4 py-3 text-sm text-red-700 dark:text-red-300">
               {error}
-            </div>
-          )}
-
-          {success && (
-            <div className="mb-4 rounded-lg bg-green-50 border border-green-200 px-4 py-3 text-sm text-green-700">
-              ✅ Settings saved successfully
             </div>
           )}
 
@@ -309,7 +312,7 @@ export default function ParametersPage() {
             {/* Salaire net */}
             <div>
               <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                Monthly net salary
+                Monthly net salary (before withholding tax)
               </label>
               <div className="flex gap-2">
                 <input
@@ -336,9 +339,40 @@ export default function ParametersPage() {
                   ))}
                 </select>
               </div>
+            </div>
+
+            {/* Prélèvement à la source */}
+            <div>
+              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                Withholding tax rate (%)
+              </label>
+              <input
+                type="number"
+                step="0.01"
+                min="0"
+                max="100"
+                value={taxWithholdingRate}
+                onChange={(e) => setTaxWithholdingRate(e.target.value)}
+                placeholder="e.g. 10.5"
+                className="w-full rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 px-4 py-2 focus:border-flow-primary focus:outline-none focus:ring-2 focus:ring-flow-primary/20"
+              />
               <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">
-                Net amount after taxes
+                Optional: Percentage deducted at source (e.g., 10.5 for 10.5%). Net Income will be calculated automatically.
               </p>
+              {salaryNet && taxWithholdingRate && (
+                <div className="mt-2 p-3 rounded-lg bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800">
+                  <p className="text-sm text-blue-800 dark:text-blue-200">
+                    <strong>Calculated Net Income:</strong>{" "}
+                    {(
+                      parseFloat(salaryNet) * (1 - parseFloat(taxWithholdingRate) / 100)
+                    ).toLocaleString("en-US", {
+                      minimumFractionDigits: 2,
+                      maximumFractionDigits: 2,
+                    })}{" "}
+                    {selectedCurrency.symbol}
+                  </p>
+                </div>
+              )}
             </div>
 
             {/* Bouton de sauvegarde */}

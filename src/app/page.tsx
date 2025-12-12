@@ -27,6 +27,8 @@ export default function Home() {
   const { showSuccess, showError } = useToast();
   const [categories, setCategories] = useState<Category[]>([]);
   const [salaryNet, setSalaryNet] = useState(0);
+  const [taxWithholdingRate, setTaxWithholdingRate] = useState<number | null>(null);
+  const [netIncome, setNetIncome] = useState(0);
   const [totalExpenses, setTotalExpenses] = useState(0);
   const [currency, setCurrency] = useState("EUR");
   const [loading, setLoading] = useState(true);
@@ -76,7 +78,17 @@ export default function Home() {
       const settings = await getUserSettings(user.id);
       if (settings) {
         const salary = Number(settings.salary_net) || 0;
+        const taxRate = settings.tax_withholding_rate ? Number(settings.tax_withholding_rate) : null;
+        
         setSalaryNet(salary);
+        setTaxWithholdingRate(taxRate);
+        
+        // Calculate Net Income: salary_net * (1 - tax_rate / 100)
+        const calculatedNetIncome = taxRate 
+          ? salary * (1 - taxRate / 100)
+          : salary;
+        setNetIncome(calculatedNetIncome);
+        
         setCurrency(settings.currency || "EUR");
         
         // Afficher l'onboarding si le salaire n'est pas configuré
@@ -106,17 +118,37 @@ export default function Home() {
 
   const handleSalaryOnboardingComplete = (newSalaryNet: number) => {
     setSalaryNet(newSalaryNet);
+    // Calculate Net Income with current tax rate (if any)
+    const calculatedNetIncome = taxWithholdingRate 
+      ? newSalaryNet * (1 - taxWithholdingRate / 100)
+      : newSalaryNet;
+    setNetIncome(calculatedNetIncome);
     setShowSalaryOnboarding(false);
     // Recharger les données pour s'assurer que tout est à jour
     loadData();
   };
+
+  // Recalculate Net Income when salary or tax rate changes
+  useEffect(() => {
+    const calculatedNetIncome = taxWithholdingRate 
+      ? salaryNet * (1 - taxWithholdingRate / 100)
+      : salaryNet;
+    setNetIncome(calculatedNetIncome);
+  }, [salaryNet, taxWithholdingRate]);
 
   const handleSalaryUpdate = async (newSalary: number) => {
     if (!user) return;
     try {
       await updateUserSettings(user.id, { salary_net: newSalary });
       setSalaryNet(newSalary);
-      showSuccess(`Net income updated to ${newSalary.toLocaleString("fr-FR")} €`);
+      
+      // Recalculate Net Income with current tax rate
+      const calculatedNetIncome = taxWithholdingRate 
+        ? newSalary * (1 - taxWithholdingRate / 100)
+        : newSalary;
+      setNetIncome(calculatedNetIncome);
+      
+      showSuccess(`Net income updated to ${calculatedNetIncome.toLocaleString("fr-FR", { minimumFractionDigits: 2, maximumFractionDigits: 2 })} €`);
     } catch (err) {
       console.error("Error updating salary:", err);
       showError(
@@ -149,7 +181,7 @@ export default function Home() {
     return <LoadingScreen />;
   }
 
-  const remaining = salaryNet - totalExpenses;
+  const remaining = netIncome - totalExpenses;
 
   // Fonction pour obtenir le nom de l'utilisateur
   const getUserName = () => {
@@ -186,12 +218,12 @@ export default function Home() {
               {getUserName()} 👋
             </h1>
           </div> */}
-          <SummaryCard
-            salaryNet={salaryNet}
-            totalExpenses={totalExpenses}
-            remaining={remaining}
-            onSalaryUpdate={handleSalaryUpdate}
-          />
+                  <SummaryCard
+                    salaryNet={netIncome}
+                    totalExpenses={totalExpenses}
+                    remaining={remaining}
+                    onSalaryUpdate={handleSalaryUpdate}
+                  />
 
           <ChargesByCategoryCard categories={categories} totalExpenses={totalExpenses} currency={currency} />
         </main>

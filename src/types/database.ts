@@ -71,6 +71,7 @@ export interface Database {
           id: string;
           user_id: string;
           salary_net: number;
+          tax_withholding_rate?: number | null;
           currency: string;
           theme?: string;
           created_at: string;
@@ -80,6 +81,7 @@ export interface Database {
           id?: string;
           user_id: string;
           salary_net?: number;
+          tax_withholding_rate?: number | null;
           currency?: string;
           theme?: string;
           created_at?: string;
@@ -89,6 +91,7 @@ export interface Database {
           id?: string;
           user_id?: string;
           salary_net?: number;
+          tax_withholding_rate?: number | null;
           currency?: string;
           theme?: string;
           created_at?: string;
