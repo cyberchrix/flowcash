@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, useRef } from "react";
 import { useRouter } from "next/navigation";
 import { Category } from "@/types";
 
@@ -73,6 +73,14 @@ export function ChargesByCategoryCard({
   const router = useRouter();
   // progress: 0 → 1 to animate donut + percentages
   const [progress, setProgress] = useState(0);
+  const [hoveredSegment, setHoveredSegment] = useState<{
+    category: Category;
+    amount: number;
+    percent: number;
+    x: number;
+    y: number;
+  } | null>(null);
+  const svgRef = useRef<SVGSVGElement>(null);
 
   useEffect(() => {
     let frameId: number;
@@ -109,12 +117,50 @@ export function ChargesByCategoryCard({
     const endAngle = currentAngle + angle;
     currentAngle = endAngle;
 
+    // Calculer le montant pour cette catégorie
+    const amount = (totalExpenses * cat.percent) / 100;
+
     return {
       ...cat,
       startAngle,
       endAngle,
+      amount,
     };
   });
+
+  // Handler pour le hover sur un segment
+  const handleSegmentMouseEnter = (
+    e: React.MouseEvent<SVGPathElement>,
+    segment: typeof segments[0]
+  ) => {
+    e.stopPropagation();
+    setHoveredSegment({
+      category: segment,
+      amount: segment.amount,
+      percent: segment.percent,
+      x: e.clientX,
+      y: e.clientY,
+    });
+  };
+
+  const handleSegmentMouseLeave = (e: React.MouseEvent<SVGPathElement>) => {
+    e.stopPropagation();
+    setHoveredSegment(null);
+  };
+
+  const handleSegmentMouseMove = (
+    e: React.MouseEvent<SVGPathElement>,
+    segment: typeof segments[0]
+  ) => {
+    e.stopPropagation();
+    setHoveredSegment({
+      category: segment,
+      amount: segment.amount,
+      percent: segment.percent,
+      x: e.clientX,
+      y: e.clientY,
+    });
+  };
 
   // Calculer le pourcentage total affiché (pour la vérification)
   const totalPercent = sortedCategories.reduce(
@@ -179,8 +225,10 @@ export function ChargesByCategoryCard({
         {/* Animated donut avec segments */}
         <div className="relative h-44 w-44 flex-shrink-0">
           <svg
+            ref={svgRef}
             viewBox="0 0 140 140"
             className="absolute inset-0 h-full w-full -rotate-90"
+            style={{ pointerEvents: "all" }}
           >
             {/* Segments du camembert */}
             {segments.map((segment) => {
@@ -254,21 +302,67 @@ export function ChargesByCategoryCard({
                 "Z", // Fermer le chemin
               ].join(" ");
 
+              const isHovered = hoveredSegment?.category.id === segment.id;
+              
               return (
                 <path
-                  key={segment.name}
+                  key={`${segment.id}-${segment.name}`}
                   d={pathData}
                   fill={segment.color}
                   stroke="none"
+                  onMouseEnter={(e) => handleSegmentMouseEnter(e, segment)}
+                  onMouseLeave={handleSegmentMouseLeave}
+                  onMouseMove={(e) => handleSegmentMouseMove(e, segment)}
+                  className="cursor-pointer transition-opacity"
+                  style={{ 
+                    pointerEvents: "all",
+                    opacity: isHovered ? 0.8 : 1,
+                  }}
                 />
               );
             })}
           </svg>
 
+          {/* Tooltip */}
+          {hoveredSegment && typeof window !== 'undefined' && (
+            <div
+              className="fixed z-50 bg-gray-900 dark:bg-gray-800 text-white px-3 py-2 rounded-lg shadow-xl pointer-events-none hidden md:block"
+              style={{
+                left: `${Math.min(hoveredSegment.x + 15, window.innerWidth - 200)}px`,
+                top: `${Math.max(hoveredSegment.y - 80, 10)}px`,
+                whiteSpace: "nowrap",
+              }}
+            >
+              <div className="flex items-center gap-2 mb-1">
+                <div
+                  className="h-2 w-2 rounded-full"
+                  style={{ backgroundColor: hoveredSegment.category.color }}
+                />
+                <div className="text-xs font-semibold uppercase">
+                  {hoveredSegment.category.name}
+                </div>
+              </div>
+              <div className="text-xs space-y-0.5 ml-4">
+                <div className="font-medium">
+                  {hoveredSegment.amount.toLocaleString("fr-FR", {
+                    minimumFractionDigits: 2,
+                    maximumFractionDigits: 2,
+                  })}{" "}
+                  {getCurrencySymbol(currency)}
+                </div>
+                <div className="text-gray-400">
+                  {hoveredSegment.percent.toFixed(1)}%
+                </div>
+              </div>
+            </div>
+          )}
+
           {/* center label */}
-          <div className="absolute inset-0 flex flex-col items-center justify-center">
-                    <span className="text-[10px] text-gray-700 dark:text-gray-400 mb-0">TOTAL:</span>
-                    <span className="text-base font-black text-gray-900 dark:text-gray-100 -mt-0.5">
+          <div 
+            className="absolute inset-0 flex flex-col items-center justify-center pointer-events-none"
+          >
+            <span className="text-[10px] text-gray-700 dark:text-gray-400 mb-0">TOTAL:</span>
+            <span className="text-base font-black text-gray-900 dark:text-gray-100 -mt-0.5">
               {animatedTotal.toLocaleString("fr-FR", {
                 minimumFractionDigits: 2,
                 maximumFractionDigits: 2,
