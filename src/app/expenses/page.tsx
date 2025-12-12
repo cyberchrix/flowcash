@@ -35,6 +35,7 @@ export default function ExpensesPage() {
   const [sortOrder, setSortOrder] = useState<"asc" | "desc">("desc");
   const [groupByCategory, setGroupByCategory] = useState(true);
   const [expandedCategories, setExpandedCategories] = useState<Set<string>>(new Set());
+  const [selectedCategories, setSelectedCategories] = useState<Set<string>>(new Set());
 
   const loadExpenses = async () => {
     if (!user) {
@@ -93,6 +94,51 @@ export default function ExpensesPage() {
       }
     }
   }, [expenses, groupByCategory]);
+
+  // Initialiser toutes les catégories comme sélectionnées au premier chargement
+  useEffect(() => {
+    if (categories.length > 0 && selectedCategories.size === 0) {
+      const allCategoryNames = new Set(categories.map(cat => cat.name));
+      // Ajouter aussi "Other" si des dépenses sans catégorie existent
+      const hasOther = expenses.some(exp => !exp.categories || !exp.categories.name);
+      if (hasOther) {
+        allCategoryNames.add("Other");
+      }
+      setSelectedCategories(allCategoryNames);
+    }
+  }, [categories, expenses]);
+
+  // Toggle une catégorie dans le filtre
+  const toggleCategoryFilter = (categoryName: string) => {
+    setSelectedCategories((prev) => {
+      const newSet = new Set(prev);
+      if (newSet.has(categoryName)) {
+        newSet.delete(categoryName);
+      } else {
+        newSet.add(categoryName);
+      }
+      return newSet;
+    });
+  };
+
+  // Obtenir toutes les catégories disponibles (avec les dépenses existantes)
+  const getAvailableCategories = () => {
+    const categoryMap = new Map<string, Category>();
+    categories.forEach(cat => categoryMap.set(cat.name, cat));
+    
+    // Ajouter "Other" si des dépenses sans catégorie existent
+    const hasOther = expenses.some(exp => !exp.categories || !exp.categories.name);
+    if (hasOther && !categoryMap.has("Other")) {
+      categoryMap.set("Other", {
+        id: "other",
+        name: "Other",
+        color: "#A1A1A1",
+        percent: 0,
+      });
+    }
+    
+    return Array.from(categoryMap.values());
+  };
 
   const handleEdit = (expense: Expense) => {
     setEditingId(expense.id);
@@ -285,30 +331,66 @@ export default function ExpensesPage() {
           )}
 
           {expenses.length > 0 && (
-            <div className="mb-4 flex items-center gap-3">
-              <button
-                onClick={() => setSortOrder(sortOrder === "desc" ? "asc" : "desc")}
-                className="flex items-center gap-2 px-3 py-2 text-xs font-medium text-gray-700 dark:text-gray-300 bg-gray-100 dark:bg-gray-700 hover:bg-gray-200 dark:hover:bg-gray-600 rounded-lg transition-colors"
-                title={sortOrder === "desc" ? "Sort ascending" : "Sort descending"}
-              >
-                {sortOrder === "desc" ? (
-                  <ArrowDownIcon className="h-4 w-4" />
-                ) : (
-                  <ArrowUpIcon className="h-4 w-4" />
-                )}
-                {sortOrder === "desc" ? "Desc" : "Asc"}
-              </button>
-              <button
-                onClick={() => setGroupByCategory(!groupByCategory)}
-                className={`px-3 py-2 text-xs font-medium rounded-lg transition-colors ${
-                  groupByCategory
-                    ? "bg-flow-primary text-white hover:bg-flow-primary/90"
-                    : "text-gray-700 dark:text-gray-300 bg-gray-100 dark:bg-gray-700 hover:bg-gray-200 dark:hover:bg-gray-600"
-                }`}
-              >
-                {groupByCategory ? "By Category" : "All"}
-              </button>
-            </div>
+            <>
+              {/* Nuage de catégories pour filtrage */}
+              <div className="mb-4">
+                <label className="block text-xs font-medium text-gray-700 dark:text-gray-300 mb-2">
+                  Filter by category
+                </label>
+                <div className="flex flex-wrap gap-2">
+                  {getAvailableCategories().map((category) => {
+                    const isSelected = selectedCategories.has(category.name);
+                    return (
+                      <button
+                        key={category.id}
+                        onClick={() => toggleCategoryFilter(category.name)}
+                        className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-medium transition-all ${
+                          isSelected
+                            ? "bg-opacity-100 shadow-sm"
+                            : "bg-opacity-30 opacity-60 hover:opacity-80"
+                        }`}
+                        style={{
+                          backgroundColor: isSelected ? category.color : `${category.color}40`,
+                          color: isSelected ? "#FFFFFF" : category.color,
+                        }}
+                      >
+                        <span
+                          className="h-2 w-2 rounded-full"
+                          style={{ backgroundColor: isSelected ? "#FFFFFF" : category.color }}
+                        />
+                        {category.name}
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+
+              {/* Boutons de tri et groupage */}
+              <div className="mb-4 flex items-center gap-3">
+                <button
+                  onClick={() => setSortOrder(sortOrder === "desc" ? "asc" : "desc")}
+                  className="flex items-center gap-2 px-3 py-2 text-xs font-medium text-gray-700 dark:text-gray-300 bg-gray-100 dark:bg-gray-700 hover:bg-gray-200 dark:hover:bg-gray-600 rounded-lg transition-colors"
+                  title={sortOrder === "desc" ? "Sort ascending" : "Sort descending"}
+                >
+                  {sortOrder === "desc" ? (
+                    <ArrowDownIcon className="h-4 w-4" />
+                  ) : (
+                    <ArrowUpIcon className="h-4 w-4" />
+                  )}
+                  {sortOrder === "desc" ? "Desc" : "Asc"}
+                </button>
+                <button
+                  onClick={() => setGroupByCategory(!groupByCategory)}
+                  className={`px-3 py-2 text-xs font-medium rounded-lg transition-colors ${
+                    groupByCategory
+                      ? "bg-flow-primary text-white hover:bg-flow-primary/90"
+                      : "text-gray-700 dark:text-gray-300 bg-gray-100 dark:bg-gray-700 hover:bg-gray-200 dark:hover:bg-gray-600"
+                  }`}
+                >
+                  {groupByCategory ? "By Category" : "All"}
+                </button>
+              </div>
+            </>
           )}
 
           {expenses.length === 0 ? (
@@ -322,8 +404,14 @@ export default function ExpensesPage() {
             </div>
           ) : (
             (() => {
+              // Filtrer les dépenses par catégories sélectionnées
+              const filteredExpenses = expenses.filter((expense) => {
+                const categoryName = expense.categories?.name || "Other";
+                return selectedCategories.has(categoryName);
+              });
+
               // Trier les dépenses (actives d'abord, puis désactivées)
-              const sortedExpenses = [...expenses].sort((a, b) => {
+              const sortedExpenses = [...filteredExpenses].sort((a, b) => {
                 const aActive = a.active !== false;
                 const bActive = b.active !== false;
                 // Trier par statut actif d'abord (actives en premier)
@@ -371,6 +459,16 @@ export default function ExpensesPage() {
                     return newSet;
                   });
                 };
+
+                if (sortedCategories.length === 0) {
+                  return (
+                    <div className="text-center py-8">
+                      <p className="text-gray-500 dark:text-gray-400 text-sm">
+                        No expenses match the selected categories
+                      </p>
+                    </div>
+                  );
+                }
 
                 return (
                   <div className="space-y-6">
@@ -426,6 +524,16 @@ export default function ExpensesPage() {
               }
 
               // Sinon afficher toutes les dépenses triées
+              if (sortedExpenses.length === 0) {
+                return (
+                  <div className="text-center py-8">
+                    <p className="text-gray-500 dark:text-gray-400 text-sm">
+                      No expenses match the selected categories
+                    </p>
+                  </div>
+                );
+              }
+              
               return (
                 <div className="space-y-3">
                   {sortedExpenses.map((expense) => renderExpenseItem(expense))}
