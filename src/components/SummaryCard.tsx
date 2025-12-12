@@ -359,55 +359,86 @@ export function SummaryCard({
             Summary
           </h2>
 
-          <div className="text-sm font-medium text-white/90 uppercase">
-            Net Income
+          {/* Disposable Income - Mis en avant */}
+          <div className="text-sm font-medium text-white/90 uppercase mb-1">
+            Disposable Income
+          </div>
+          <div className="inline-flex items-center gap-1.5 px-4 py-2 rounded-full font-bold text-white mb-4"
+            style={{
+              backgroundColor: remaining >= 0 
+                ? "rgba(99, 216, 179, 0.8)" // #63D8B3 transparent
+                : "rgba(239, 68, 68, 0.8)", // rouge doux transparent
+            }}
+          >
+            <span 
+              className="text-3xl"
+              style={{ textShadow: "0 1px 2px rgba(0, 0, 0, 0.4), 0 0.5px 1px rgba(0, 0, 0, 0.6)" }}
+            >
+              {remaining >= 0 ? "+" : "-"}
+            </span>
+            <span 
+              className="text-3xl"
+              style={{ textShadow: "0 1px 2px rgba(0, 0, 0, 0.4), 0 0.5px 1px rgba(0, 0, 0, 0.6)" }}
+            >
+              {Math.abs(Math.round(animatedRemaining)).toLocaleString("fr-FR", {
+                minimumFractionDigits: 0,
+                maximumFractionDigits: 0,
+              })}{" "}
+              €
+            </span>
           </div>
 
-          {isEditingSalary ? (
-            <div className="mt-1 flex items-center gap-2">
-              <input
-                ref={salaryInputRef}
-                type="number"
-                step="0.01"
-                value={editSalaryValue}
-                onChange={(e) => setEditSalaryValue(e.target.value)}
-                onKeyDown={(e) => {
-                  if (e.key === "Enter") {
-                    handleSaveSalary();
-                  } else if (e.key === "Escape") {
-                    setIsEditingSalary(false);
-                    setEditSalaryValue("");
-                  }
-                }}
-                onBlur={handleSaveSalary}
-                className="text-3xl font-bold text-white bg-transparent border-b-2 border-white/50 focus:border-white focus:outline-none w-32"
-                style={{ textShadow: "0 1px 2px rgba(0, 0, 0, 0.4), 0 0.5px 1px rgba(0, 0, 0, 0.6)" }}
-                disabled={isSavingSalary}
-                autoFocus
-              />
-              <span className="text-3xl font-bold text-white" style={{ textShadow: "0 1px 2px rgba(0, 0, 0, 0.4), 0 0.5px 1px rgba(0, 0, 0, 0.6)" }}>
-                €
-              </span>
-            </div>
-          ) : (
-            <div 
-              className="mt-1 text-3xl font-bold text-white cursor-pointer hover:opacity-80 transition-opacity"
-              onClick={() => {
-                if (onSalaryUpdate) {
-                  setIsEditingSalary(true);
-                  setEditSalaryValue(Math.round(salaryNet).toString());
-                  setTimeout(() => salaryInputRef.current?.focus(), 0);
-                }
-              }}
-              style={{ textShadow: "0 1px 2px rgba(0, 0, 0, 0.4), 0 0.5px 1px rgba(0, 0, 0, 0.6)" }}
-              title={onSalaryUpdate ? "Click to edit" : undefined}
-            >
-              {Math.round(animatedSalaryNet).toLocaleString("fr-FR")} €
-            </div>
-          )}
-
-          <div className="mt-3 flex items-center justify-between gap-4">
+          {/* Net Income et Total Expenses en dessous */}
+          <div className="flex items-center justify-between gap-4">
             <div>
+              <div className="text-xs text-white/90 uppercase">
+                Net Income
+              </div>
+              {isEditingSalary ? (
+                <div className="mt-1 flex items-center gap-2">
+                  <input
+                    ref={salaryInputRef}
+                    type="number"
+                    step="0.01"
+                    value={editSalaryValue}
+                    onChange={(e) => setEditSalaryValue(e.target.value)}
+                    onKeyDown={(e) => {
+                      if (e.key === "Enter") {
+                        handleSaveSalary();
+                      } else if (e.key === "Escape") {
+                        setIsEditingSalary(false);
+                        setEditSalaryValue("");
+                      }
+                    }}
+                    onBlur={handleSaveSalary}
+                    className="text-xl font-bold text-white bg-transparent border-b-2 border-white/50 focus:border-white focus:outline-none w-24"
+                    style={{ textShadow: "0 1px 2px rgba(0, 0, 0, 0.4), 0 0.5px 1px rgba(0, 0, 0, 0.6)" }}
+                    disabled={isSavingSalary}
+                    autoFocus
+                  />
+                  <span className="text-xl font-bold text-white" style={{ textShadow: "0 1px 2px rgba(0, 0, 0, 0.4), 0 0.5px 1px rgba(0, 0, 0, 0.6)" }}>
+                    €
+                  </span>
+                </div>
+              ) : (
+                <div 
+                  className="mt-1 text-xl font-bold text-white cursor-pointer hover:opacity-80 transition-opacity"
+                  onClick={() => {
+                    if (onSalaryUpdate) {
+                      setIsEditingSalary(true);
+                      setEditSalaryValue(Math.round(salaryNet).toString());
+                      setTimeout(() => salaryInputRef.current?.focus(), 0);
+                    }
+                  }}
+                  style={{ textShadow: "0 1px 2px rgba(0, 0, 0, 0.4), 0 0.5px 1px rgba(0, 0, 0, 0.6)" }}
+                  title={onSalaryUpdate ? "Click to edit" : undefined}
+                >
+                  {Math.round(animatedSalaryNet).toLocaleString("fr-FR")} €
+                </div>
+              )}
+            </div>
+
+            <div className="text-right">
               <div className="text-xs text-white/90 uppercase">
                 Total Expenses
               </div>
@@ -420,36 +451,6 @@ export function SummaryCard({
                   maximumFractionDigits: 2,
                 })}{" "}
                 €
-              </div>
-            </div>
-
-            <div className="text-right">
-              <div className="text-xs text-white/90 uppercase">
-                Disposable Income
-              </div>
-              <div className="mt-1 inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full font-bold text-white"
-                style={{
-                  backgroundColor: remaining >= 0 
-                    ? "rgba(99, 216, 179, 0.8)" // #63D8B3
-                    : "rgba(239, 68, 68, 0.8)", // rouge
-                }}
-              >
-                <span 
-                  className="text-xl"
-                  style={{ textShadow: "0 1px 2px rgba(0, 0, 0, 0.4), 0 0.5px 1px rgba(0, 0, 0, 0.6)" }}
-                >
-                  {remaining >= 0 ? "+" : "-"}
-                </span>
-                <span 
-                  className="text-xl"
-                  style={{ textShadow: "0 1px 2px rgba(0, 0, 0, 0.4), 0 0.5px 1px rgba(0, 0, 0, 0.6)" }}
-                >
-                  {Math.abs(Math.round(animatedRemaining)).toLocaleString("fr-FR", {
-                    minimumFractionDigits: 0,
-                    maximumFractionDigits: 0,
-                  })}{" "}
-                  €
-                </span>
               </div>
             </div>
           </div>
