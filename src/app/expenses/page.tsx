@@ -10,6 +10,7 @@ import { getCategories } from "@/lib/supabase/categories";
 import { Category } from "@/types";
 import { TrashIcon, PencilIcon, CheckIcon, XMarkIcon, ArrowDownIcon, ArrowUpIcon, EyeIcon, EyeSlashIcon } from "@heroicons/react/24/outline";
 import { Database } from "@/types/database";
+import { useToast } from "@/contexts/ToastContext";
 
 // Force dynamic rendering
 export const dynamic = 'force-dynamic';
@@ -21,6 +22,7 @@ type Expense = Database["public"]["Tables"]["expenses"]["Row"] & {
 export default function ExpensesPage() {
   const { user, loading: authLoading } = useAuth();
   const router = useRouter();
+  const { showSuccess, showError } = useToast();
   const [expenses, setExpenses] = useState<Expense[]>([]);
   const [categories, setCategories] = useState<Category[]>([]);
   const [loading, setLoading] = useState(true);
@@ -127,6 +129,7 @@ export default function ExpensesPage() {
       setEditLabel("");
       setEditAmount("");
       setEditCategoryId(null);
+      showSuccess(`Expense "${editLabel.trim()}" updated successfully`);
       
       // Restaurer le zoom sur iOS après la validation
       if (typeof window !== 'undefined') {
@@ -146,28 +149,34 @@ export default function ExpensesPage() {
       }
     } catch (err) {
       console.error("Error updating expense:", err);
-      setError(
-        err instanceof Error
-          ? err.message
-          : "Error updating expense"
-      );
+      const errorMessage = err instanceof Error
+        ? err.message
+        : "Error updating expense";
+      setError(errorMessage);
+      showError(errorMessage);
     }
   };
 
   const handleToggleActive = async (expenseId: string, currentActive: boolean) => {
+    const expense = expenses.find((e) => e.id === expenseId);
+    const expenseLabel = expense?.label || "expense";
+    
     setError(null);
     try {
       await updateExpense(expenseId, {
         active: !currentActive,
       });
       await loadExpenses();
+      showSuccess(
+        `Expense "${expenseLabel}" ${!currentActive ? "enabled" : "disabled"} successfully`
+      );
     } catch (err) {
       console.error("Error toggling expense:", err);
-      setError(
-        err instanceof Error
-          ? err.message
-          : "Error toggling expense"
-      );
+      const errorMessage = err instanceof Error
+        ? err.message
+        : "Error toggling expense";
+      setError(errorMessage);
+      showError(errorMessage);
     }
   };
 
@@ -176,6 +185,9 @@ export default function ExpensesPage() {
       return;
     }
 
+    const expense = expenses.find((e) => e.id === expenseId);
+    const expenseLabel = expense?.label || "expense";
+
     setDeletingId(expenseId);
     setError(null);
 
@@ -183,13 +195,14 @@ export default function ExpensesPage() {
       await deleteExpense(expenseId);
       // Recharger la liste
       await loadExpenses();
+      showSuccess(`Expense "${expenseLabel}" deleted successfully`);
     } catch (err) {
       console.error("Error deleting expense:", err);
-      setError(
-        err instanceof Error
-          ? err.message
-          : "Error deleting expense"
-      );
+      const errorMessage = err instanceof Error
+        ? err.message
+        : "Error deleting expense";
+      setError(errorMessage);
+      showError(errorMessage);
     } finally {
       setDeletingId(null);
     }

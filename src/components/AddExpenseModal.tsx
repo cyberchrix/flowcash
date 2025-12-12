@@ -5,6 +5,7 @@ import { Modal } from "./Modal";
 import { Category } from "@/types";
 import { createExpense } from "@/lib/supabase/expenses";
 import { useAuth } from "@/hooks/useAuth";
+import { useToast } from "@/contexts/ToastContext";
 
 interface AddExpenseModalProps {
   isOpen: boolean;
@@ -26,6 +27,7 @@ export function AddExpenseModal({
   onExpenseAdded,
 }: AddExpenseModalProps) {
   const { user } = useAuth();
+  const { showSuccess, showError } = useToast();
   const [label, setLabel] = useState("");
   const [amount, setAmount] = useState("");
   const [selectedCurrency, setSelectedCurrency] = useState(currencies[0]);
@@ -87,15 +89,16 @@ export function AddExpenseModal({
       setAmount("");
       setSelectedCategory(categories[0] || null);
       setError(null);
+      showSuccess(`Expense "${label.trim()}" added successfully`);
       onExpenseAdded?.();
       onClose();
     } catch (err) {
       console.error("Error adding expense:", err);
-      setError(
-        err instanceof Error
-          ? err.message
-          : "Error adding expense. Please try again."
-      );
+      const errorMessage = err instanceof Error
+        ? err.message
+        : "Error adding expense. Please try again.";
+      setError(errorMessage);
+      showError(errorMessage);
     } finally {
       setIsSubmitting(false);
     }

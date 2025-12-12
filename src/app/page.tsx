@@ -18,11 +18,13 @@ import { getCategories } from "@/lib/supabase/categories";
 import { getExpensesByCategory } from "@/lib/supabase/expenses";
 import { getUserSettings, updateUserSettings } from "@/lib/supabase/settings";
 import { Category } from "@/types";
+import { useToast } from "@/contexts/ToastContext";
 
 export default function Home() {
   const { showSplash } = useNavigation();
   const { user, loading: authLoading } = useAuth();
   const router = useRouter();
+  const { showSuccess, showError } = useToast();
   const [categories, setCategories] = useState<Category[]>([]);
   const [salaryNet, setSalaryNet] = useState(0);
   const [totalExpenses, setTotalExpenses] = useState(0);
@@ -111,8 +113,18 @@ export default function Home() {
 
   const handleSalaryUpdate = async (newSalary: number) => {
     if (!user) return;
-    await updateUserSettings(user.id, { salary_net: newSalary });
-    setSalaryNet(newSalary);
+    try {
+      await updateUserSettings(user.id, { salary_net: newSalary });
+      setSalaryNet(newSalary);
+      showSuccess(`Net income updated to ${newSalary.toLocaleString("fr-FR")} €`);
+    } catch (err) {
+      console.error("Error updating salary:", err);
+      showError(
+        err instanceof Error
+          ? err.message
+          : "Error updating net income"
+      );
+    }
   };
 
   // Afficher le loading pendant la vérification de l'auth

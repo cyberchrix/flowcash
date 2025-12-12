@@ -10,6 +10,7 @@ import { getCategories, createCategory, deleteCategory, updateCategory } from "@
 import { TrashIcon, PlusIcon, PencilIcon, CheckIcon, XMarkIcon } from "@heroicons/react/24/outline";
 import { ColorPicker } from "@/components/ColorPicker";
 import { useTheme } from "@/contexts/ThemeContext";
+import { useToast } from "@/contexts/ToastContext";
 
 // Force dynamic rendering
 export const dynamic = 'force-dynamic';
@@ -23,6 +24,7 @@ const currencies = [
 export default function ParametersPage() {
   const { user, loading: authLoading } = useAuth();
   const { theme, toggleTheme } = useTheme();
+  const { showSuccess, showError } = useToast();
   const router = useRouter();
   const [salaryNet, setSalaryNet] = useState("");
   const [selectedCurrency, setSelectedCurrency] = useState(currencies[0]);
@@ -105,14 +107,15 @@ export default function ParametersPage() {
       });
 
       setSuccess(true);
+      showSuccess("Settings saved successfully");
       setTimeout(() => setSuccess(false), 3000);
     } catch (err) {
       console.error("Error updating settings:", err);
-      setError(
-        err instanceof Error
-          ? err.message
-          : "Error saving. Please try again."
-      );
+      const errorMessage = err instanceof Error
+        ? err.message
+        : "Error saving. Please try again.";
+      setError(errorMessage);
+      showError(errorMessage);
     } finally {
       setSaving(false);
     }
@@ -138,13 +141,14 @@ export default function ParametersPage() {
       }]);
       setNewCategoryName("");
       setNewCategoryColor("#6366F1");
+      showSuccess(`Category "${newCategoryName.trim()}" created successfully`);
     } catch (err) {
       console.error("Error creating category:", err);
-      setError(
-        err instanceof Error
-          ? err.message
-          : "Error creating category"
-      );
+      const errorMessage = err instanceof Error
+        ? err.message
+        : "Error creating category";
+      setError(errorMessage);
+      showError(errorMessage);
     }
   };
 
@@ -168,13 +172,14 @@ export default function ParametersPage() {
       ));
       setEditingCategoryId(null);
       setEditingCategoryName("");
+      showSuccess(`Category renamed to "${editingCategoryName.trim()}" successfully`);
     } catch (err) {
       console.error("Error updating category:", err);
-      setError(
-        err instanceof Error
-          ? err.message
-          : "Error updating category"
-      );
+      const errorMessage = err instanceof Error
+        ? err.message
+        : "Error updating category";
+      setError(errorMessage);
+      showError(errorMessage);
     }
   };
 
@@ -195,13 +200,14 @@ export default function ParametersPage() {
     try {
       await deleteCategory(categoryId);
       setCategories(categories.filter(cat => cat.id !== categoryId));
+      showSuccess(`Category "${categoryName}" deleted successfully`);
     } catch (err) {
       console.error("Error deleting category:", err);
-      setError(
-        err instanceof Error
-          ? err.message
-          : "Error deleting category"
-      );
+      const errorMessage = err instanceof Error
+        ? err.message
+        : "Error deleting category";
+      setError(errorMessage);
+      showError(errorMessage);
     } finally {
       setDeletingCategoryId(null);
     }
