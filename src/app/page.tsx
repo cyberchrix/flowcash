@@ -6,12 +6,14 @@ import { useRouter } from "next/navigation";
 // Force dynamic rendering to avoid build-time errors with Supabase
 export const dynamic = 'force-dynamic';
 import { Header } from "@/components/Header";
+import { CalculatorIcon } from "@heroicons/react/24/outline";
 import { SummaryCard } from "@/components/SummaryCard";
 import { ChargesByCategoryCard } from "@/components/ChargesByCategoryCard";
 import { BottomNav } from "@/components/BottomNav";
 import { SplashScreen } from "@/components/SplashScreen";
 import { LoadingScreen } from "@/components/LoadingScreen";
 import { SalaryOnboardingModal } from "@/components/SalaryOnboardingModal";
+import { ExpenseSimulator } from "@/components/ExpenseSimulator";
 import { useNavigation } from "@/contexts/NavigationContext";
 import { useAuth } from "@/hooks/useAuth";
 import { getCategories } from "@/lib/supabase/categories";
@@ -33,6 +35,7 @@ export default function Home() {
   const [currency, setCurrency] = useState("EUR");
   const [loading, setLoading] = useState(true);
   const [showSalaryOnboarding, setShowSalaryOnboarding] = useState(false);
+  const [showExpenseSimulator, setShowExpenseSimulator] = useState(false);
   const [settingsLoaded, setSettingsLoaded] = useState(false);
 
   const loadData = async () => {
@@ -226,6 +229,31 @@ export default function Home() {
                   />
 
           <ChargesByCategoryCard categories={categories} totalExpenses={totalExpenses} currency={currency} />
+
+          {/* Expense Simulator Card */}
+          <div
+            className="rounded-[28px] bg-white dark:bg-white/2 border border-gray-200 dark:border-transparent px-6 py-5 cursor-pointer hover:shadow-md transition-shadow"
+            style={{
+              boxShadow: "0 1px 2px 0 rgba(0, 0, 0, 0.05)",
+            }}
+            onClick={() => setShowExpenseSimulator(true)}
+          >
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-3">
+                <div className="p-3 rounded-full bg-blue-50 dark:bg-blue-900/20">
+                  <CalculatorIcon className="h-6 w-6 text-blue-600 dark:text-blue-400" />
+                </div>
+                <div>
+                  <h3 className="text-sm font-semibold text-gray-900 dark:text-white/50 uppercase">
+                    Expense Simulator
+                  </h3>
+                  <p className="text-xs text-gray-500 dark:text-gray-400 mt-0.5">
+                    Simulate expenses to see their impact
+                  </p>
+                </div>
+              </div>
+            </div>
+          </div>
         </main>
 
         <BottomNav />
@@ -234,6 +262,15 @@ export default function Home() {
       <SalaryOnboardingModal
         isOpen={showSalaryOnboarding}
         onComplete={handleSalaryOnboardingComplete}
+      />
+
+      <ExpenseSimulator
+        isOpen={showExpenseSimulator}
+        onClose={() => setShowExpenseSimulator(false)}
+        categories={categories}
+        netIncome={netIncome}
+        currentTotalExpenses={totalExpenses}
+        currency={currency}
       />
     </>
   );
