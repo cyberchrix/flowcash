@@ -355,7 +355,7 @@ export function SummaryCard({
           </svg>
         </div>
         <div className="relative z-10">
-          <h2 className="text-sm font-semibold text-white mb-4 uppercase">
+          <h2 className="text-base font-semibold text-white mb-4 uppercase">
             Summary
           </h2>
 

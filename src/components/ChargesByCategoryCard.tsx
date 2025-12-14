@@ -217,7 +217,7 @@ export function ChargesByCategoryCard({
           letterSpacing: "0.5px",
         }}
       >
-      <h2 className="text-xs font-semibold text-gray-900 dark:text-white/50 uppercase">
+      <h2 className="text-sm font-semibold text-gray-900 dark:text-white/50 uppercase">
         Expenses by Category
       </h2>
 
