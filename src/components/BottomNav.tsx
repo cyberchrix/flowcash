@@ -16,14 +16,14 @@ interface NavItemProps {
 function NavItem({ href, icon, label, active }: NavItemProps) {
   return (
     <Link href={href} className="flex flex-col items-center gap-1 text-xs">
-      <span className={active ? "text-white" : "text-flowTextMuted/40 dark:text-gray-500"}>
+      <span className={active ? "text-flow-primary" : "text-gray-400 dark:text-gray-500"}>
         {icon}
       </span>
       <span
         className={
           active
-            ? "font-semibold text-white"
-            : "font-medium text-flowTextMuted/40 dark:text-gray-500"
+            ? "font-semibold text-flow-primary"
+            : "font-medium text-gray-400 dark:text-gray-500"
         }
       >
         {label}
