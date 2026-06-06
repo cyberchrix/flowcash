@@ -204,13 +204,13 @@ export function ChargesByCategoryCard({
   return (
     <section
       onClick={() => router.push("/expenses")}
-      className="rounded-[28px] relative cursor-pointer transition-colors"
+      className="rounded-[28px] relative cursor-pointer transition-colors h-full"
       style={{
         boxShadow: "0 1px 2px 0 rgba(0, 0, 0, 0.05)",
       }}
     >
       <div
-        className="rounded-[26px] bg-white dark:bg-white/2 border border-gray-200 dark:border-transparent p-4 h-full w-full hover:bg-gray-50 dark:hover:bg-white/5 transition-colors"
+        className="rounded-[26px] bg-white dark:bg-white/2 border border-gray-200 dark:border-transparent p-6 h-full w-full flex flex-col justify-center hover:bg-gray-50 dark:hover:bg-white/5 transition-colors"
         style={{
           fontFamily:
             '"SF Mono", "Monaco", "Inconsolata", "Roboto Mono", "Courier New", monospace',
@@ -221,9 +221,9 @@ export function ChargesByCategoryCard({
         Expenses by Category
       </h2>
 
-      <div className="mt-2 flex items-center gap-4">
+      <div className="mt-4 flex items-center gap-4">
         {/* Animated donut avec segments */}
-        <div className="relative h-32 w-32 flex-shrink-0">
+        <div className="relative h-44 w-44 flex-shrink-0">
           <svg
             ref={svgRef}
             viewBox="0 0 140 140"
@@ -373,7 +373,7 @@ export function ChargesByCategoryCard({
         </div>
 
         {/* Categories with animated percentages */}
-        <div className="flex-1 min-w-0 space-y-1.5 text-xs">
+        <div className="flex-1 min-w-0 space-y-3 text-sm">
           {sortedCategories.map((cat) => {
             const displayed = Math.round(cat.percent * progress);
             return (
