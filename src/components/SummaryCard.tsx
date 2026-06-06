@@ -365,11 +365,11 @@ export function SummaryCard({
             <Link
               href="/calendar"
               onClick={(e) => e.stopPropagation()}
-              className="flex h-9 w-9 items-center justify-center rounded-full bg-white/20 text-white backdrop-blur-sm hover:bg-white/30 transition-colors"
+              className="flex h-11 w-11 items-center justify-center rounded-full bg-white/20 text-white backdrop-blur-sm hover:bg-white/30 transition-colors"
               title="Monthly schedule"
               aria-label="Monthly schedule"
             >
-              <CalendarDaysIcon className="h-5 w-5" />
+              <CalendarDaysIcon className="h-6 w-6" />
             </Link>
             {onOpenSimulator && (
               <button
@@ -378,11 +378,11 @@ export function SummaryCard({
                   e.stopPropagation();
                   onOpenSimulator();
                 }}
-                className="flex h-9 w-9 items-center justify-center rounded-full bg-white/20 text-white backdrop-blur-sm hover:bg-white/30 transition-colors"
+                className="flex h-11 w-11 items-center justify-center rounded-full bg-white/20 text-white backdrop-blur-sm hover:bg-white/30 transition-colors"
                 title="Expense simulator"
                 aria-label="Expense simulator"
               >
-                <CalculatorIcon className="h-5 w-5" />
+                <CalculatorIcon className="h-6 w-6" />
               </button>
             )}
           </div>
