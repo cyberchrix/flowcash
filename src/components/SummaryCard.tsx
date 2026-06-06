@@ -322,7 +322,7 @@ export function SummaryCard({
               '"SF Mono", "Monaco", "Inconsolata", "Roboto Mono", "Courier New", monospace',
             background: "linear-gradient(to right, #FF2D8A, #8A2BFF, #316CFF)",
             letterSpacing: "0.5px",
-            padding: "1.5rem",
+            padding: "1.1rem",
             WebkitFontSmoothing: "antialiased",
             MozOsxFontSmoothing: "grayscale",
             textRendering: "optimizeLegibility",
@@ -355,15 +355,15 @@ export function SummaryCard({
           </svg>
         </div>
         <div className="relative z-10">
-          <h2 className="text-base font-semibold text-white mb-4 uppercase">
+          <h2 className="text-sm font-semibold text-white mb-2 uppercase">
             Summary
           </h2>
 
           {/* Disposable Income - Mis en avant */}
-          <div className="text-sm font-medium text-white/90 uppercase mb-1">
+          <div className="text-xs font-medium text-white/90 uppercase mb-1">
             Disposable Income
           </div>
-          <div className="inline-flex items-center gap-1.5 px-4 py-2 rounded-full font-bold text-white mb-4"
+          <div className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full font-bold text-white mb-3"
             style={{
               backgroundColor: remaining >= 0 
                 ? "rgba(99, 216, 179, 0.8)" // #63D8B3 transparent
@@ -371,13 +371,13 @@ export function SummaryCard({
             }}
           >
             <span 
-              className="text-3xl"
+              className="text-2xl"
               style={{ textShadow: "0 1px 2px rgba(0, 0, 0, 0.4), 0 0.5px 1px rgba(0, 0, 0, 0.6)" }}
             >
               {remaining >= 0 ? "+" : "-"}
             </span>
             <span 
-              className="text-3xl"
+              className="text-2xl"
               style={{ textShadow: "0 1px 2px rgba(0, 0, 0, 0.4), 0 0.5px 1px rgba(0, 0, 0, 0.6)" }}
             >
               {Math.abs(Math.round(animatedRemaining)).toLocaleString("fr-FR", {
@@ -411,18 +411,18 @@ export function SummaryCard({
                       }
                     }}
                     onBlur={handleSaveSalary}
-                    className="text-xl font-bold text-white bg-transparent border-b-2 border-white/50 focus:border-white focus:outline-none w-24"
+                    className="text-lg font-bold text-white bg-transparent border-b-2 border-white/50 focus:border-white focus:outline-none w-24"
                     style={{ textShadow: "0 1px 2px rgba(0, 0, 0, 0.4), 0 0.5px 1px rgba(0, 0, 0, 0.6)" }}
                     disabled={isSavingSalary}
                     autoFocus
                   />
-                  <span className="text-xl font-bold text-white" style={{ textShadow: "0 1px 2px rgba(0, 0, 0, 0.4), 0 0.5px 1px rgba(0, 0, 0, 0.6)" }}>
+                  <span className="text-lg font-bold text-white" style={{ textShadow: "0 1px 2px rgba(0, 0, 0, 0.4), 0 0.5px 1px rgba(0, 0, 0, 0.6)" }}>
                     €
                   </span>
                 </div>
               ) : (
                 <div 
-                  className="mt-1 text-xl font-bold text-white cursor-pointer hover:opacity-80 transition-opacity"
+                  className="mt-1 text-lg font-bold text-white cursor-pointer hover:opacity-80 transition-opacity"
                   onClick={() => {
                     if (onSalaryUpdate) {
                       setIsEditingSalary(true);
@@ -443,7 +443,7 @@ export function SummaryCard({
                 Total Expenses
               </div>
               <div 
-                className="mt-1 text-xl font-bold text-white"
+                className="mt-1 text-lg font-bold text-white"
                 style={{ textShadow: "0 1px 2px rgba(0, 0, 0, 0.4), 0 0.5px 1px rgba(0, 0, 0, 0.6)" }}
               >
                 {animatedTotalExpenses.toLocaleString("fr-FR", {

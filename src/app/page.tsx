@@ -214,7 +214,7 @@ export default function Home() {
       <div className="mx-auto flex min-h-screen max-w-md flex-col px-5 bg-flowBg dark:bg-transparent" data-scroll-container>
         <Header />
 
-        <main className="flex-1 space-y-2 pt-20 pb-28">
+        <main className="flex-1 space-y-2 pt-16 pb-24">
           {/* Message de bienvenue */}
           {/* <div className="mb-4">
             <h1 className="text-2xl font-bold text-gray-900 dark:text-white">
@@ -233,7 +233,7 @@ export default function Home() {
 
           {/* Expense Simulator Card */}
           <div
-            className="rounded-[28px] bg-white dark:bg-white/2 border border-gray-200 dark:border-transparent px-6 py-5 cursor-pointer hover:shadow-md transition-shadow"
+            className="rounded-[28px] bg-white dark:bg-white/2 border border-gray-200 dark:border-transparent px-5 py-3 cursor-pointer hover:shadow-md transition-shadow"
             style={{
               boxShadow: "0 1px 2px 0 rgba(0, 0, 0, 0.05)",
             }}
@@ -241,8 +241,8 @@ export default function Home() {
           >
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-3">
-                <div className="p-3 rounded-full bg-blue-50 dark:bg-blue-900/20">
-                  <CalculatorIcon className="h-6 w-6 text-blue-600 dark:text-blue-400" />
+                <div className="p-2 rounded-full bg-blue-50 dark:bg-blue-900/20">
+                  <CalculatorIcon className="h-5 w-5 text-blue-600 dark:text-blue-400" />
                 </div>
                 <div>
                   <h3 className="text-sm font-semibold text-gray-900 dark:text-white/50 uppercase">
@@ -259,15 +259,15 @@ export default function Home() {
           {/* Expenses by date Card */}
           <Link
             href="/calendar"
-            className="block rounded-[28px] bg-white dark:bg-white/2 border border-gray-200 dark:border-transparent px-6 py-5 cursor-pointer hover:shadow-md transition-shadow"
+            className="block rounded-[28px] bg-white dark:bg-white/2 border border-gray-200 dark:border-transparent px-5 py-3 cursor-pointer hover:shadow-md transition-shadow"
             style={{
               boxShadow: "0 1px 2px 0 rgba(0, 0, 0, 0.05)",
             }}
           >
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-3">
-                <div className="p-3 rounded-full bg-purple-50 dark:bg-purple-900/20">
-                  <CalendarDaysIcon className="h-6 w-6 text-purple-600 dark:text-purple-400" />
+                <div className="p-2 rounded-full bg-purple-50 dark:bg-purple-900/20">
+                  <CalendarDaysIcon className="h-5 w-5 text-purple-600 dark:text-purple-400" />
                 </div>
                 <div>
                   <h3 className="text-sm font-semibold text-gray-900 dark:text-white/50 uppercase">
