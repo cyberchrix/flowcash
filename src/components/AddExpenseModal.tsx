@@ -4,8 +4,11 @@ import { useState, useEffect } from "react";
 import { Modal } from "./Modal";
 import { Category } from "@/types";
 import { createExpense } from "@/lib/supabase/expenses";
+import { dayToDateString, ordinal } from "@/lib/date";
 import { useAuth } from "@/hooks/useAuth";
 import { useToast } from "@/contexts/ToastContext";
+
+const daysOfMonth = Array.from({ length: 31 }, (_, i) => i + 1);
 
 interface AddExpenseModalProps {
   isOpen: boolean;
@@ -30,6 +33,7 @@ export function AddExpenseModal({
   const { showSuccess, showError } = useToast();
   const [label, setLabel] = useState("");
   const [amount, setAmount] = useState("");
+  const [expenseDay, setExpenseDay] = useState(() => new Date().getDate());
   const [selectedCurrency, setSelectedCurrency] = useState(currencies[0]);
   const [selectedCategory, setSelectedCategory] = useState<Category | null>(
     categories[0] || null
@@ -81,12 +85,13 @@ export function AddExpenseModal({
         amount: parsedAmount,
         currency: selectedCurrency.code,
         category_id: selectedCategory.id,
-        expense_date: new Date().toISOString().split("T")[0],
+        expense_date: dayToDateString(expenseDay),
       });
 
       // Réinitialiser le formulaire et fermer
       setLabel("");
       setAmount("");
+      setExpenseDay(new Date().getDate());
       setSelectedCategory(categories[0] || null);
       setError(null);
       showSuccess(`Expense "${label.trim()}" added successfully`);
@@ -164,6 +169,24 @@ export function AddExpenseModal({
               ))}
             </select>
           </div>
+        </div>
+
+        {/* Day of the month */}
+        <div>
+          <label className="block text-sm font-medium text-gray-700 dark:text-white mb-2">
+            Day of the month
+          </label>
+          <select
+            value={expenseDay}
+            onChange={(e) => setExpenseDay(Number(e.target.value))}
+            className="w-full rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-white px-4 py-2 focus:border-flow-primary focus:outline-none focus:ring-2 focus:ring-flow-primary/20"
+          >
+            {daysOfMonth.map((day) => (
+              <option key={day} value={day}>
+                {ordinal(day)}
+              </option>
+            ))}
+          </select>
         </div>
 
         {/* Category */}

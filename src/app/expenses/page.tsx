@@ -10,10 +10,13 @@ import { getCategories } from "@/lib/supabase/categories";
 import { Category } from "@/types";
 import { TrashIcon, PencilIcon, CheckIcon, XMarkIcon, ArrowDownIcon, ArrowUpIcon, EyeIcon, EyeSlashIcon, ChevronDownIcon, ChevronUpIcon } from "@heroicons/react/24/outline";
 import { Database } from "@/types/database";
+import { dayToDateString, getDayOfMonth, ordinal, formatDayOfMonth } from "@/lib/date";
 import { useToast } from "@/contexts/ToastContext";
 
 // Force dynamic rendering
 export const dynamic = 'force-dynamic';
+
+const daysOfMonth = Array.from({ length: 31 }, (_, i) => i + 1);
 
 type Expense = Database["public"]["Tables"]["expenses"]["Row"] & {
   categories: { name: string; color: string } | null;
@@ -31,6 +34,7 @@ export default function ExpensesPage() {
   const [editLabel, setEditLabel] = useState("");
   const [editAmount, setEditAmount] = useState("");
   const [editCategoryId, setEditCategoryId] = useState<string | null>(null);
+  const [editDay, setEditDay] = useState(1);
   const [error, setError] = useState<string | null>(null);
   const [sortOrder, setSortOrder] = useState<"asc" | "desc">("desc");
   const [groupByCategory, setGroupByCategory] = useState(true);
@@ -145,6 +149,7 @@ export default function ExpensesPage() {
     setEditLabel(expense.label);
     setEditAmount(expense.amount.toString());
     setEditCategoryId(expense.category_id || null);
+    setEditDay(getDayOfMonth(expense.expense_date));
     setError(null);
   };
 
@@ -153,6 +158,7 @@ export default function ExpensesPage() {
     setEditLabel("");
     setEditAmount("");
     setEditCategoryId(null);
+    setEditDay(1);
     setError(null);
     
     // Restaurer le zoom sur iOS après l'annulation
@@ -189,12 +195,14 @@ export default function ExpensesPage() {
         label: editLabel.trim(),
         amount: parsedAmount,
         category_id: editCategoryId,
+        expense_date: dayToDateString(editDay),
       });
       await loadExpenses();
       setEditingId(null);
       setEditLabel("");
       setEditAmount("");
       setEditCategoryId(null);
+      setEditDay(1);
       showSuccess(`Expense "${editLabel.trim()}" updated successfully`);
       
       // Restaurer le zoom sur iOS après la validation
@@ -272,15 +280,6 @@ export default function ExpensesPage() {
     } finally {
       setDeletingId(null);
     }
-  };
-
-  const formatDate = (dateString: string) => {
-    const date = new Date(dateString);
-    return date.toLocaleDateString("en-US", {
-      day: "2-digit",
-      month: "short",
-      year: "numeric",
-    });
   };
 
   const formatCurrency = (amount: number, currency: string) => {
@@ -611,10 +610,22 @@ export default function ExpensesPage() {
                   step="0.01"
                   value={editAmount}
                   onChange={(e) => setEditAmount(e.target.value)}
-                  className="w-full text-base text-gray-900 dark:text-white bg-white dark:bg-gray-700 px-2 py-1 border border-gray-300 dark:border-gray-600 rounded focus:border-flow-primary focus:outline-none focus:ring-1 focus:ring-flow-primary"
+                  className="w-full text-base text-gray-900 dark:text-white bg-white dark:bg-gray-700 px-2 py-1 border border-gray-300 dark:border-gray-600 rounded focus:border-flow-primary focus:outline-none focus:ring-1 focus:ring-flow-primary mb-1"
                   placeholder="Amount"
                   style={{ fontSize: '16px' }}
                 />
+                <select
+                  value={editDay}
+                  onChange={(e) => setEditDay(Number(e.target.value))}
+                  className="w-full text-base text-gray-900 dark:text-white bg-white dark:bg-gray-700 px-2 py-1 border border-gray-300 dark:border-gray-600 rounded focus:border-flow-primary focus:outline-none focus:ring-1 focus:ring-flow-primary"
+                  style={{ fontSize: '16px' }}
+                >
+                  {daysOfMonth.map((day) => (
+                    <option key={day} value={day}>
+                      {ordinal(day)} of the month
+                    </option>
+                  ))}
+                </select>
               </>
             ) : (
               <>
@@ -622,7 +633,7 @@ export default function ExpensesPage() {
                   {expense.label}
                 </p>
                 <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
-                  {formatDate(expense.expense_date)}
+                  {formatDayOfMonth(expense.expense_date)}
                 </p>
               </>
             )}

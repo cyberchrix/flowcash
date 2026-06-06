@@ -5,8 +5,9 @@ import { useRouter } from "next/navigation";
 
 // Force dynamic rendering to avoid build-time errors with Supabase
 export const dynamic = 'force-dynamic';
+import Link from "next/link";
 import { Header } from "@/components/Header";
-import { CalculatorIcon } from "@heroicons/react/24/outline";
+import { CalculatorIcon, CalendarDaysIcon } from "@heroicons/react/24/outline";
 import { SummaryCard } from "@/components/SummaryCard";
 import { ChargesByCategoryCard } from "@/components/ChargesByCategoryCard";
 import { BottomNav } from "@/components/BottomNav";
@@ -254,6 +255,31 @@ export default function Home() {
               </div>
             </div>
           </div>
+
+          {/* Expenses by date Card */}
+          <Link
+            href="/calendar"
+            className="block rounded-[28px] bg-white dark:bg-white/2 border border-gray-200 dark:border-transparent px-6 py-5 cursor-pointer hover:shadow-md transition-shadow"
+            style={{
+              boxShadow: "0 1px 2px 0 rgba(0, 0, 0, 0.05)",
+            }}
+          >
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-3">
+                <div className="p-3 rounded-full bg-purple-50 dark:bg-purple-900/20">
+                  <CalendarDaysIcon className="h-6 w-6 text-purple-600 dark:text-purple-400" />
+                </div>
+                <div>
+                  <h3 className="text-sm font-semibold text-gray-900 dark:text-white/50 uppercase">
+                    Monthly schedule
+                  </h3>
+                  <p className="text-xs text-gray-500 dark:text-gray-400 mt-0.5">
+                    See when your charges are deducted
+                  </p>
+                </div>
+              </div>
+            </div>
+          </Link>
         </main>
 
         <BottomNav />

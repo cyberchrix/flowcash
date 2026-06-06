@@ -23,6 +23,7 @@ CREATE TABLE IF NOT EXISTS expenses (
   currency VARCHAR(3) NOT NULL DEFAULT 'EUR', -- ISO currency code (EUR, USD, GBP)
   category_id UUID REFERENCES categories(id) ON DELETE SET NULL,
   expense_date DATE NOT NULL DEFAULT CURRENT_DATE,
+  active BOOLEAN NOT NULL DEFAULT TRUE, -- Whether the expense is taken into account in totals
   created_at TIMESTAMP WITH TIME ZONE DEFAULT TIMEZONE('utc', NOW()),
   updated_at TIMESTAMP WITH TIME ZONE DEFAULT TIMEZONE('utc', NOW())
 );
@@ -33,7 +34,10 @@ CREATE TABLE IF NOT EXISTS user_settings (
   id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
   user_id UUID REFERENCES auth.users(id) ON DELETE CASCADE NOT NULL UNIQUE,
   salary_net DECIMAL(10, 2) DEFAULT 0,
+  -- Tax withholding rate as a percentage (0-100). net_income = salary_net * (1 - tax_withholding_rate / 100)
+  tax_withholding_rate NUMERIC(5, 2) CHECK (tax_withholding_rate IS NULL OR (tax_withholding_rate >= 0 AND tax_withholding_rate <= 100)),
   currency VARCHAR(3) NOT NULL DEFAULT 'EUR',
+  theme VARCHAR(10) DEFAULT 'light' CHECK (theme IN ('light', 'dark')),
   created_at TIMESTAMP WITH TIME ZONE DEFAULT TIMEZONE('utc', NOW()),
   updated_at TIMESTAMP WITH TIME ZONE DEFAULT TIMEZONE('utc', NOW())
 );

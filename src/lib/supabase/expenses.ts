@@ -38,7 +38,7 @@ export async function createExpense(expense: ExpenseInsert) {
 
 export async function updateExpense(
   expenseId: string,
-  updates: { label?: string; amount?: number; active?: boolean; category_id?: string | null }
+  updates: { label?: string; amount?: number; active?: boolean; category_id?: string | null; expense_date?: string }
 ) {
   ensureSupabaseConfigured();
   const { data, error } = await supabase
