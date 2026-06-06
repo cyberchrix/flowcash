@@ -212,7 +212,7 @@ export default function Home() {
       <div className="mx-auto flex min-h-dvh max-w-md flex-col px-5 bg-flowBg dark:bg-transparent" data-scroll-container>
         <Header />
 
-        <main className="flex flex-1 flex-col gap-4 pt-20 pb-28">
+        <main className="flex flex-1 flex-col gap-2 pt-20 pb-28">
           <div className="flex-1">
             <SummaryCard
               salaryNet={netIncome}
