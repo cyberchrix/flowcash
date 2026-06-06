@@ -1,5 +1,9 @@
 @import "tailwindcss";
 
+/* Align Tailwind's `dark:` variant with the app's `.dark` class on <html>
+   (Tailwind v4 otherwise falls back to the OS prefers-color-scheme). */
+@custom-variant dark (&:where(.dark, .dark *));
+
 /* FlowCash global styles */
 
 :root {
