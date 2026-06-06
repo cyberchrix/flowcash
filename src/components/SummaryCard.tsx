@@ -2,12 +2,15 @@
 
 import { useEffect, useState, useRef } from "react";
 import { motion } from "framer-motion";
+import Link from "next/link";
+import { CalendarDaysIcon, CalculatorIcon } from "@heroicons/react/24/outline";
 
 interface SummaryCardProps {
   salaryNet: number;
   totalExpenses: number;
   remaining: number;
   onSalaryUpdate?: (newSalary: number) => Promise<void>;
+  onOpenSimulator?: () => void;
 }
 
 // Hook pour animer un nombre
@@ -48,6 +51,7 @@ export function SummaryCard({
   totalExpenses,
   remaining,
   onSalaryUpdate,
+  onOpenSimulator,
 }: SummaryCardProps) {
   const animatedSalaryNet = useAnimatedNumber(salaryNet, 800);
   const animatedTotalExpenses = useAnimatedNumber(totalExpenses, 800);
@@ -355,6 +359,33 @@ export function SummaryCard({
           </svg>
         </div>
         <div className="relative z-10">
+          {/* Floating shortcuts */}
+          <div className="absolute top-0 right-0 flex items-center gap-2">
+            <Link
+              href="/calendar"
+              onClick={(e) => e.stopPropagation()}
+              className="flex h-9 w-9 items-center justify-center rounded-full bg-white/20 text-white backdrop-blur-sm hover:bg-white/30 transition-colors"
+              title="Monthly schedule"
+              aria-label="Monthly schedule"
+            >
+              <CalendarDaysIcon className="h-5 w-5" />
+            </Link>
+            {onOpenSimulator && (
+              <button
+                type="button"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  onOpenSimulator();
+                }}
+                className="flex h-9 w-9 items-center justify-center rounded-full bg-white/20 text-white backdrop-blur-sm hover:bg-white/30 transition-colors"
+                title="Expense simulator"
+                aria-label="Expense simulator"
+              >
+                <CalculatorIcon className="h-5 w-5" />
+              </button>
+            )}
+          </div>
+
           <h2 className="text-sm font-semibold text-white mb-2 uppercase">
             Summary
           </h2>

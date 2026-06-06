@@ -5,9 +5,7 @@ import { useRouter } from "next/navigation";
 
 // Force dynamic rendering to avoid build-time errors with Supabase
 export const dynamic = 'force-dynamic';
-import Link from "next/link";
 import { Header } from "@/components/Header";
-import { CalculatorIcon, CalendarDaysIcon } from "@heroicons/react/24/outline";
 import { SummaryCard } from "@/components/SummaryCard";
 import { ChargesByCategoryCard } from "@/components/ChargesByCategoryCard";
 import { BottomNav } from "@/components/BottomNav";
@@ -227,59 +225,10 @@ export default function Home() {
                     totalExpenses={totalExpenses}
                     remaining={remaining}
                     onSalaryUpdate={handleSalaryUpdate}
+                    onOpenSimulator={() => setShowExpenseSimulator(true)}
                   />
 
           <ChargesByCategoryCard categories={categories} totalExpenses={totalExpenses} currency={currency} />
-
-          {/* Expense Simulator Card */}
-          <div
-            className="rounded-[28px] bg-white dark:bg-white/2 border border-gray-200 dark:border-transparent px-5 py-3 cursor-pointer hover:shadow-md transition-shadow"
-            style={{
-              boxShadow: "0 1px 2px 0 rgba(0, 0, 0, 0.05)",
-            }}
-            onClick={() => setShowExpenseSimulator(true)}
-          >
-            <div className="flex items-center justify-between">
-              <div className="flex items-center gap-3">
-                <div className="p-2 rounded-full bg-blue-50 dark:bg-blue-900/20">
-                  <CalculatorIcon className="h-5 w-5 text-blue-600 dark:text-blue-400" />
-                </div>
-                <div>
-                  <h3 className="text-sm font-semibold text-gray-900 dark:text-white/50 uppercase">
-                    Expense Simulator
-                  </h3>
-                  <p className="text-xs text-gray-500 dark:text-gray-400 mt-0.5">
-                    Simulate expenses to see their impact
-                  </p>
-                </div>
-              </div>
-            </div>
-          </div>
-
-          {/* Expenses by date Card */}
-          <Link
-            href="/calendar"
-            className="block rounded-[28px] bg-white dark:bg-white/2 border border-gray-200 dark:border-transparent px-5 py-3 cursor-pointer hover:shadow-md transition-shadow"
-            style={{
-              boxShadow: "0 1px 2px 0 rgba(0, 0, 0, 0.05)",
-            }}
-          >
-            <div className="flex items-center justify-between">
-              <div className="flex items-center gap-3">
-                <div className="p-2 rounded-full bg-purple-50 dark:bg-purple-900/20">
-                  <CalendarDaysIcon className="h-5 w-5 text-purple-600 dark:text-purple-400" />
-                </div>
-                <div>
-                  <h3 className="text-sm font-semibold text-gray-900 dark:text-white/50 uppercase">
-                    Monthly schedule
-                  </h3>
-                  <p className="text-xs text-gray-500 dark:text-gray-400 mt-0.5">
-                    See when your charges are deducted
-                  </p>
-                </div>
-              </div>
-            </div>
-          </Link>
         </main>
 
         <BottomNav />
