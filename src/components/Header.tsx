@@ -85,14 +85,16 @@ export function Header() {
 
   return (
     <header className="fixed top-0 left-0 right-0 z-50 flex items-center justify-center py-2 backdrop-blur-md pt-3 bg-white/80 dark:bg-transparent">
-      {/* Availo icon centered */}
-      <Image
-        src="/availo-icon.png"
-        alt="Availo Icon"
-        width={40}
-        height={40}
-        priority
-      />
+      {/* Availo icon centered - links to home */}
+      <Link href="/" className="hover:opacity-90 transition-opacity" title="Home">
+        <Image
+          src="/availo-icon.png"
+          alt="Availo Icon"
+          width={40}
+          height={40}
+          priority
+        />
+      </Link>
 
       {/* User avatar on the right - links to account page */}
       <div className="absolute right-4">
