@@ -9,6 +9,7 @@ import { Header } from "@/components/Header";
 import { SummaryCard } from "@/components/SummaryCard";
 import { ChargesByCategoryCard } from "@/components/ChargesByCategoryCard";
 import { BottomNav } from "@/components/BottomNav";
+import { ExpensesHistogram } from "@/components/ExpensesHistogram";
 import { SplashScreen } from "@/components/SplashScreen";
 import { LoadingScreen } from "@/components/LoadingScreen";
 import { SalaryOnboardingModal } from "@/components/SalaryOnboardingModal";
@@ -16,9 +17,12 @@ import { ExpenseSimulator } from "@/components/ExpenseSimulator";
 import { useNavigation } from "@/contexts/NavigationContext";
 import { useAuth } from "@/hooks/useAuth";
 import { getCategories } from "@/lib/supabase/categories";
-import { getExpensesByCategory } from "@/lib/supabase/expenses";
+import { getExpenses, getExpensesByCategory } from "@/lib/supabase/expenses";
 import { getUserSettings, updateUserSettings } from "@/lib/supabase/settings";
 import { Category } from "@/types";
+import { Database } from "@/types/database";
+
+type Expense = Database["public"]["Tables"]["expenses"]["Row"];
 import { useToast } from "@/contexts/ToastContext";
 
 export default function Home() {
@@ -27,6 +31,7 @@ export default function Home() {
   const router = useRouter();
   const { showSuccess, showError } = useToast();
   const [categories, setCategories] = useState<Category[]>([]);
+  const [expensesList, setExpensesList] = useState<Expense[]>([]);
   const [salaryNet, setSalaryNet] = useState(0);
   const [taxWithholdingRate, setTaxWithholdingRate] = useState<number | null>(null);
   const [netIncome, setNetIncome] = useState(0);
@@ -54,6 +59,10 @@ export default function Home() {
           percent: 0, // Will be calculated below
         }))
       );
+
+      // Load raw expenses (for the daily histogram)
+      const rawExpenses = await getExpenses(user.id);
+      setExpensesList(rawExpenses as Expense[]);
 
       // Load expenses by category and calculate totals
       const expensesByCategory = await getExpensesByCategory(user.id);
@@ -226,6 +235,8 @@ export default function Home() {
           <div className="flex-1">
             <ChargesByCategoryCard categories={categories} totalExpenses={totalExpenses} currency={currency} />
           </div>
+
+          <ExpensesHistogram expenses={expensesList} currency={currency} />
         </main>
 
         <BottomNav />
