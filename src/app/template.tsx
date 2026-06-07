@@ -8,6 +8,7 @@ const routeOrder: Record<string, number> = {
   "/": 0,
   "/calendar": 1,
   "/expenses": 1,
+  "/history": 1,
   "/add-expense": 1,
   "/parameters": 2,
 };

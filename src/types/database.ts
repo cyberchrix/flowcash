@@ -66,6 +66,38 @@ export interface Database {
           updated_at?: string;
         };
       };
+      monthly_snapshots: {
+        Row: {
+          id: string;
+          user_id: string;
+          month: string;
+          net_income: number;
+          total_expenses: number;
+          available: number;
+          created_at: string;
+          updated_at: string;
+        };
+        Insert: {
+          id?: string;
+          user_id: string;
+          month: string;
+          net_income?: number;
+          total_expenses?: number;
+          available?: number;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Update: {
+          id?: string;
+          user_id?: string;
+          month?: string;
+          net_income?: number;
+          total_expenses?: number;
+          available?: number;
+          created_at?: string;
+          updated_at?: string;
+        };
+      };
       user_settings: {
         Row: {
           id: string;

@@ -42,10 +42,25 @@ CREATE TABLE IF NOT EXISTS user_settings (
   updated_at TIMESTAMP WITH TIME ZONE DEFAULT TIMEZONE('utc', NOW())
 );
 
+-- Table: monthly_snapshots
+-- Stores one snapshot per month to chart the evolution over time
+CREATE TABLE IF NOT EXISTS monthly_snapshots (
+  id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+  user_id UUID REFERENCES auth.users(id) ON DELETE CASCADE NOT NULL,
+  month DATE NOT NULL, -- first day of the month (e.g. 2026-06-01)
+  net_income DECIMAL(12, 2) NOT NULL DEFAULT 0,
+  total_expenses DECIMAL(12, 2) NOT NULL DEFAULT 0,
+  available DECIMAL(12, 2) NOT NULL DEFAULT 0,
+  created_at TIMESTAMP WITH TIME ZONE DEFAULT TIMEZONE('utc', NOW()),
+  updated_at TIMESTAMP WITH TIME ZONE DEFAULT TIMEZONE('utc', NOW()),
+  UNIQUE(user_id, month)
+);
+
 -- Enable Row Level Security (RLS)
 ALTER TABLE categories ENABLE ROW LEVEL SECURITY;
 ALTER TABLE expenses ENABLE ROW LEVEL SECURITY;
 ALTER TABLE user_settings ENABLE ROW LEVEL SECURITY;
+ALTER TABLE monthly_snapshots ENABLE ROW LEVEL SECURITY;
 
 -- RLS Policies for categories
 CREATE POLICY "Users can view their own categories"
@@ -94,12 +109,31 @@ CREATE POLICY "Users can update their own settings"
   ON user_settings FOR UPDATE
   USING (auth.uid() = user_id);
 
+-- RLS Policies for monthly_snapshots
+CREATE POLICY "Users can view their own snapshots"
+  ON monthly_snapshots FOR SELECT
+  USING (auth.uid() = user_id);
+
+CREATE POLICY "Users can create their own snapshots"
+  ON monthly_snapshots FOR INSERT
+  WITH CHECK (auth.uid() = user_id);
+
+CREATE POLICY "Users can update their own snapshots"
+  ON monthly_snapshots FOR UPDATE
+  USING (auth.uid() = user_id);
+
+CREATE POLICY "Users can delete their own snapshots"
+  ON monthly_snapshots FOR DELETE
+  USING (auth.uid() = user_id);
+
 -- Indexes for better query performance
 CREATE INDEX IF NOT EXISTS idx_expenses_user_id ON expenses(user_id);
 CREATE INDEX IF NOT EXISTS idx_expenses_category_id ON expenses(category_id);
 CREATE INDEX IF NOT EXISTS idx_expenses_expense_date ON expenses(expense_date);
 CREATE INDEX IF NOT EXISTS idx_categories_user_id ON categories(user_id);
 CREATE INDEX IF NOT EXISTS idx_user_settings_user_id ON user_settings(user_id);
+CREATE INDEX IF NOT EXISTS idx_monthly_snapshots_user_id ON monthly_snapshots(user_id);
+CREATE INDEX IF NOT EXISTS idx_monthly_snapshots_month ON monthly_snapshots(month);
 
 -- Function to update updated_at timestamp
 CREATE OR REPLACE FUNCTION update_updated_at_column()
@@ -123,6 +157,11 @@ CREATE TRIGGER update_expenses_updated_at
 
 CREATE TRIGGER update_user_settings_updated_at
   BEFORE UPDATE ON user_settings
+  FOR EACH ROW
+  EXECUTE FUNCTION update_updated_at_column();
+
+CREATE TRIGGER update_monthly_snapshots_updated_at
+  BEFORE UPDATE ON monthly_snapshots
   FOR EACH ROW
   EXECUTE FUNCTION update_updated_at_column();
 

@@ -19,6 +19,7 @@ import { useAuth } from "@/hooks/useAuth";
 import { getCategories } from "@/lib/supabase/categories";
 import { getExpenses, getExpensesByCategory } from "@/lib/supabase/expenses";
 import { getUserSettings, updateUserSettings } from "@/lib/supabase/settings";
+import { upsertCurrentMonthSnapshot } from "@/lib/supabase/snapshots";
 import { Category } from "@/types";
 import { Database } from "@/types/database";
 
@@ -99,6 +100,13 @@ export default function Home() {
           ? salary * (1 - taxRate / 100)
           : salary;
         setNetIncome(calculatedNetIncome);
+
+        // Save a snapshot of the current month (fire-and-forget, resilient)
+        upsertCurrentMonthSnapshot(user.id, {
+          netIncome: calculatedNetIncome,
+          totalExpenses: totalExp,
+          available: calculatedNetIncome - totalExp,
+        });
         
         setCurrency(settings.currency || "EUR");
         

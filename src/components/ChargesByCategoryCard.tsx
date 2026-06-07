@@ -106,8 +106,10 @@ export function ChargesByCategoryCard({
   const outerRadius = 60;
   const innerRadius = 42;
 
-  // Trier les catégories par pourcentage décroissant
-  const sortedCategories = [...categories].sort((a, b) => b.percent - a.percent);
+  // Trier les catégories par pourcentage décroissant, en masquant celles à 0%
+  const sortedCategories = [...categories]
+    .filter((cat) => cat.percent > 0)
+    .sort((a, b) => b.percent - a.percent);
 
   // Calculer les angles pour chaque catégorie (triées)
   let currentAngle = 0;

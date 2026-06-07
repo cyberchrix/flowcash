@@ -3,7 +3,11 @@
 import { useEffect, useState, useRef } from "react";
 import { motion } from "framer-motion";
 import Link from "next/link";
-import { CalendarDaysIcon, CalculatorIcon } from "@heroicons/react/24/outline";
+import {
+  CalendarDaysIcon,
+  CalculatorIcon,
+  ArrowTrendingUpIcon,
+} from "@heroicons/react/24/outline";
 
 interface SummaryCardProps {
   salaryNet: number;
@@ -370,6 +374,15 @@ export function SummaryCard({
               aria-label="Monthly schedule"
             >
               <CalendarDaysIcon className="h-7 w-7" />
+            </Link>
+            <Link
+              href="/history"
+              onClick={(e) => e.stopPropagation()}
+              className="flex h-12 w-12 items-center justify-center rounded-full bg-white/20 text-white backdrop-blur-sm hover:bg-white/30 transition-colors"
+              title="Available over time"
+              aria-label="Available over time"
+            >
+              <ArrowTrendingUpIcon className="h-7 w-7" />
             </Link>
             {onOpenSimulator && (
               <button
