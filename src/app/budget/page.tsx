@@ -13,6 +13,7 @@ import { getCategories } from "@/lib/supabase/categories";
 import { getExpenses } from "@/lib/supabase/expenses";
 import { deleteCategoryBudget, duplicateBudgets, getCategoryBudgets, saveCategoryBudget } from "@/lib/supabase/budgets";
 import { getTransactions } from "@/lib/supabase/transactions";
+import { categorizeWithModel } from "@/lib/transactions/categorizeWithModel";
 import { budgetStatus, consumedPercent, fixedPlannedCents, PlannedCharge, proratedAllowance, statusLabel } from "@/lib/finance/budget";
 import { buildInsights } from "@/lib/finance/insights";
 import { spendingPace } from "@/lib/finance/pace";
@@ -48,6 +49,7 @@ export default function BudgetPage() {
   const load = async () => {
     if (!user) return;
     try {
+      await categorizeWithModel();
       const [categoryRows, budgetRows, transactionRows, expenseRows] = await Promise.all([
         getCategories(user.id),
         getCategoryBudgets(user.id, currency),

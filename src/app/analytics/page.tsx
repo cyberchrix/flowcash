@@ -9,6 +9,7 @@ import { formatCents, PeriodControls } from "@/components/finance/PeriodControls
 import { useAuth } from "@/hooks/useAuth";
 import { getCategories } from "@/lib/supabase/categories";
 import { getTransactions } from "@/lib/supabase/transactions";
+import { categorizeWithModel } from "@/lib/transactions/categorizeWithModel";
 import { percentChange } from "@/lib/finance/insights";
 import { formatISODate, formatPeriodLabel, inclusiveDays, PeriodUnit, rangeFor, shiftAnchor, shiftDate } from "@/lib/finance/period";
 import { spendByCategory, spendByDay, SpendingTransaction, totalsFor } from "@/lib/finance/spending";
@@ -39,6 +40,7 @@ export default function AnalyticsPage() {
     const load = async () => {
       if (!user) return;
       const historyStart = shiftDate(range.end, -370);
+      await categorizeWithModel();
       const [categoryRows, rows] = await Promise.all([
         getCategories(user.id),
         getTransactions(user.id, { start: historyStart, end: range.end }),

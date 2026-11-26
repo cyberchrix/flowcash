@@ -3,6 +3,7 @@ import { Database } from "@/types/database";
 import { createCategory, getCategories } from "./categories";
 import { matchingUserRule } from "@/lib/transactions/categorize";
 import { normalizeMerchant } from "@/lib/transactions/normalize";
+import { inferCategory } from "@/lib/transactions/suggestCategory";
 import { TransactionKind } from "@/lib/transactions/types";
 
 type TransactionInsert = Database["public"]["Tables"]["transactions"]["Insert"];
@@ -241,24 +242,74 @@ export async function applyKeywordRules(userId: string) {
     .eq("user_id", userId);
   if (error) throw new Error(`Error reading transactions: ${error.message}`);
 
-  const idsByCategory = new Map<string, string[]>();
+  const idsByCategory = new Map<string, { ids: string[]; needsReview: boolean }>();
   for (const row of data ?? []) {
     const rule = matchingUserRule(row.normalized_merchant, Number(row.amount_cents), rules);
     if (!rule?.categoryId || rule.categoryId === row.category_id) continue;
-    const ids = idsByCategory.get(rule.categoryId) ?? [];
-    ids.push(row.id);
-    idsByCategory.set(rule.categoryId, ids);
+    if (row.category_id && rule.priority < 100) continue;
+    const group = idsByCategory.get(rule.categoryId) ?? { ids: [] as string[], needsReview: rule.needsReview };
+    group.ids.push(row.id);
+    group.needsReview = group.needsReview || rule.needsReview;
+    idsByCategory.set(rule.categoryId, group);
   }
 
   let updated = 0;
-  for (const [categoryId, ids] of idsByCategory) {
+  for (const [categoryId, group] of idsByCategory) {
     const { error: updateError } = await supabase
       .from("transactions")
-      .update({ category_id: categoryId, needs_review: false })
+      .update({ category_id: categoryId, needs_review: group.needsReview })
       .eq("user_id", userId)
-      .in("id", ids);
+      .in("id", group.ids);
     if (updateError) throw new Error(`Error applying keywords: ${updateError.message}`);
-    updated += ids.length;
+    updated += group.ids.length;
+  }
+  return updated;
+}
+
+export async function applyKnownMerchants(userId: string) {
+  const categories = await getCategories(userId);
+  if (categories.length === 0) return 0;
+  ensureSupabaseConfigured();
+  const { data, error } = await supabase
+    .from("transactions")
+    .select("id, normalized_merchant, full_label, category_id, needs_review")
+    .eq("user_id", userId)
+    .or("category_id.is.null,needs_review.eq.true");
+  if (error) throw new Error(`Error reading transactions: ${error.message}`);
+
+  const names = categories.map((category) => category.name);
+  const categoryIdFor = new Map(categories.map((category) => [category.name.toLowerCase(), category.id]));
+  const rules = await getCategorizationRules(userId);
+  const idsByCategory = new Map<string, { categoryId: string; keyword: string; ids: string[] }>();
+  for (const row of data ?? []) {
+    const label = `${row.normalized_merchant} ${row.full_label ?? ""}`;
+    const locked = matchingUserRule(label, 0, rules);
+    if (locked && locked.priority >= 100) continue;
+    const inferred = inferCategory(label, names);
+    const categoryId = inferred ? categoryIdFor.get(inferred.categoryName.toLowerCase()) : undefined;
+    if (!inferred || !categoryId || categoryId === row.category_id) continue;
+    const group = idsByCategory.get(categoryId) ?? { categoryId, keyword: inferred.keyword, ids: [] as string[] };
+    group.ids.push(row.id);
+    idsByCategory.set(categoryId, group);
+    const { error: ruleError } = await supabase.from("categorization_rules").insert({
+      user_id: userId,
+      pattern: inferred.keyword,
+      category_id: categoryId,
+      needs_review: false,
+      priority: 40,
+    });
+    if (ruleError && ruleError.code !== "23505") throw new Error(`Error saving inferred keyword: ${ruleError.message}`);
+  }
+
+  let updated = 0;
+  for (const group of idsByCategory.values()) {
+    const { error: updateError } = await supabase
+      .from("transactions")
+      .update({ category_id: group.categoryId, needs_review: false })
+      .eq("user_id", userId)
+      .in("id", group.ids);
+    if (updateError) throw new Error(`Error applying known merchants: ${updateError.message}`);
+    updated += group.ids.length;
   }
   return updated;
 }
@@ -267,6 +318,7 @@ export async function getTransactions(
   userId: string,
   filters: { month?: string; categoryId?: string; start?: string; end?: string }
 ) {
+  await applyKnownMerchants(userId);
   await applyKeywordRules(userId);
   ensureSupabaseConfigured();
   let query = supabase

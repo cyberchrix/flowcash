@@ -19,6 +19,8 @@ import {
   updateTransactionCategory,
 } from "@/lib/supabase/transactions";
 import { categorizeTransaction } from "@/lib/transactions/categorize";
+import { categorizeWithModel } from "@/lib/transactions/categorizeWithModel";
+import { inferCategory } from "@/lib/transactions/suggestCategory";
 import { fingerprint, markDuplicates } from "@/lib/transactions/duplicates";
 import { decodeCsvBytes, parseCsv } from "@/lib/transactions/parseCsv";
 import { TransactionKind } from "@/lib/transactions/types";
@@ -78,6 +80,10 @@ export function TransactionsView() {
       return;
     }
     try {
+      const categorized = await categorizeWithModel();
+      if (categorized.updated > 0) {
+        showSuccess(`${categorized.updated} transaction${categorized.updated === 1 ? "" : "s"} categorized`);
+      }
       const [categoryRows, transactionRows, ruleRows] = await Promise.all([
         getCategories(user.id),
         getTransactions(user.id, {
@@ -120,9 +126,16 @@ export function TransactionsView() {
       const bytes = new Uint8Array(await file.arrayBuffer());
       const parsed = parseCsv(decodeCsvBytes(bytes));
       const rules = await getCategorizationRules(user.id);
+      const names = [...BUILT_IN_CATEGORIES, ...categories.map((category) => category.name)];
       const categorized = parsed.map((row) => {
         const result = categorizeTransaction(row.fullLabel, row.amountCents, rules);
-        return { ...row, ...result, suggestedCategoryName: result.categoryName };
+        const inferred = result.categoryName ? null : inferCategory(row.fullLabel, names);
+        return {
+          ...row,
+          ...result,
+          categoryName: result.categoryName ?? inferred?.categoryName ?? null,
+          suggestedCategoryName: result.categoryName ?? inferred?.categoryName ?? null,
+        };
       });
       const counts = await countFingerprints(
         user.id,
@@ -168,6 +181,7 @@ export function TransactionsView() {
       );
       setPreview(null);
       setLoading(true);
+      await categorizeWithModel();
       await load();
     } catch (error) {
       console.error(error);
@@ -274,7 +288,7 @@ export function TransactionsView() {
             Keywords
           </h2>
           <p className="mb-4 text-sm text-gray-600 dark:text-gray-400">
-            A keyword such as Auchan categorizes matching transactions already imported and every future import.
+            A label is matched against your keywords. If none matches, a category is chosen from the ones you already have.
           </p>
           <div className="flex gap-2">
             <input
