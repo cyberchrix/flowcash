@@ -12,6 +12,8 @@ import { TrashIcon, PencilIcon, CheckIcon, XMarkIcon, ArrowDownIcon, ArrowUpIcon
 import { Database } from "@/types/database";
 import { dayToDateString, getDayOfMonth, ordinal, formatDayOfMonth } from "@/lib/date";
 import { useToast } from "@/contexts/ToastContext";
+import { ReconciliationSummary } from "@/components/expenses/ReconciliationSummary";
+import { formatCents } from "@/components/finance/PeriodControls";
 
 // Force dynamic rendering
 export const dynamic = 'force-dynamic';
@@ -35,11 +37,14 @@ export default function ExpensesPage() {
   const [editAmount, setEditAmount] = useState("");
   const [editCategoryId, setEditCategoryId] = useState<string | null>(null);
   const [editDay, setEditDay] = useState(1);
+  const [editType, setEditType] = useState<"fixed_recurring" | "fixed_once" | "variable">("fixed_recurring");
+  const [editMatch, setEditMatch] = useState<"merchant" | "category" | "manual" | "none">("none");
   const [error, setError] = useState<string | null>(null);
   const [sortOrder, setSortOrder] = useState<"asc" | "desc">("desc");
   const [groupByCategory, setGroupByCategory] = useState(true);
   const [expandedCategories, setExpandedCategories] = useState<Set<string>>(new Set());
   const [selectedCategories, setSelectedCategories] = useState<Set<string>>(new Set());
+  const [actuals, setActuals] = useState<Record<string, { cents: number; status: string }>>({});
 
   const loadExpenses = async () => {
     if (!user) {
@@ -150,6 +155,8 @@ export default function ExpensesPage() {
     setEditAmount(expense.amount.toString());
     setEditCategoryId(expense.category_id || null);
     setEditDay(getDayOfMonth(expense.expense_date));
+    setEditType(expense.expense_type ?? "fixed_recurring");
+    setEditMatch(expense.match_mode ?? "none");
     setError(null);
   };
 
@@ -196,6 +203,9 @@ export default function ExpensesPage() {
         amount: parsedAmount,
         category_id: editCategoryId,
         expense_date: dayToDateString(editDay),
+        expense_type: editType,
+        match_mode: editMatch,
+        match_pattern: editMatch === "merchant" ? editLabel.trim() : null,
       });
       await loadExpenses();
       setEditingId(null);
@@ -319,9 +329,10 @@ export default function ExpensesPage() {
           <h1 className="text-xs font-semibold text-gray-900 dark:text-white/50 uppercase mb-2">
             My Expenses
           </h1>
-          <p className="text-sm text-flowTextMuted dark:text-gray-400 mb-6">
+          <p className="text-sm text-flowTextMuted dark:text-gray-400 mb-4">
             Manage your expenses by category
           </p>
+          {user && <ReconciliationSummary userId={user.id} expenses={expenses} onActual={setActuals} />}
 
           {error && (
             <div className="mb-4 rounded-lg bg-red-50 border border-red-200 dark:bg-red-900/20 dark:border-red-700 px-4 py-3 text-sm text-red-700 dark:text-red-300">
@@ -626,6 +637,17 @@ export default function ExpensesPage() {
                     </option>
                   ))}
                 </select>
+                <select value={editType} onChange={(event) => setEditType(event.target.value as typeof editType)} className="w-full rounded border border-gray-300 bg-white px-2 py-1 text-sm dark:border-gray-600 dark:bg-gray-700">
+                  <option value="fixed_recurring">Fixed recurring</option>
+                  <option value="fixed_once">Fixed one-time</option>
+                  <option value="variable">Variable category</option>
+                </select>
+                <select value={editMatch} onChange={(event) => setEditMatch(event.target.value as typeof editMatch)} className="w-full rounded border border-gray-300 bg-white px-2 py-1 text-sm dark:border-gray-600 dark:bg-gray-700">
+                  <option value="none">No automatic match</option>
+                  <option value="merchant">Match merchant</option>
+                  <option value="category">Match category</option>
+                  <option value="manual">Manual only</option>
+                </select>
               </>
             ) : (
               <>
@@ -634,6 +656,7 @@ export default function ExpensesPage() {
                 </p>
                 <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
                   {formatDayOfMonth(expense.expense_date)}
+                  {actuals[expense.id] ? ` · ${actuals[expense.id].status.replaceAll("_", " ")} · actual ${formatCents(actuals[expense.id].cents, expense.currency)}` : ""}
                 </p>
               </>
             )}

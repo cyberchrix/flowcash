@@ -20,6 +20,9 @@ const routeOrder: Record<string, number> = {
   "/calendar": 1,
   "/expenses": 1,
   "/history": 1,
+  "/transactions": 1,
+  "/budget": 1,
+  "/analytics": 1,
   "/add-expense": 1,
   "/parameters": 2,
 };

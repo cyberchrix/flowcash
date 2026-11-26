@@ -11,6 +11,12 @@ import { TrashIcon, PlusIcon, PencilIcon, CheckIcon, XMarkIcon } from "@heroicon
 import { ColorPicker } from "@/components/ColorPicker";
 import { useTheme } from "@/contexts/ThemeContext";
 import { useToast } from "@/contexts/ToastContext";
+import {
+  isPushSupported,
+  getPushSubscription,
+  subscribeToPush,
+  unsubscribeFromPush,
+} from "@/lib/push";
 
 // Force dynamic rendering
 export const dynamic = 'force-dynamic';
@@ -38,6 +44,10 @@ export default function ParametersPage() {
   const [deletingCategoryId, setDeletingCategoryId] = useState<string | null>(null);
   const [editingCategoryId, setEditingCategoryId] = useState<string | null>(null);
   const [editingCategoryName, setEditingCategoryName] = useState("");
+  const [notifSupported, setNotifSupported] = useState(false);
+  const [notifEnabled, setNotifEnabled] = useState(false);
+  const [notifLoading, setNotifLoading] = useState(false);
+  const [notifDenied, setNotifDenied] = useState(false);
 
   // Charger les paramètres actuels et les catégories
   useEffect(() => {
@@ -81,6 +91,50 @@ export default function ParametersPage() {
       router.push("/auth");
     }
   }, [user, authLoading, router]);
+
+  // Détecter le support et l'état des notifications push
+  useEffect(() => {
+    const checkPush = async () => {
+      if (!isPushSupported()) return;
+      setNotifSupported(true);
+      setNotifDenied(Notification.permission === "denied");
+      try {
+        const sub = await getPushSubscription();
+        setNotifEnabled(!!sub);
+      } catch {
+        setNotifEnabled(false);
+      }
+    };
+    checkPush();
+  }, []);
+
+  const handleToggleNotifications = async () => {
+    setNotifLoading(true);
+    setError(null);
+    try {
+      if (notifEnabled) {
+        await unsubscribeFromPush();
+        setNotifEnabled(false);
+        showSuccess("Notifications disabled");
+      } else {
+        await subscribeToPush();
+        setNotifEnabled(true);
+        setNotifDenied(false);
+        showSuccess("Notifications enabled");
+      }
+    } catch (err) {
+      console.error("Error toggling notifications:", err);
+      if (typeof Notification !== "undefined" && Notification.permission === "denied") {
+        setNotifDenied(true);
+      }
+      const message =
+        err instanceof Error ? err.message : "Error updating notifications";
+      setError(message);
+      showError(message);
+    } finally {
+      setNotifLoading(false);
+    }
+  };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -386,6 +440,60 @@ export default function ParametersPage() {
               </button>
             </div>
           </form>
+        </div>
+
+        {/* Section Notifications */}
+        <div
+          className="rounded-[28px] bg-white dark:bg-white/2 border border-gray-200 dark:border-transparent px-6 py-5"
+          style={{
+            boxShadow: "0 1px 2px 0 rgba(0, 0, 0, 0.05)",
+          }}
+        >
+          <h2 className="text-xs font-semibold text-gray-900 dark:text-white/50 uppercase mb-2">
+            Notifications
+          </h2>
+          <p className="text-sm text-gray-700 dark:text-gray-400 mb-6">
+            Get a reminder the day before a charge is due
+          </p>
+
+          {!notifSupported ? (
+            <p className="text-sm text-gray-500 dark:text-gray-400">
+              Your browser doesn&apos;t support notifications. On iPhone, add
+              Availo to your home screen first, then enable them from the
+              installed app.
+            </p>
+          ) : (
+            <div className="flex items-center justify-between p-4 rounded-lg bg-white dark:bg-white/2 border border-gray-200 dark:border-transparent">
+              <div className="text-sm pr-4">
+                <div className="font-medium text-gray-900 dark:text-gray-100">
+                  Charge reminders
+                </div>
+                <div className="text-xs text-gray-700 dark:text-gray-400 mt-0.5">
+                  {notifDenied
+                    ? "Blocked. Allow notifications in your browser settings."
+                    : notifEnabled
+                    ? "Enabled on this device"
+                    : "Disabled"}
+                </div>
+              </div>
+              <button
+                type="button"
+                onClick={handleToggleNotifications}
+                disabled={notifLoading || notifDenied}
+                className={`relative inline-flex h-6 w-11 shrink-0 items-center rounded-full transition-colors focus:outline-none focus:ring-2 focus:ring-flow-primary focus:ring-offset-2 disabled:opacity-50 ${
+                  notifEnabled ? "bg-flow-primary" : "bg-gray-300"
+                }`}
+                role="switch"
+                aria-checked={notifEnabled}
+              >
+                <span
+                  className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${
+                    notifEnabled ? "translate-x-6" : "translate-x-1"
+                  }`}
+                />
+              </button>
+            </div>
+          )}
         </div>
 
         {/* Section Catégories */}

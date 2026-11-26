@@ -69,6 +69,44 @@ export async function DELETE() {
     // Supprimer toutes les données de l'utilisateur dans l'ordre correct
     // Ordre important pour respecter les contraintes de clés étrangères
     
+    const { error: linksError } = await supabase.from("expense_transaction_links").delete().eq("user_id", user.id);
+    if (linksError) throw new Error(`Erreur lors de la suppression des rapprochements: ${linksError.message}`);
+    const { error: occurrencesError } = await supabase.from("expense_occurrences").delete().eq("user_id", user.id);
+    if (occurrencesError) throw new Error(`Erreur lors de la suppression des échéances: ${occurrencesError.message}`);
+    const { error: budgetsError } = await supabase.from("category_budgets").delete().eq("user_id", user.id);
+    if (budgetsError) throw new Error(`Erreur lors de la suppression des budgets: ${budgetsError.message}`);
+
+    // Transactions and rules reference categories, so they go first.
+    const { error: transactionsError } = await supabase
+      .from("transactions")
+      .delete()
+      .eq("user_id", user.id);
+
+    if (transactionsError) {
+      console.error("Error deleting transactions:", transactionsError);
+      throw new Error(`Erreur lors de la suppression des transactions: ${transactionsError.message}`);
+    }
+
+    const { error: rulesError } = await supabase
+      .from("categorization_rules")
+      .delete()
+      .eq("user_id", user.id);
+
+    if (rulesError) {
+      console.error("Error deleting categorization rules:", rulesError);
+      throw new Error(`Erreur lors de la suppression des règles: ${rulesError.message}`);
+    }
+
+    const { error: importsError } = await supabase
+      .from("bank_imports")
+      .delete()
+      .eq("user_id", user.id);
+
+    if (importsError) {
+      console.error("Error deleting bank imports:", importsError);
+      throw new Error(`Erreur lors de la suppression des imports: ${importsError.message}`);
+    }
+
     // 1. Supprimer d'abord les dépenses (elles référencent les catégories)
     const { error: expensesError } = await supabase
       .from("expenses")
