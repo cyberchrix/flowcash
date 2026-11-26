@@ -45,20 +45,28 @@ function kindFromAmount(amountCents: number): TransactionKind {
   return amountCents > 0 ? "income" : "expense";
 }
 
-export function categorizeTransaction(
-  label: string,
+export function matchingUserRule(
+  normalizedMerchant: string,
   amountCents: number,
-  rules: UserCategorizationRule[] = []
-): Categorization {
-  const normalizedMerchant = normalizeMerchant(label);
-  const userRule = [...rules]
+  rules: UserCategorizationRule[]
+): UserCategorizationRule | null {
+  return [...rules]
     .sort((a, b) => b.priority - a.priority)
     .find((rule) => {
       const pattern = normalizeMerchant(rule.pattern);
       if (!pattern || !normalizedMerchant.includes(pattern)) return false;
       if (rule.amountCents != null && rule.amountCents !== amountCents) return false;
       return true;
-    });
+    }) ?? null;
+}
+
+export function categorizeTransaction(
+  label: string,
+  amountCents: number,
+  rules: UserCategorizationRule[] = []
+): Categorization {
+  const normalizedMerchant = normalizeMerchant(label);
+  const userRule = matchingUserRule(normalizedMerchant, amountCents, rules);
 
   if (userRule) {
     return {

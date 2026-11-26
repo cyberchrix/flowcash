@@ -182,7 +182,7 @@ export function TransactionsView() {
     try {
       const pattern = await saveKeywordRule(user.id, keyword, keywordCategory);
       setKeyword("");
-      showSuccess(`${pattern} will be categorized as ${keywordCategory} on future imports`);
+      showSuccess(`${pattern} is now categorized as ${keywordCategory}`);
       await load();
     } catch (error) {
       showError(error instanceof Error ? error.message : "Could not save this keyword");
@@ -274,7 +274,7 @@ export function TransactionsView() {
             Keywords
           </h2>
           <p className="mb-4 text-sm text-gray-600 dark:text-gray-400">
-            A keyword such as Auchan is applied to every future import whose label contains it.
+            A keyword such as Auchan categorizes matching transactions already imported and every future import.
           </p>
           <div className="flex gap-2">
             <input

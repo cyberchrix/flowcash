@@ -17,6 +17,7 @@ export type RawBankRow = {
 export type UserCategorizationRule = {
   pattern: string;
   categoryName: string;
+  categoryId?: string;
   amountCents?: number | null;
   kind?: TransactionKind | null;
   needsReview: boolean;

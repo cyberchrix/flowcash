@@ -47,6 +47,18 @@ describe("categorizeTransaction", () => {
     expect(stationOnly.needsReview).toBe(true);
   });
 
+  it("applies a short keyword to any label that contains it", () => {
+    const result = categorizeTransaction("AUCHAN CITY LILLE", -4520, [
+      {
+        pattern: "Auchan",
+        categoryName: "Groceries",
+        needsReview: false,
+        priority: 100,
+      },
+    ]);
+    expect(result.categoryName).toBe("Groceries");
+  });
+
   it("lets a user rule override a built-in match", () => {
     const result = categorizeTransaction("LIDL CITY", -1500, [
       {
