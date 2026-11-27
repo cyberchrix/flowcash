@@ -204,6 +204,16 @@ export default function BudgetPage() {
     if (!root || !parents.has(root)) continue;
     plannedByParent.set(root, (plannedByParent.get(root) ?? 0) + amount);
   }
+  const incomeIds = incomeCategoryIds(categories);
+  const incomeByParent = new Map<string, number>();
+  for (const transaction of visibleTransactions) {
+    if (transaction.kind !== "income" || transaction.currency !== currency || transaction.amountCents <= 0) continue;
+    const root = categoryRoot(transaction.categoryId, parentById);
+    if (!root) continue;
+    incomeByParent.set(root, (incomeByParent.get(root) ?? 0) + transaction.amountCents);
+  }
+  const expenseSlices = rankedCategorySlices(spendByParent, categories, (category) => !incomeIds.has(category.id));
+  const incomeSlices = rankedCategorySlices(incomeByParent, categories, () => true);
   const periodTotals = totalsFor(visibleTransactions, currency);
   const spent = periodTotals.netSpend;
   const elapsed = Math.min(inclusiveDays(range.start, formatISODate(new Date()) < range.end ? formatISODate(new Date()) : range.end), inclusiveDays(range.start, range.end));
@@ -338,6 +348,25 @@ export default function BudgetPage() {
               ))}
             </div>
           </div>
+        </section>
+
+        <section className="grid grid-cols-2 gap-3">
+          <FlowSplitCard
+            title="Spending"
+            amount={ready ? formatCents(spent, currency) : "—"}
+            amountClass="text-gray-900 dark:text-white"
+            total={ready ? spent : 0}
+            slices={expenseSlices}
+            month={month.slice(0, 7)}
+          />
+          <FlowSplitCard
+            title="Income"
+            amount={ready ? formatCents(periodTotals.income, currency) : "—"}
+            amountClass="text-[#34D399]"
+            total={ready ? periodTotals.income : 0}
+            slices={incomeSlices}
+            month={month.slice(0, 7)}
+          />
         </section>
 
         <section>
@@ -500,5 +529,88 @@ export default function BudgetPage() {
         </div>
       )}
     </div>
+  );
+}
+
+type FlowSlice = { id: string; name: string; color: string; amount: number };
+
+function rankedCategorySlices(
+  totals: Map<string, number>,
+  categories: CategoryRow[],
+  include: (category: CategoryRow) => boolean,
+) {
+  return [...totals.entries()]
+    .filter(([, amount]) => amount > 0)
+    .flatMap(([id, amount]) => {
+      const category = categories.find((item) => item.id === id);
+      if (!category || !include(category)) return [];
+      return [{ id, name: categoryDisplayName(category), color: category.color, amount }];
+    })
+    .sort((left, right) => right.amount - left.amount);
+}
+
+function FlowSplitCard({
+  title,
+  amount,
+  amountClass,
+  total,
+  slices,
+  month,
+}: {
+  title: string;
+  amount: string;
+  amountClass: string;
+  total: number;
+  slices: FlowSlice[];
+  month: string;
+}) {
+  const radius = 34;
+  const circumference = 2 * Math.PI * radius;
+  const gap = slices.length > 1 ? 4 : 0;
+  let cursor = 0;
+  const arcs = total > 0 ? slices.map((slice) => {
+    const length = Math.max((slice.amount / total) * circumference - gap, 0);
+    const arc = { color: slice.color, length, offset: cursor };
+    cursor += length + gap;
+    return arc;
+  }) : [];
+
+  return (
+    <article className="rounded-3xl border border-gray-200 bg-white px-3 py-3 dark:border-transparent dark:bg-white/5">
+      <h2 className="text-xs font-semibold uppercase tracking-wide text-gray-500">{title}</h2>
+      <div className="relative mx-auto mt-2 h-[7.25rem] w-[7.25rem]">
+        <svg viewBox="0 0 100 100" className="h-full w-full -rotate-90">
+          <circle cx="50" cy="50" r={radius} fill="none" className="stroke-gray-100 dark:stroke-white/10" strokeWidth="9" />
+          {arcs.map((arc, index) => (
+            <circle
+              key={`${arc.color}-${index}`}
+              cx="50"
+              cy="50"
+              r={radius}
+              fill="none"
+              stroke={arc.color}
+              strokeWidth="9"
+              strokeDasharray={`${arc.length} ${circumference}`}
+              strokeDashoffset={-arc.offset}
+            />
+          ))}
+        </svg>
+        <div className="absolute inset-6 flex items-center justify-center text-center">
+          <p className={`px-1 text-[11px] font-semibold leading-tight tabular-nums ${amountClass}`}>{amount}</p>
+        </div>
+      </div>
+      <ul className="mt-2 space-y-1.5">
+        {slices.slice(0, 3).map((slice) => (
+          <li key={slice.id}>
+            <Link href={`/budget/${slice.id}?month=${month}`} className="flex items-center gap-1.5 text-[11px]">
+              <span className="h-2 w-2 shrink-0 rounded-full" style={{ backgroundColor: slice.color }} />
+              <span className="min-w-0 flex-1 truncate text-gray-700 dark:text-gray-300">{slice.name}</span>
+              <span className={`shrink-0 font-medium tabular-nums ${amountClass}`}>{formatCents(slice.amount)}</span>
+            </Link>
+          </li>
+        ))}
+        {slices.length === 0 && <li className="text-[11px] text-gray-500">Nothing this period.</li>}
+      </ul>
+    </article>
   );
 }
