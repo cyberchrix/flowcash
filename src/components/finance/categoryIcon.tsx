@@ -1,3 +1,4 @@
+import type { ComponentType } from "react";
 import {
   ArrowsRightLeftIcon,
   BanknotesIcon,
@@ -6,7 +7,6 @@ import {
   CakeIcon,
   CreditCardIcon,
   EllipsisHorizontalIcon,
-  FireIcon,
   HomeIcon,
   ShoppingCartIcon,
   TagIcon,
@@ -15,7 +15,17 @@ import {
   UsersIcon,
 } from "@heroicons/react/24/outline";
 
-const ICONS: [string, typeof HomeIcon][] = [
+function CigaretteIcon({ className }: { className?: string }) {
+  return (
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" className={className} aria-hidden="true">
+      <path strokeLinecap="round" d="M4.5 9.25c.7-.8.7-1.7 0-2.5M7.25 9.25c.7-.8.7-1.7 0-2.5" />
+      <rect x="3" y="11.25" width="15" height="4.5" rx="1" />
+      <path strokeLinecap="round" d="M14 11.25v4.5" />
+    </svg>
+  );
+}
+
+const ICONS: [string, ComponentType<{ className?: string }>][] = [
   ["HOUSING", HomeIcon],
   ["HOME", HomeIcon],
   ["LOGEMENT", HomeIcon],
@@ -32,8 +42,8 @@ const ICONS: [string, typeof HomeIcon][] = [
   ["FUEL", BoltIcon],
   ["CARBURANT", BoltIcon],
   ["ESSENCE", BoltIcon],
-  ["TOBACCO", FireIcon],
-  ["TABAC", FireIcon],
+  ["TOBACCO", CigaretteIcon],
+  ["TABAC", CigaretteIcon],
   ["CREDIT", CreditCardIcon],
   ["TRANSFER", ArrowsRightLeftIcon],
   ["VIREMENT", ArrowsRightLeftIcon],
