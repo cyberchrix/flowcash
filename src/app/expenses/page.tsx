@@ -49,6 +49,7 @@ export default function ExpensesPage() {
   const [groupByCategory, setGroupByCategory] = useState(true);
   const [expandedCategories, setExpandedCategories] = useState<Set<string>>(new Set());
   const [selectedCategories, setSelectedCategories] = useState<Set<string>>(new Set());
+  const [categoryFiltersOpen, setCategoryFiltersOpen] = useState(false);
   const [actuals, setActuals] = useState<Record<string, { cents: number; status: string }>>({});
 
   const loadExpenses = async () => {
@@ -321,6 +322,8 @@ export default function ExpensesPage() {
     return null; // Redirection en cours
   }
 
+  const hiddenCategoryCount = getAvailableCategories().filter((category) => !selectedCategories.has(category.name)).length;
+
   return (
     <>
       <div id="page-top-anchor" className="absolute top-0 left-0 w-1 h-1 opacity-0 pointer-events-none" aria-hidden="true" />
@@ -362,10 +365,16 @@ export default function ExpensesPage() {
             <>
               {/* Nuage de catégories pour filtrage */}
               <div className="mb-4">
-                <label className="block text-xs font-medium text-gray-700 dark:text-gray-300 mb-2">
-                  Filter by category
-                </label>
-                <div className="flex flex-wrap gap-2">
+                <button
+                  type="button"
+                  onClick={() => setCategoryFiltersOpen((open) => !open)}
+                  aria-expanded={categoryFiltersOpen}
+                  className="mb-2 flex w-full items-center justify-between text-xs font-medium text-gray-700 dark:text-gray-300"
+                >
+                  <span>Filter by category{hiddenCategoryCount > 0 ? ` · ${hiddenCategoryCount} hidden` : ""}</span>
+                  {categoryFiltersOpen ? <ChevronUpIcon className="h-4 w-4" /> : <ChevronDownIcon className="h-4 w-4" />}
+                </button>
+                {categoryFiltersOpen && <div className="flex flex-wrap gap-2">
                   {getAvailableCategories().map((category) => {
                     const isSelected = selectedCategories.has(category.name);
                     return (
@@ -390,7 +399,7 @@ export default function ExpensesPage() {
                       </button>
                     );
                   })}
-                </div>
+                </div>}
               </div>
 
               {/* Boutons de tri et groupage */}
