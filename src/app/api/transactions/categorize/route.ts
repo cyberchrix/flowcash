@@ -1,7 +1,7 @@
 import { createServerClient, type CookieOptions } from "@supabase/ssr";
 import { cookies } from "next/headers";
 import { NextResponse } from "next/server";
-import { acceptedSuggestions, inferCategory, labelForModel } from "@/lib/transactions/suggestCategory";
+import { acceptedSuggestions, labelForModel } from "@/lib/transactions/suggestCategory";
 
 async function askModel(merchants: string[], categoryNames: string[]) {
   const key = process.env.OPENAI_API_KEY;
@@ -90,24 +90,6 @@ export async function POST() {
     const unresolved = new Map<string, string[]>();
     let updated = 0;
     for (const row of rows ?? []) {
-      const inferred = inferCategory(`${row.normalized_merchant} ${row.full_label}`, names);
-      const categoryId = inferred ? categoryIdFor.get(inferred.categoryName.toLowerCase()) : undefined;
-      if (inferred && categoryId) {
-        await supabase.from("categorization_rules").insert({
-          user_id: user.id,
-          pattern: inferred.keyword,
-          category_id: categoryId,
-          needs_review: false,
-          priority: 40,
-        });
-        const { error: updateError } = await supabase
-          .from("transactions")
-          .update({ category_id: categoryId, needs_review: false })
-          .eq("id", row.id)
-          .eq("user_id", user.id);
-        if (!updateError) updated += 1;
-        continue;
-      }
       const label = labelForModel(`${row.normalized_merchant} ${row.full_label}`);
       const ids = unresolved.get(label) ?? [];
       ids.push(row.id);

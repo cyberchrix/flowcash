@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { markDuplicates } from "./duplicates";
+import { markDuplicates, markSameOperations } from "./duplicates";
 import { RawBankRow } from "./types";
 
 function row(amountCents: number, fullLabel = "LIDL CITY"): RawBankRow {
@@ -40,5 +40,16 @@ describe("markDuplicates", () => {
     const existing = new Map<string, number>([[first[0].fingerprint, 1]]);
     const second = markDuplicates([row(-1300)], existing);
     expect(second[0].duplicate).toBe(false);
+  });
+
+  it("treats the same date and amount from another file as the same operation", () => {
+    const marked = markSameOperations(
+      [
+        { ...row(-1250, "CARTE LIDL"), duplicate: false },
+        { ...row(-900, "OTHER"), duplicate: false },
+      ],
+      new Map([["2026-03-15|-1250", 1]])
+    );
+    expect(marked.map((item) => item.duplicate)).toEqual([true, false]);
   });
 });

@@ -1,14 +1,27 @@
 import { describe, expect, it } from "vitest";
 import { categorizeTransaction } from "./categorize";
+import { DEFAULT_KEYWORDS } from "./defaultKeywords";
+
+const lidl = DEFAULT_KEYWORDS.find((keyword) => keyword.pattern === "LIDL")!;
 
 describe("categorizeTransaction", () => {
-  it("maps grocery merchants", () => {
-    for (const label of ["LIDL CITY", "ALDI", "LECLERC", "Intermarché", "Colruyt"]) {
-      const result = categorizeTransaction(label, -1500);
-      expect(result.categoryName).toBe("Groceries");
-      expect(result.kind).toBe("expense");
-      expect(result.needsReview).toBe(false);
-    }
+  it("leaves a known shop uncategorized until a keyword exists", () => {
+    const result = categorizeTransaction("LIDL CITY", -1500);
+    expect(result.categoryName).toBeNull();
+    expect(result.kind).toBe("expense");
+    expect(result.needsReview).toBe(true);
+  });
+
+  it("uses a keyword for Lidl", () => {
+    const result = categorizeTransaction("LIDL CITY", -1500, [{
+      pattern: lidl.pattern,
+      categoryName: lidl.categoryName,
+      amountCents: null,
+      kind: null,
+      needsReview: false,
+      priority: 40,
+    }]);
+    expect(result.categoryName).toBe("Groceries");
   });
 
   it("uses the merchant keyword instead of the card number", () => {
@@ -29,75 +42,62 @@ describe("categorizeTransaction", () => {
     expect(result.categoryName).toBeNull();
   });
 
-  it("maps restaurants and fast food", () => {
-    expect(categorizeTransaction("McDonald's Mouscron", -890).categoryName).toBe("Restaurants");
-    expect(categorizeTransaction("Brasserie du Parc", -2400).categoryName).toBe("Restaurants");
+  it("prefers the keyword that names an amount, then the longer keyword", () => {
+    const stationRules = [
+      { pattern: "Q8", categoryName: "Fuel", amountCents: null, kind: null, needsReview: false, priority: 40 },
+      { pattern: "Q8", categoryName: "Tobacco", amountCents: -1130, kind: null, needsReview: false, priority: 40 },
+      { pattern: "INTERSTATION", categoryName: "Tobacco", amountCents: null, kind: null, needsReview: false, priority: 110 },
+      { pattern: "INTERSTATION MOUSCRON", categoryName: "Fuel", amountCents: null, kind: null, needsReview: false, priority: 110 },
+    ];
+    expect(categorizeTransaction("Q8 MOUSCRON", -1130, stationRules).categoryName).toBe("Tobacco");
+    expect(categorizeTransaction("Q8 MOUSCRON", -4000, stationRules).categoryName).toBe("Fuel");
+    expect(categorizeTransaction("CARTE X8230 INTERSTATION", -1130, stationRules).categoryName).toBe("Tobacco");
+    expect(categorizeTransaction("CARTE X8230 INTERSTATION MOUSCRON 22,29 EUR", -2229, stationRules).categoryName).toBe("Fuel");
   });
 
-  it("maps a clear fuel purchase and a 11.30 station payment to tobacco", () => {
-    const fuel = categorizeTransaction("TOTAL ACCESS CARBURANT", -6540);
-    expect(fuel.categoryName).toBe("Fuel");
-    expect(fuel.needsReview).toBe(false);
-
-    const tobacco = categorizeTransaction("Q8 MOUSCRON", -1130);
-    expect(tobacco.categoryName).toBe("Tobacco");
-    expect(tobacco.kind).toBe("expense");
+  it("lets a personal keyword beat a default amount rule", () => {
+    const result = categorizeTransaction("Q8 MOUSCRON", -1130, [
+      { pattern: "Q8", categoryName: "Tobacco", amountCents: -1130, kind: null, needsReview: false, priority: 40 },
+      { pattern: "Q8", categoryName: "Fuel", amountCents: null, kind: null, needsReview: false, priority: 110 },
+    ]);
+    expect(result.categoryName).toBe("Fuel");
   });
 
-  it("flags NAVI MOUSCRON and personal transfers for review", () => {
-    const shop = categorizeTransaction("NAVI MOUSCRON", -430);
-    expect(shop.categoryName).toBe("Convenience Store");
-    expect(shop.needsReview).toBe(true);
+  it("classifies bank fees only when a keyword matches", () => {
+    expect(categorizeTransaction("COTISATION JAZZ", -500, []).categoryName).toBeNull();
+    const result = categorizeTransaction("COTIS MODULE S OPT CONV", -500, [
+      { pattern: "COTIS MODULE", categoryName: "Bank fees", amountCents: null, kind: null, needsReview: false, priority: 110 },
+    ]);
+    expect(result.categoryName).toBe("Bank fees");
+  });
 
-    const transfer = categorizeTransaction("VIREMENT VERS COMPTE EPARGNE", -20000);
+  it("reads a keyword from the bank subcategory as well as the label", () => {
+    const result = categorizeTransaction("PRELEVEMENT EUROPEEN DE ZEPHIR", -30700, [
+      { pattern: "ASSURANCES AUTO", categoryName: "Car insurance", amountCents: null, kind: null, needsReview: false, priority: 40 },
+    ], "Auto Assurances auto");
+    expect(result.categoryName).toBe("Car insurance");
+    expect(result.normalizedMerchant).not.toContain("ASSURANCES");
+  });
+
+  it("uses the kind stored on a keyword", () => {
+    const salary = categorizeTransaction("VIREMENT KINGFISHER PAIE", 250000, [
+      { pattern: "VIREMENT", categoryName: "Transfers", amountCents: null, kind: "transfer", needsReview: true, priority: 40 },
+      { pattern: "KINGFISHER", categoryName: "Salary", amountCents: null, kind: "income", needsReview: false, priority: 40 },
+    ]);
+    expect(salary.kind).toBe("income");
+    expect(salary.categoryName).toBe("Salary");
+
+    const transfer = categorizeTransaction("VIREMENT VERS COMPTE EPARGNE", -20000, [
+      { pattern: "VIREMENT", categoryName: "Transfers", amountCents: null, kind: "transfer", needsReview: true, priority: 40 },
+    ]);
     expect(transfer.kind).toBe("transfer");
     expect(transfer.categoryName).toBe("Transfers");
-    expect(transfer.needsReview).toBe(true);
   });
 
-  it("does not force a category on an unknown or ambiguous merchant", () => {
-    const unknown = categorizeTransaction("Librairie du Centre", -1890);
-    expect(unknown.categoryName).toBeNull();
-    expect(unknown.needsReview).toBe(true);
-
-    const stationOnly = categorizeTransaction("SHELL STATION", -4200);
-    expect(stationOnly.categoryName).toBeNull();
-    expect(stationOnly.needsReview).toBe(true);
-  });
-
-  it("applies a short keyword to any label that contains it", () => {
-    const result = categorizeTransaction("AUCHAN CITY LILLE", -4520, [
-      {
-        pattern: "Auchan",
-        categoryName: "Groceries",
-        needsReview: false,
-        priority: 100,
-      },
-    ]);
-    expect(result.categoryName).toBe("Groceries");
-  });
-
-  it("lets a user rule override a built-in match", () => {
-    const result = categorizeTransaction("LIDL CITY", -1500, [
-      {
-        pattern: "LIDL",
-        categoryName: "Other",
-        needsReview: false,
-        priority: 100,
-      },
-    ]);
-    expect(result.categoryName).toBe("Other");
-  });
-
-  it("treats a Kingfisher credit as salary even when the label says transfer", () => {
-    const result = categorizeTransaction("VIREMENT KINGFISHER PAIE", 250000);
-    expect(result.kind).toBe("income");
-    expect(result.categoryName).toBe("Salary");
-  });
-
-  it("treats a positive amount as income", () => {
+  it("treats a positive amount as income when no keyword matches", () => {
     const result = categorizeTransaction("REMBOURSEMENT AMI", 2500);
     expect(result.kind).toBe("income");
+    expect(result.categoryName).toBeNull();
     expect(result.needsReview).toBe(true);
   });
 });

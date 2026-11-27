@@ -1,31 +1,12 @@
 import { describe, expect, it } from "vitest";
-import { acceptedSuggestions, displayMerchant, hasRestaurantSignal, inferCategory, isIncomeCategory, merchantKeyword } from "./suggestCategory";
-
-describe("inferCategory", () => {
-  it("maps a known merchant onto the matching category name", () => {
-    expect(inferCategory("AUCHAN CITY LILLE", ["Groceries", "Fuel"])).toEqual({
-      categoryName: "Groceries",
-      keyword: "AUCHAN",
-    });
-    expect(inferCategory("CARTE AUCHAN", ["Alimentation", "Transport"])?.categoryName).toBe("Alimentation");
-    expect(inferCategory("CB AU BUREAU LILLE", ["Restaurants", "Groceries"])).toEqual({
-      categoryName: "Restaurants",
-      keyword: "AU BUREAU",
-    });
-  });
-
-  it("stays quiet when no category corresponds and picks one when several match", () => {
-    expect(inferCategory("AUCHAN CITY", ["Maison", "Transport"])).toBeNull();
-    expect(inferCategory("LIDL", ["Groceries", "Courses"])?.categoryName).toBe("Groceries");
-  });
-});
+import { acceptedSuggestions, displayMerchant, isIncomeCategory, merchantKeyword } from "./suggestCategory";
 
 describe("merchantKeyword", () => {
   it("keeps the brand so later transactions of the same merchant match", () => {
     expect(merchantKeyword("TEXACO RELAIS MOUSCRON")).toBe("TEXACO");
     expect(merchantKeyword("CB AU BUREAU LILLE")).toBe("AU BUREAU");
     expect(merchantKeyword("CARTE X8230 12/09 LECLERC 785")).toBe("LECLERC");
-    expect(merchantKeyword("CARTE X8230 RETRAIT DAB")).toBe("");
+    expect(merchantKeyword("CARTE X8230 RETRAIT DAB")).toBe("RETRAIT DAB");
     expect(merchantKeyword("FRAIS HORS ZONE EURO")).toBe("");
     expect(merchantKeyword("SUMUP COMITE SCOLAIRE")).toBe("COMITE");
   });
@@ -52,16 +33,7 @@ describe("displayMerchant", () => {
     expect(displayMerchant("PRELEVEMENT EUROPEEN 1 DE PRET SOGEFINANC EXPRESSO FRANFINANC E ID FR08ZZZ100358")).toBe("Franfinance Expresso");
     expect(displayMerchant("PRELEVEMENT EUROPEEN 1 DE COFIDIS COF ID FR28ZZZ151408 MOTIF ECHEANCE")).toBe("Cofidis");
     expect(displayMerchant("PRLV EUROPEEN ACC 1 DE SOGECAP ID FR04ZZZ110906 MOTIF 1")).toBe("Sogecap");
-  });
-});
-
-describe("hasRestaurantSignal", () => {
-  it("recognizes a food place and ignores a fee or a shop", () => {
-    expect(hasRestaurantSignal("BELLA PIZZA")).toBe(true);
-    expect(hasRestaurantSignal("AU BUREAU LILLE")).toBe(true);
-    expect(hasRestaurantSignal("PRELEVEMENT EUROPEEN")).toBe(false);
-    expect(hasRestaurantSignal("SELF WASH")).toBe(false);
-    expect(hasRestaurantSignal("HOTEL IBIS")).toBe(false);
+    expect(displayMerchant("000001 VIR INSTANTANE EMIS LOGITEL POUR JEAN DUPONT 12 11 REF 681679988904 MOTIF LOYER")).toBe("Vir. émis Jean Dupont");
   });
 });
 

@@ -107,7 +107,7 @@ CREATE TABLE IF NOT EXISTS transactions (
 );
 
 -- Table: categorization_rules
--- User overrides applied before the built-in merchant rules
+-- Keywords decide the category. A rule may also match one exact amount.
 CREATE TABLE IF NOT EXISTS categorization_rules (
   id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
   user_id UUID REFERENCES auth.users(id) ON DELETE CASCADE NOT NULL,
@@ -118,7 +118,7 @@ CREATE TABLE IF NOT EXISTS categorization_rules (
   needs_review BOOLEAN NOT NULL DEFAULT FALSE,
   priority INTEGER NOT NULL DEFAULT 0,
   created_at TIMESTAMP WITH TIME ZONE DEFAULT TIMEZONE('utc', NOW()),
-  UNIQUE (user_id, pattern)
+  UNIQUE NULLS NOT DISTINCT (user_id, pattern, amount_cents)
 );
 
 -- Enable Row Level Security (RLS)

@@ -25,7 +25,10 @@ BEGIN
       ('Children', '#8A2BFF', NEW.id),
       ('Subscriptions', '#316CFF', NEW.id),
       ('Transport', '#FFC04A', NEW.id),
-      ('Other', '#A1A1A1', NEW.id)
+      ('Other', '#A1A1A1', NEW.id),
+      ('Car insurance', '#0EA5E9', NEW.id),
+      ('Cash withdrawals', '#64748B', NEW.id),
+      ('Bank fees', '#94A3B8', NEW.id)
     ON CONFLICT (name, user_id) DO NOTHING;
   EXCEPTION WHEN OTHERS THEN
     -- Log error but don't fail the user creation

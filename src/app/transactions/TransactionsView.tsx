@@ -14,6 +14,7 @@ import {
   deleteKeywordRule,
   ensureTransactionSync,
   getTransactions,
+  clearAllTransactions,
   saveBankImport,
   saveKeywordRule,
   SavedTransactionInput,
@@ -22,9 +23,10 @@ import {
 } from "@/lib/supabase/transactions";
 import { categorizeTransaction } from "@/lib/transactions/categorize";
 import { categorizeWithModel } from "@/lib/transactions/categorizeWithModel";
-import { inferCategory } from "@/lib/transactions/suggestCategory";
-import { fingerprint, markDuplicates } from "@/lib/transactions/duplicates";
+import { displayMerchant } from "@/lib/transactions/suggestCategory";
+import { fingerprint, markDuplicates, markSameOperations } from "@/lib/transactions/duplicates";
 import { decodeCsvBytes, parseCsv } from "@/lib/transactions/parseCsv";
+import { parseXlsx } from "@/lib/transactions/parseXlsx";
 import { TransactionKind } from "@/lib/transactions/types";
 
 type CategoryOption = { id: string; name: string; color: string };
@@ -41,6 +43,9 @@ const BUILT_IN_CATEGORIES = [
   "Tobacco",
   "Convenience Store",
   "Transfers",
+  "Car insurance",
+  "Cash withdrawals",
+  "Bank fees",
 ];
 
 const KIND_LABEL: Record<TransactionKind, string> = {
@@ -77,13 +82,15 @@ export function TransactionsView() {
   const [month, setMonth] = useState(searchParams.get("month") ?? "");
   const [categoryId, setCategoryId] = useState(searchParams.get("category") ?? "");
   const [loading, setLoading] = useState(true);
+  const [confirmClear, setConfirmClear] = useState(false);
+  const [clearing, setClearing] = useState(false);
   const [preview, setPreview] = useState<PreviewRow[] | null>(null);
   const [filename, setFilename] = useState("");
   const [skippedRows, setSkippedRows] = useState<string[]>([]);
   const [previewOpen, setPreviewOpen] = useState(false);
   const [saving, setSaving] = useState(false);
   const [reading, setReading] = useState(false);
-  const [rules, setRules] = useState<{ pattern: string; categoryName: string }[]>([]);
+  const [rules, setRules] = useState<{ pattern: string; categoryName: string; amountCents: number | null }[]>([]);
   const [keyword, setKeyword] = useState("");
   const [keywordCategory, setKeywordCategory] = useState("Groceries");
   const [keywordsOpen, setKeywordsOpen] = useState(false);
@@ -114,7 +121,11 @@ export function TransactionsView() {
         color: category.color,
       })));
       setTransactions(transactionRows);
-      setRules(ruleRows.map((rule) => ({ pattern: rule.pattern, categoryName: rule.categoryName })));
+      setRules(ruleRows.map((rule) => ({
+        pattern: rule.pattern,
+        categoryName: rule.categoryName,
+        amountCents: rule.amountCents,
+      })));
       setLoading(false);
       const [model, synced] = await Promise.all([
         categorizeWithModel(),
@@ -174,25 +185,34 @@ export function TransactionsView() {
     setReading(true);
     try {
       const bytes = new Uint8Array(await file.arrayBuffer());
-      const parsed = parseCsv(decodeCsvBytes(bytes));
+      const isWorkbook = file.name.toLowerCase().endsWith(".xlsx") || (bytes[0] === 0x50 && bytes[1] === 0x4b);
+      const parsed = isWorkbook ? parseXlsx(bytes) : parseCsv(decodeCsvBytes(bytes));
       setSkippedRows(parsed.skipped);
       const rules = await getCategorizationRules(user.id);
-      const names = [...BUILT_IN_CATEGORIES, ...categories.map((category) => category.name)];
       const categorized = parsed.rows.map((row) => {
-        const result = categorizeTransaction(row.fullLabel, row.amountCents, rules);
-        const inferred = result.categoryName ? null : inferCategory(row.fullLabel, names);
+        const result = categorizeTransaction(
+          row.fullLabel,
+          row.amountCents,
+          rules,
+          [row.bankCategory, row.bankSubcategory].filter(Boolean).join(" ")
+        );
         return {
           ...row,
           ...result,
-          categoryName: result.categoryName ?? inferred?.categoryName ?? null,
-          suggestedCategoryName: result.categoryName ?? inferred?.categoryName ?? null,
+          suggestedCategoryName: result.categoryName,
         };
       });
       const counts = await countFingerprints(
         user.id,
         categorized.map((row) => fingerprint(row))
       );
-      const marked = markDuplicates(categorized, counts);
+      const existing = await getTransactions(user.id, {});
+      const operationCounts = new Map<string, number>();
+      for (const saved of existing) {
+        const key = `${saved.transaction_date}|${Number(saved.amount_cents)}`;
+        operationCounts.set(key, (operationCounts.get(key) ?? 0) + 1);
+      }
+      const marked = markSameOperations(markDuplicates(categorized, counts), operationCounts);
       setFilename(file.name);
       setPreviewOpen(false);
       setPreview(
@@ -256,6 +276,26 @@ export function TransactionsView() {
     }
   };
 
+  const clearTransactions = async () => {
+    if (!user || clearing) return;
+    setClearing(true);
+    try {
+      const removed = await clearAllTransactions(user.id);
+      setTransactions([]);
+      setPreview(null);
+      setConfirmClear(false);
+      showSuccess(
+        removed === 0
+          ? "No transactions to clear"
+          : `Cleared ${removed} transaction${removed === 1 ? "" : "s"}`
+      );
+    } catch (error) {
+      showError(error instanceof Error ? error.message : "Could not clear transactions");
+    } finally {
+      setClearing(false);
+    }
+  };
+
   const addKeyword = async () => {
     if (!user) return;
     try {
@@ -268,22 +308,22 @@ export function TransactionsView() {
     }
   };
 
-  const removeKeyword = async (pattern: string) => {
+  const removeKeyword = async (pattern: string, amountCents: number | null) => {
     if (!user) return;
     try {
-      await deleteKeywordRule(user.id, pattern);
+      await deleteKeywordRule(user.id, pattern, amountCents);
       await load();
     } catch (error) {
       showError(error instanceof Error ? error.message : "Could not delete this keyword");
     }
   };
 
-  const changeKeywordCategory = async (pattern: string, categoryName: string) => {
+  const changeKeywordCategory = async (pattern: string, categoryName: string, amountCents: number | null) => {
     if (!user || !categoryName) return;
-    const current = rules.find((rule) => rule.pattern === pattern)?.categoryName;
+    const current = rules.find((rule) => rule.pattern === pattern && rule.amountCents === amountCents)?.categoryName;
     if (current === categoryName) return;
     try {
-      await saveKeywordRule(user.id, pattern, categoryName);
+      await saveKeywordRule(user.id, pattern, categoryName, amountCents);
       showSuccess(`${pattern} is now categorized as ${categoryName}`);
       await load();
     } catch (error) {
@@ -325,7 +365,7 @@ export function TransactionsView() {
               Import
               <input
                 type="file"
-                accept=".csv,text/csv"
+                accept=".csv,text/csv,.xlsx,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
                 disabled={reading || saving}
                 className="sr-only"
                 onChange={(event) => {
@@ -335,6 +375,15 @@ export function TransactionsView() {
                 }}
               />
             </label>
+            <button
+              type="button"
+              onClick={() => setConfirmClear(true)}
+              disabled={clearing || transactions.length === 0}
+              className="flex h-10 items-center gap-1.5 rounded-lg bg-red-50 px-3 text-sm font-medium text-red-600 disabled:opacity-40 dark:bg-red-950/40 dark:text-red-300"
+            >
+              <TrashIcon className="h-4 w-4" />
+              Clear
+            </button>
             <button
               type="button"
               aria-label="Add keyword"
@@ -349,6 +398,31 @@ export function TransactionsView() {
               <TagIcon className="h-5 w-5" />
             </button>
           </div>
+          {confirmClear && (
+            <div className="space-y-3 rounded-2xl border border-red-200 bg-red-50 p-4 dark:border-red-900 dark:bg-red-950/40">
+              <p className="text-sm text-red-700 dark:text-red-200">
+                This deletes every imported transaction. Budgets and keywords stay.
+              </p>
+              <div className="flex gap-2">
+                <button
+                  type="button"
+                  onClick={() => setConfirmClear(false)}
+                  disabled={clearing}
+                  className="h-10 flex-1 rounded-lg bg-white text-sm font-medium text-gray-900 dark:bg-gray-800 dark:text-gray-100"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="button"
+                  onClick={clearTransactions}
+                  disabled={clearing}
+                  className="h-10 flex-1 rounded-lg bg-red-600 text-sm font-medium text-white disabled:opacity-60"
+                >
+                  {clearing ? "Clearing…" : "Delete all"}
+                </button>
+              </div>
+            </div>
+          )}
           <div className="relative">
             <MagnifyingGlassIcon className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-400" />
             <input
@@ -417,12 +491,15 @@ export function TransactionsView() {
             <div className="mt-4">
               <ul className="space-y-2">
                 {(keywordsOpen ? rules : rules.slice(0, 2)).map((rule) => (
-                  <li key={rule.pattern} className="flex items-center gap-2 text-sm text-gray-900 dark:text-white">
-                    <span className="min-w-0 flex-1 truncate">{rule.pattern}</span>
+                  <li key={`${rule.pattern}:${rule.amountCents ?? ""}`} className="flex items-center gap-2 text-sm text-gray-900 dark:text-white">
+                    <span className="min-w-0 flex-1 truncate">
+                      {rule.pattern}
+                      {rule.amountCents != null ? ` · ${formatMoney(rule.amountCents)}` : ""}
+                    </span>
                     <select
                       value={rule.categoryName}
                       aria-label={`Category for ${rule.pattern}`}
-                      onChange={(event) => changeKeywordCategory(rule.pattern, event.target.value)}
+                      onChange={(event) => changeKeywordCategory(rule.pattern, event.target.value, rule.amountCents)}
                       className="max-w-[9rem] rounded-lg border border-gray-300 bg-white px-2 py-1.5 text-sm text-gray-900 dark:border-gray-600 dark:bg-gray-700 dark:text-gray-100"
                     >
                       {categoryNames.map((name) => (
@@ -431,7 +508,7 @@ export function TransactionsView() {
                     </select>
                     <button
                       type="button"
-                      onClick={() => removeKeyword(rule.pattern)}
+                      onClick={() => removeKeyword(rule.pattern, rule.amountCents)}
                       aria-label={`Remove ${rule.pattern}`}
                       className="shrink-0 rounded-lg p-1.5 text-gray-500 hover:bg-red-50 hover:text-red-500 dark:hover:bg-white/10 dark:hover:text-white"
                     >
@@ -556,8 +633,8 @@ export function TransactionsView() {
               <article className="rounded-[24px] border border-gray-200 bg-white px-4 py-3 dark:border-transparent dark:bg-white/2">
                 <div className="flex items-start justify-between gap-3">
                   <div className="min-w-0 flex-1">
-                    <p className="line-clamp-2 break-words text-sm font-medium leading-snug text-gray-900 dark:text-white">
-                      {transaction.full_label}
+                    <p className="truncate text-sm font-medium leading-snug text-gray-900 dark:text-white">
+                      {displayMerchant(transaction.full_label)}
                     </p>
                     <p className="mt-0.5 text-xs text-gray-500 dark:text-gray-400">
                       {transaction.transaction_date} · {KIND_LABEL[transaction.kind]}

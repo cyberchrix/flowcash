@@ -2,17 +2,11 @@ import { supabase, ensureSupabaseConfigured } from "../supabase";
 import { Database } from "@/types/database";
 import { createCategory, getCategories } from "./categories";
 import { matchingUserRule } from "@/lib/transactions/categorize";
+import { DEFAULT_KEYWORDS } from "@/lib/transactions/defaultKeywords";
 import { normalizeMerchant } from "@/lib/transactions/normalize";
 import { invalidateBudgetCache } from "@/lib/finance/budgetCache";
 import { invalidateCategoryModel } from "@/lib/transactions/categorizeWithModel";
-import {
-  hasRestaurantSignal,
-  inferCategory,
-  isPaymentToken,
-  isRestaurantCategory,
-  knownTermExpectation,
-  merchantKeyword,
-} from "@/lib/transactions/suggestCategory";
+import { isPaymentToken, merchantKeyword } from "@/lib/transactions/suggestCategory";
 import { TransactionKind } from "@/lib/transactions/types";
 
 type TransactionInsert = Database["public"]["Tables"]["transactions"]["Insert"];
@@ -27,8 +21,13 @@ const CATEGORY_COLORS: Record<string, string> = {
   Restaurants: "#F59E0B",
   Fuel: "#316CFF",
   Tobacco: "#A1A1A1",
+  "Car insurance": "#0EA5E9",
+  "Cash withdrawals": "#64748B",
+  "Bank fees": "#94A3B8",
   "Convenience Store": "#8A2BFF",
   Transfers: "#6366F1",
+  Health: "#F472B6",
+  Shopping: "#A78BFA",
 };
 
 export type SavedTransactionInput = {
@@ -85,6 +84,38 @@ export async function ensureCategoryIds(userId: string, names: string[]) {
   return byName;
 }
 
+async function rememberKeyword(
+  userId: string,
+  pattern: string,
+  categoryId: string,
+  kind: TransactionKind | null = null,
+  amountCents: number | null = null
+) {
+  let lookup = supabase
+    .from("categorization_rules")
+    .select("id")
+    .eq("user_id", userId)
+    .eq("pattern", pattern);
+  lookup = amountCents == null ? lookup.is("amount_cents", null) : lookup.eq("amount_cents", amountCents);
+  const { data: found, error: findError } = await lookup.maybeSingle();
+  if (findError) throw new Error(`Error saving keyword: ${findError.message}`);
+  const payload = {
+    category_id: categoryId,
+    kind,
+    needs_review: false,
+    priority: 110,
+  };
+  const { error } = found
+    ? await supabase.from("categorization_rules").update(payload).eq("id", found.id)
+    : await supabase.from("categorization_rules").insert({
+        user_id: userId,
+        pattern,
+        amount_cents: amountCents,
+        ...payload,
+      });
+  if (error) throw new Error(`Error saving keyword: ${error.message}`);
+}
+
 export async function getCategorizationRules(userId: string) {
   ensureSupabaseConfigured();
   const { data, error } = await supabase
@@ -103,7 +134,7 @@ export async function getCategorizationRules(userId: string) {
       pattern: rule.pattern as string,
       categoryId: rule.category_id as string,
       categoryName: categoryName ?? "",
-      amountCents: rule.amount_cents as number | null,
+      amountCents: rule.amount_cents == null ? null : Number(rule.amount_cents),
       kind: rule.kind as TransactionKind | null,
       needsReview: Boolean(rule.needs_review),
       priority: Number(rule.priority ?? 0),
@@ -257,20 +288,7 @@ export async function saveBankImport(
     const categoryId = categoryIdFor(row.categoryName);
     const pattern = merchantKeyword(row.fullLabel) || row.normalizedMerchant;
     if (!categoryId || pattern.length < 3) continue;
-    const { error } = await supabase.from("categorization_rules").upsert(
-      {
-        user_id: userId,
-        pattern,
-        category_id: categoryId,
-        kind: row.kind,
-        needs_review: false,
-        priority: 110,
-      },
-      { onConflict: "user_id,pattern" }
-    );
-    if (error) {
-      throw new Error(`Error saving categorization rule: ${error.message}`);
-    }
+    await rememberKeyword(userId, pattern, categoryId, row.kind);
   }
 
   invalidateTransactionSync(userId);
@@ -281,207 +299,147 @@ export async function saveBankImport(
   };
 }
 
+export async function clearAllTransactions(userId: string) {
+  ensureSupabaseConfigured();
+  let removed = 0;
+
+  for (;;) {
+    const { data, error } = await supabase
+      .from("transactions")
+      .select("id")
+      .eq("user_id", userId)
+      .limit(500);
+    if (error) throw new Error(`Error clearing transactions: ${error.message}`);
+    if (!data || data.length === 0) break;
+    const { error: deleteError } = await supabase
+      .from("transactions")
+      .delete()
+      .in("id", data.map((row) => row.id));
+    if (deleteError) throw new Error(`Error clearing transactions: ${deleteError.message}`);
+    removed += data.length;
+  }
+
+  for (;;) {
+    const { data, error } = await supabase
+      .from("bank_imports")
+      .select("id")
+      .eq("user_id", userId)
+      .limit(500);
+    if (error) throw new Error(`Error clearing imports: ${error.message}`);
+    if (!data || data.length === 0) break;
+    const { error: deleteError } = await supabase
+      .from("bank_imports")
+      .delete()
+      .in("id", data.map((row) => row.id));
+    if (deleteError) throw new Error(`Error clearing imports: ${deleteError.message}`);
+  }
+
+  invalidateTransactionSync(userId);
+  invalidateBudgetCache();
+  return removed;
+}
+
 export async function applyKeywordRules(userId: string) {
   const rules = await getCategorizationRules(userId);
   if (rules.length === 0) return 0;
 
   ensureSupabaseConfigured();
-  const { data, error } = await supabase
-    .from("transactions")
-    .select("id, normalized_merchant, amount_cents, category_id")
-    .eq("user_id", userId);
-  if (error) throw new Error(`Error reading transactions: ${error.message}`);
+  const rows: {
+    id: string;
+    text: string;
+    amount_cents: number;
+    category_id: string | null;
+    kind: string | null;
+  }[] = [];
+  for (let from = 0; ; from += 1000) {
+    const { data, error } = await supabase
+      .from("transactions")
+      .select("id, normalized_merchant, full_label, bank_category, bank_subcategory, amount_cents, category_id, kind")
+      .eq("user_id", userId)
+      .range(from, from + 999);
+    if (error) throw new Error(`Error reading transactions: ${error.message}`);
+    rows.push(...(data ?? []).map((row) => ({
+      id: row.id,
+      text: normalizeMerchant([row.normalized_merchant, row.full_label, row.bank_category, row.bank_subcategory].filter(Boolean).join(" ")),
+      amount_cents: Number(row.amount_cents),
+      category_id: row.category_id,
+      kind: row.kind,
+    })));
+    if (!data || data.length < 1000) break;
+  }
 
-  const idsByCategory = new Map<string, { ids: string[]; needsReview: boolean }>();
-  for (const row of data ?? []) {
-    const rule = matchingUserRule(row.normalized_merchant, Number(row.amount_cents), rules);
-    if (!rule?.categoryId || rule.categoryId === row.category_id) continue;
+  const groups = new Map<string, { categoryId: string; needsReview: boolean; kind: TransactionKind | null; ids: string[] }>();
+  for (const row of rows) {
+    const rule = matchingUserRule(row.text, row.amount_cents, rules);
+    if (!rule?.categoryId) continue;
     if (row.category_id && rule.priority < 100) continue;
-    const group = idsByCategory.get(rule.categoryId) ?? { ids: [] as string[], needsReview: rule.needsReview };
+    const kind = rule.kind ?? null;
+    if (rule.categoryId === row.category_id && (kind == null || kind === row.kind)) continue;
+    const key = `${rule.categoryId}|${kind ?? ""}|${rule.needsReview}`;
+    const group = groups.get(key) ?? { categoryId: rule.categoryId, needsReview: rule.needsReview, kind, ids: [] as string[] };
     group.ids.push(row.id);
-    group.needsReview = group.needsReview || rule.needsReview;
-    idsByCategory.set(rule.categoryId, group);
+    groups.set(key, group);
   }
 
   let updated = 0;
-  for (const [categoryId, group] of idsByCategory) {
-    const { error: updateError } = await supabase
-      .from("transactions")
-      .update({ category_id: categoryId, needs_review: group.needsReview })
-      .eq("user_id", userId)
-      .in("id", group.ids);
-    if (updateError) throw new Error(`Error applying keywords: ${updateError.message}`);
-    updated += group.ids.length;
+  for (const group of groups.values()) {
+    for (let index = 0; index < group.ids.length; index += 80) {
+      const ids = group.ids.slice(index, index + 80);
+      const { error: updateError } = await supabase
+        .from("transactions")
+        .update({
+          category_id: group.categoryId,
+          needs_review: group.needsReview,
+          ...(group.kind ? { kind: group.kind } : {}),
+        })
+        .eq("user_id", userId)
+        .in("id", ids);
+      if (updateError) throw new Error(`Error applying keywords: ${updateError.message}`);
+      updated += ids.length;
+    }
   }
   return updated;
 }
 
-export async function applyKnownMerchants(userId: string) {
-  const categories = await getCategories(userId);
-  if (categories.length === 0) return 0;
-  ensureSupabaseConfigured();
-  const { data, error } = await supabase
-    .from("transactions")
-    .select("id, normalized_merchant, full_label, category_id, needs_review")
-    .eq("user_id", userId)
-    .or("category_id.is.null,needs_review.eq.true");
-  if (error) throw new Error(`Error reading transactions: ${error.message}`);
+function keywordIdentity(pattern: string, amountCents: number | null | undefined) {
+  return `${normalizeMerchant(pattern)}|${amountCents ?? ""}`;
+}
 
-  const names = categories.map((category) => category.name);
-  const categoryIdFor = new Map(categories.map((category) => [category.name.toLowerCase(), category.id]));
-  const rules = await getCategorizationRules(userId);
-  const idsByCategory = new Map<string, { categoryId: string; keyword: string; ids: string[] }>();
-  for (const row of data ?? []) {
-    const label = `${row.normalized_merchant} ${row.full_label ?? ""}`;
-    const locked = matchingUserRule(label, 0, rules);
-    if (locked && locked.priority >= 100) continue;
-    const inferred = inferCategory(label, names);
-    const categoryId = inferred ? categoryIdFor.get(inferred.categoryName.toLowerCase()) : undefined;
-    if (!inferred || !categoryId || categoryId === row.category_id) continue;
-    const group = idsByCategory.get(categoryId) ?? { categoryId, keyword: inferred.keyword, ids: [] as string[] };
-    group.ids.push(row.id);
-    idsByCategory.set(categoryId, group);
-    const { error: ruleError } = await supabase.from("categorization_rules").insert({
+export async function ensureDefaultKeywords(userId: string) {
+  ensureSupabaseConfigured();
+  const existing = await getCategorizationRules(userId);
+  const present = new Set(existing.map((rule) => keywordIdentity(rule.pattern, rule.amountCents)));
+  const missing = DEFAULT_KEYWORDS.filter((keyword) => !present.has(keywordIdentity(keyword.pattern, keyword.amountCents ?? null)));
+  if (missing.length === 0) return 0;
+
+  const categories = await ensureCategoryIds(userId, [...new Set(missing.map((keyword) => keyword.categoryName))]);
+  let inserted = 0;
+  for (const keyword of missing) {
+    const category = categories.get(keyword.categoryName.toLowerCase());
+    if (!category?.id) continue;
+    const { error } = await supabase.from("categorization_rules").insert({
       user_id: userId,
-      pattern: inferred.keyword,
-      category_id: categoryId,
-      needs_review: false,
-      priority: 40,
+      pattern: normalizeMerchant(keyword.pattern),
+      category_id: category.id,
+      amount_cents: keyword.amountCents ?? null,
+      kind: keyword.kind ?? null,
+      needs_review: keyword.needsReview ?? false,
+      priority: keyword.priority ?? 40,
     });
-    if (ruleError && ruleError.code !== "23505") throw new Error(`Error saving inferred keyword: ${ruleError.message}`);
+    if (error && error.code !== "23505") throw new Error(`Error saving keyword: ${error.message}`);
+    if (!error) inserted += 1;
   }
-
-  let updated = 0;
-  for (const group of idsByCategory.values()) {
-    const { error: updateError } = await supabase
-      .from("transactions")
-      .update({ category_id: group.categoryId, needs_review: false })
-      .eq("user_id", userId)
-      .in("id", group.ids);
-    if (updateError) throw new Error(`Error applying known merchants: ${updateError.message}`);
-    updated += group.ids.length;
-  }
-  return updated;
-}
-
-export async function applySalaryIncome(userId: string) {
-  ensureSupabaseConfigured();
-  const { data, error } = await supabase
-    .from("transactions")
-    .select("id, normalized_merchant, full_label, amount_cents, kind")
-    .eq("user_id", userId)
-    .gt("amount_cents", 0);
-  if (error) throw new Error(`Error reading income: ${error.message}`);
-  const ids = (data ?? [])
-    .filter((row) => `${row.normalized_merchant} ${row.full_label ?? ""}`.toUpperCase().includes("KINGFISHER"))
-    .filter((row) => row.kind !== "income")
-    .map((row) => row.id);
-  if (ids.length === 0) return 0;
-  const categories = await ensureCategoryIds(userId, ["Salary"]);
-  const categoryId = categories.get("salary")?.id;
-  const { error: updateError } = await supabase
-    .from("transactions")
-    .update({ kind: "income", category_id: categoryId, needs_review: false })
-    .eq("user_id", userId)
-    .in("id", ids);
-  if (updateError) throw new Error(`Error marking salary: ${updateError.message}`);
-  return ids.length;
+  return inserted;
 }
 
 export async function repairKeywordRules(userId: string) {
   ensureSupabaseConfigured();
-  const [rules, categories] = await Promise.all([
-    getCategorizationRules(userId),
-    getCategories(userId),
-  ]);
-  const names = categories.map((category) => category.name);
-  for (const rule of rules) {
-    if (isPaymentToken(rule.pattern)) {
-      const { error } = await supabase.from("categorization_rules").delete().eq("user_id", userId).eq("pattern", rule.pattern);
-      if (error) throw new Error(`Error removing keyword: ${error.message}`);
-      continue;
-    }
-    if (rule.priority >= 110) continue;
-    const expectation = knownTermExpectation(rule.pattern, names);
-    if (expectation.known && !expectation.categoryName) {
-      const { error } = await supabase.from("categorization_rules").delete().eq("user_id", userId).eq("pattern", rule.pattern);
-      if (error) throw new Error(`Error removing keyword: ${error.message}`);
-      continue;
-    }
-    if (expectation.categoryName && expectation.categoryName !== rule.categoryName) {
-      const categoryId = categories.find((category) => category.name === expectation.categoryName)?.id;
-      if (!categoryId) continue;
-      const { error } = await supabase
-        .from("categorization_rules")
-        .update({ category_id: categoryId, needs_review: false })
-        .eq("user_id", userId)
-        .eq("pattern", rule.pattern);
-      if (error) throw new Error(`Error correcting keyword: ${error.message}`);
-      continue;
-    }
-    if (isRestaurantCategory(rule.categoryName) && rule.priority < 110 && !hasRestaurantSignal(rule.pattern)) {
-      const { error } = await supabase.from("categorization_rules").delete().eq("user_id", userId).eq("pattern", rule.pattern);
-      if (error) throw new Error(`Error removing keyword: ${error.message}`);
-    }
-  }
-}
-
-async function releaseFalseRestaurants(userId: string) {
-  const categories = await getCategories(userId);
-  const restaurant = categories.find((category) => isRestaurantCategory(category.name));
-  if (!restaurant) return 0;
-  const names = categories.map((category) => category.name);
-  const categoryIdFor = new Map(categories.map((category) => [category.name.toLowerCase(), category.id]));
   const rules = await getCategorizationRules(userId);
-  const { data, error } = await supabase
-    .from("transactions")
-    .select("id, normalized_merchant, full_label, amount_cents")
-    .eq("user_id", userId)
-    .eq("category_id", restaurant.id);
-  if (error) throw new Error(`Error reading restaurants: ${error.message}`);
-
-  const clearIds: string[] = [];
-  const moveIds = new Map<string, string[]>();
-  for (const row of data ?? []) {
-    const label = `${row.normalized_merchant ?? ""} ${row.full_label ?? ""}`;
-    if (hasRestaurantSignal(label)) continue;
-    const rule = matchingUserRule(normalizeMerchant(label), Number(row.amount_cents), rules);
-    if (rule?.categoryId === restaurant.id) continue;
-    const inferred = inferCategory(label, names);
-    const nextId = (inferred ? categoryIdFor.get(inferred.categoryName.toLowerCase()) : undefined) ?? rule?.categoryId;
-    if (nextId && nextId !== restaurant.id) {
-      const ids = moveIds.get(nextId) ?? [];
-      ids.push(row.id);
-      moveIds.set(nextId, ids);
-    } else {
-      clearIds.push(row.id);
-    }
+  for (const rule of rules) {
+    if (!isPaymentToken(rule.pattern)) continue;
+    const { error } = await supabase.from("categorization_rules").delete().eq("user_id", userId).eq("pattern", rule.pattern);
+    if (error) throw new Error(`Error removing keyword: ${error.message}`);
   }
-
-  let updated = 0;
-  for (let index = 0; index < clearIds.length; index += 80) {
-    const ids = clearIds.slice(index, index + 80);
-    const { error: clearError } = await supabase
-      .from("transactions")
-      .update({ category_id: null, needs_review: true })
-      .eq("user_id", userId)
-      .in("id", ids);
-    if (clearError) throw new Error(`Error clearing category: ${clearError.message}`);
-    updated += ids.length;
-  }
-  for (const [categoryId, ids] of moveIds) {
-    for (let index = 0; index < ids.length; index += 80) {
-      const batch = ids.slice(index, index + 80);
-      const { error: moveError } = await supabase
-        .from("transactions")
-        .update({ category_id: categoryId, needs_review: false })
-        .eq("user_id", userId)
-        .in("id", batch);
-      if (moveError) throw new Error(`Error moving category: ${moveError.message}`);
-      updated += batch.length;
-    }
-  }
-  return updated;
 }
 
 const SYNC_TTL_MS = 10 * 60 * 1000;
@@ -496,14 +454,14 @@ export function invalidateTransactionSync(userId?: string) {
 export async function ensureTransactionSync(userId: string): Promise<number> {
   const current = transactionSync.get(userId);
   if (current?.pending) return current.pending;
-  if (current && Date.now() - current.at < SYNC_TTL_MS) return 0;
+  if (current && Date.now() - current.at < SYNC_TTL_MS) {
+    await ensureDefaultKeywords(userId);
+    return applyKeywordRules(userId);
+  }
   const pending = (async () => {
-    await applySalaryIncome(userId);
+    await ensureDefaultKeywords(userId);
     await repairKeywordRules(userId);
-    const released = await releaseFalseRestaurants(userId);
-    const keywords = await applyKeywordRules(userId);
-    const known = await applyKnownMerchants(userId);
-    return released + keywords + known;
+    return applyKeywordRules(userId);
   })();
   transactionSync.set(userId, { at: current?.at ?? 0, pending });
   try {
@@ -586,23 +544,18 @@ export async function updateTransactionCategory(
     .single();
   const pattern = merchantKeyword(`${data?.normalized_merchant ?? ""} ${data?.full_label ?? ""}`);
   if (pattern.length < 3) return null;
-  const { error: ruleError } = await supabase.from("categorization_rules").upsert(
-    {
-      user_id: userId,
-      pattern,
-      category_id: categoryId,
-      needs_review: false,
-      priority: 110,
-    },
-    { onConflict: "user_id,pattern" }
-  );
-  if (ruleError) throw new Error(`Error saving categorization rule: ${ruleError.message}`);
+  await rememberKeyword(userId, pattern, categoryId);
   await applyKeywordRules(userId);
   transactionSync.set(userId, { at: Date.now() });
   return pattern;
 }
 
-export async function saveKeywordRule(userId: string, keyword: string, categoryName: string) {
+export async function saveKeywordRule(
+  userId: string,
+  keyword: string,
+  categoryName: string,
+  amountCents: number | null = null
+) {
   const pattern = normalizeMerchant(keyword);
   if (pattern.length < 3) {
     throw new Error("Use a keyword of at least 3 letters.");
@@ -612,29 +565,21 @@ export async function saveKeywordRule(userId: string, keyword: string, categoryN
   if (!category) throw new Error("Could not save this category.");
 
   ensureSupabaseConfigured();
-  const { error } = await supabase.from("categorization_rules").upsert(
-    {
-      user_id: userId,
-      pattern,
-      category_id: category.id,
-      needs_review: false,
-      priority: 110,
-    },
-    { onConflict: "user_id,pattern" }
-  );
-  if (error) throw new Error(`Error saving keyword: ${error.message}`);
+  await rememberKeyword(userId, pattern, category.id, null, amountCents);
   await applyKeywordRules(userId);
   transactionSync.set(userId, { at: Date.now() });
   return pattern;
 }
 
-export async function deleteKeywordRule(userId: string, pattern: string) {
+export async function deleteKeywordRule(userId: string, pattern: string, amountCents: number | null = null) {
   ensureSupabaseConfigured();
-  const { error } = await supabase
+  let query = supabase
     .from("categorization_rules")
     .delete()
     .eq("user_id", userId)
     .eq("pattern", pattern);
+  query = amountCents == null ? query.is("amount_cents", null) : query.eq("amount_cents", amountCents);
+  const { error } = await query;
   if (error) throw new Error(`Error deleting keyword: ${error.message}`);
   invalidateTransactionSync(userId);
 }

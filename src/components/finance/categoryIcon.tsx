@@ -3,9 +3,12 @@ import {
   ArrowsRightLeftIcon,
   BanknotesIcon,
   BoltIcon,
+  BuildingLibraryIcon,
   BuildingStorefrontIcon,
   CakeIcon,
   CreditCardIcon,
+  ReceiptPercentIcon,
+  ShieldCheckIcon,
   EllipsisHorizontalIcon,
   HomeIcon,
   ShoppingCartIcon,
@@ -26,6 +29,11 @@ function CigaretteIcon({ className }: { className?: string }) {
 }
 
 const ICONS: [string, ComponentType<{ className?: string }>][] = [
+  ["INSURANCE", ShieldCheckIcon],
+  ["ASSURANCE", ShieldCheckIcon],
+  ["BANK FEE", ReceiptPercentIcon],
+  ["WITHDRAWAL", BuildingLibraryIcon],
+  ["RETRAIT", BuildingLibraryIcon],
   ["HOUSING", HomeIcon],
   ["HOME", HomeIcon],
   ["LOGEMENT", HomeIcon],

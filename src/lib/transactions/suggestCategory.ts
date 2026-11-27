@@ -1,52 +1,5 @@
+import { DEFAULT_KEYWORDS } from "./defaultKeywords";
 import { normalizeMerchant } from "./normalize";
-
-type Concept = {
-  terms: string[];
-  aliases: string[];
-};
-
-const CONCEPTS: Concept[] = [
-  {
-    terms: ["KINGFISHER"],
-    aliases: ["SALARY", "SALAIRE"],
-  },
-  {
-    terms: ["AUCHAN", "CARREFOUR", "LECLERC", "LIDL", "ALDI", "INTERMARCHE", "COLRUYT", "MONOPRIX", "FRANPRIX", "PICARD", "BIOCOOP", "CORA", "CASINO", "SUPER U"],
-    aliases: ["GROCERIES", "GROCERY", "COURSES", "ALIMENTATION", "SUPERMARCHE", "SUPERMARKET"],
-  },
-  {
-    terms: ["MCDONALD", "MCDONALDS", "BURGER KING", "QUICK", "KFC", "SUBWAY", "PIZZA", "RESTAURANT", "BRASSERIE", "UBER EATS", "DELIVEROO", "JUST EAT", "SUSHI", "KEBAB", "AU BUREAU", "OTACOS", "FRITERIE", "NEWREST", "EXKI", "STARBUCKS", "FLUNCH", "PITAYA", "PANOS", "DOMINOS"],
-    aliases: ["RESTAURANTS", "RESTAURANT", "RESTAURATION"],
-  },
-  {
-    terms: ["TOTAL", "SHELL", "Q8", "ESSO", "TEXACO", "CARBURANT", "ESSENCE", "DIESEL"],
-    aliases: ["FUEL", "CARBURANT", "ESSENCE"],
-  },
-  {
-    terms: ["SNCF", "RATP", "NAVIGO", "UBER", "BOLT", "TAXI", "PARKING", "AUTOROUTE"],
-    aliases: ["TRANSPORT", "TRANSPORTS", "MOBILITY"],
-  },
-  {
-    terms: ["LOYER", "EDF", "ENGIE", "VEOLIA", "ELECTRICITE"],
-    aliases: ["HOUSING", "LOGEMENT", "MAISON", "HOME"],
-  },
-  {
-    terms: ["NETFLIX", "SPOTIFY", "DISNEY", "CANAL PLUS", "ORANGE", "SFR", "BOUYGUES", "YOUTUBE"],
-    aliases: ["SUBSCRIPTIONS", "SUBSCRIPTION", "ABONNEMENTS", "ABONNEMENT"],
-  },
-  {
-    terms: ["PHARMACIE", "DOCTOLIB", "MEDECIN", "HOPITAL"],
-    aliases: ["HEALTH", "SANTE", "SANTE"],
-  },
-  {
-    terms: ["AMAZON", "DECATHLON", "FNAC", "DARTY", "IKEA", "ZARA"],
-    aliases: ["SHOPPING", "ACHATS", "MAGASINS"],
-  },
-  {
-    terms: ["VIREMENT", "VIR"],
-    aliases: ["TRANSFERS", "TRANSFER", "VIREMENTS", "VIREMENT"],
-  },
-];
 
 function resolveCategory(raw: string, categoryNames: string[]): string | null {
   const needle = normalizeMerchant(raw);
@@ -61,50 +14,11 @@ function resolveCategory(raw: string, categoryNames: string[]): string | null {
   return partial.length === 1 ? partial[0] : null;
 }
 
-function same(left: string, right: string) {
-  return normalizeMerchant(left) === normalizeMerchant(right);
-}
-
-function pickCategory(aliases: string[], categoryNames: string[]): string | null {
-  const exact = categoryNames.filter((name) => aliases.some((alias) => same(name, alias)));
-  if (exact.length >= 1) {
-    return [...exact].sort((a, b) => normalizeMerchant(b).length - normalizeMerchant(a).length)[0];
-  }
-  const partial = categoryNames.filter((name) =>
-    aliases.some((alias) => {
-      const normalized = normalizeMerchant(name);
-      const needle = normalizeMerchant(alias);
-      return needle.length >= 4 && normalized.includes(needle);
-    })
-  );
-  return partial.length === 1 ? partial[0] : null;
-}
-
 function containsTerm(text: string, term: string) {
   const needle = normalizeMerchant(term);
   if (!needle) return false;
   if (needle.includes(" ")) return text.includes(needle);
   return ` ${text} `.includes(` ${needle} `);
-}
-
-export function inferCategory(
-  merchant: string,
-  categoryNames: string[]
-): { categoryName: string; keyword: string } | null {
-  const normalized = normalizeMerchant(merchant);
-  if (!normalized) return null;
-  const hits = CONCEPTS.flatMap((concept) => {
-    const keyword = concept.terms
-      .filter((term) => containsTerm(normalized, term))
-      .sort((a, b) => normalizeMerchant(b).length - normalizeMerchant(a).length)[0];
-    if (!keyword) return [];
-    const categoryName = pickCategory(concept.aliases, categoryNames);
-    return categoryName ? [{ categoryName, keyword: normalizeMerchant(keyword) }] : [];
-  }).sort((a, b) => b.keyword.length - a.keyword.length);
-  if (hits.length === 0) return null;
-  const best = hits[0];
-  if (hits.some((hit) => hit.keyword.length === best.keyword.length && hit.categoryName !== best.categoryName)) return null;
-  return best;
 }
 
 const GENERIC_WORDS = new Set([
@@ -121,38 +35,12 @@ export function isIncomeCategory(name: string) {
   return normalized === "SALARY" || normalized === "SALAIRE" || normalized === "INCOME" || normalized === "REVENU" || normalized === "REVENUS";
 }
 
-export function isRestaurantCategory(name: string) {
-  const normalized = normalizeMerchant(name);
-  return normalized === "RESTAURANT" || normalized === "RESTAURANTS" || normalized === "RESTAURATION";
-}
-
-export function hasRestaurantSignal(label: string) {
-  const normalized = normalizeMerchant(label);
-  const concept = CONCEPTS.find((item) => item.aliases.includes("RESTAURANTS"));
-  return concept?.terms.some((term) => containsTerm(normalized, term)) ?? false;
-}
-
 export function isPaymentToken(word: string): boolean {
   const token = normalizeMerchant(word);
   if (!token) return false;
   if (/^[A-Z]\d{3,}$/.test(token)) return true;
   const digits = token.replace(/\D/g, "").length;
   return digits >= 4 && digits / token.length >= 0.5;
-}
-
-export function knownTermExpectation(
-  term: string,
-  categoryNames: string[]
-): { known: boolean; categoryName: string | null } {
-  const normalized = normalizeMerchant(term);
-  const concept = CONCEPTS.find((item) =>
-    item.terms.some((candidate) => {
-      const needle = normalizeMerchant(candidate);
-      return needle === normalized || (needle.includes(" ") && normalized.includes(needle));
-    })
-  );
-  if (!concept) return { known: false, categoryName: null };
-  return { known: true, categoryName: pickCategory(concept.aliases, categoryNames) };
 }
 
 function keywordWord(word: string): boolean {
@@ -199,10 +87,29 @@ function sepaCreditor(words: string[]): string | null {
   return creditor.length > 0 ? creditor.join(" ") : null;
 }
 
+function emittedTransfer(words: string[]): string | null {
+  const start = words.findIndex(
+    (word, index) => word === "VIR" && words[index + 1] === "INSTANTANE" && words[index + 2] === "EMIS"
+  );
+  if (start < 0) return null;
+  const after = words.slice(start + 3);
+  const pour = after.indexOf("POUR");
+  const source = pour >= 0 ? after.slice(pour + 1) : after;
+  const stop = source.findIndex(
+    (word) => word === "REF" || word === "MOTIF" || word === "ID" || /^\d+$/.test(word) || isPaymentToken(word)
+  );
+  const name = (stop < 0 ? source : source.slice(0, stop)).filter(
+    (word) => word !== "LOGITEL" && word !== "WERO" && word !== "POUR"
+  );
+  return name.length > 0 ? `Vir. émis ${titleCase(name.join(" "))}` : "Vir. émis";
+}
+
 export function displayMerchant(label: string): string {
   const words = normalizeMerchant(label).split(" ").filter(Boolean);
   const creditor = sepaCreditor(words);
   if (creditor) return titleCase(creditor);
+  const emitted = emittedTransfer(words);
+  if (emitted) return emitted;
   const kept = words.filter((word) => !DISPLAY_NOISE.has(word) && !isPaymentToken(word) && !/^\d+$/.test(word));
   if (kept.length === 0) return "Card payment";
   return titleCase(kept.join(" "));
@@ -210,10 +117,10 @@ export function displayMerchant(label: string): string {
 
 export function merchantKeyword(label: string): string {
   const normalized = labelForModel(label);
-  const brands = CONCEPTS.flatMap((concept) => concept.terms)
-    .map((term) => normalizeMerchant(term))
+  const brands = DEFAULT_KEYWORDS
+    .map((keyword) => normalizeMerchant(keyword.pattern))
     .filter((term) => term && containsTerm(normalized, term))
-    .sort((a, b) => b.length - a.length);
+    .sort((left, right) => right.length - left.length);
   if (brands[0]) return brands[0];
   return normalized.split(" ").find(keywordWord) ?? "";
 }

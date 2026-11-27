@@ -15,7 +15,7 @@ import { getExpenses } from "@/lib/supabase/expenses";
 import { deleteCategoryBudget, duplicateBudgets, getCategoryBudgets, saveCategoryBudget } from "@/lib/supabase/budgets";
 import { ensureTransactionSync, getTransactions } from "@/lib/supabase/transactions";
 import { categorizeWithModel } from "@/lib/transactions/categorizeWithModel";
-import { isIncomeCategory } from "@/lib/transactions/suggestCategory";
+import { displayMerchant, isIncomeCategory } from "@/lib/transactions/suggestCategory";
 import { salaryFetchStart, transactionInPeriod } from "@/lib/finance/salaryPeriod";
 import { budgetStatus, consumedPercent, fixedPlannedCents, PlannedCharge, proratedAllowance, statusLabel } from "@/lib/finance/budget";
 import { buildInsights } from "@/lib/finance/insights";
@@ -27,9 +27,17 @@ import { spendByCategory, SpendingTransaction, totalsFor } from "@/lib/finance/s
 export const dynamic = "force-dynamic";
 
 type CategoryRow = { id: string; name: string; color: string };
+type TodayRow = {
+  id: string;
+  label: string;
+  amountCents: number;
+  kind: SpendingTransaction["kind"];
+  categoryId: string | null;
+};
 type BudgetSnapshot = {
   categories: CategoryRow[];
   transactions: SpendingTransaction[];
+  today: TodayRow[];
   budgets: Awaited<ReturnType<typeof getCategoryBudgets>>;
   charges: PlannedCharge[];
 };
@@ -40,6 +48,7 @@ export default function BudgetPage() {
   const { showSuccess, showError } = useToast();
   const [categories, setCategories] = useState<CategoryRow[]>([]);
   const [transactions, setTransactions] = useState<SpendingTransaction[]>([]);
+  const [todayRows, setTodayRows] = useState<TodayRow[]>([]);
   const [budgets, setBudgets] = useState<Awaited<ReturnType<typeof getCategoryBudgets>>>([]);
   const [charges, setCharges] = useState<PlannedCharge[]>([]);
   const [unit, setUnit] = useState<PeriodUnit>("month");
@@ -63,22 +72,25 @@ export default function BudgetPage() {
     setBudgets(snapshot.budgets);
     setCharges(snapshot.charges);
     setTransactions(snapshot.transactions);
+    setTodayRows(snapshot.today ?? []);
     setShownKey(key);
   };
 
   const load = async () => {
     if (!user) return;
     const id = ++request.current;
-    const cacheKey = `${user.id}:${range.start}:${range.end}:salary-next`;
+    const cacheKey = `${user.id}:${range.start}:${range.end}:today`;
     const cached = readBudgetCache<BudgetSnapshot>(cacheKey);
     if (cached) applySnapshot(cached, cacheKey);
     else setLoading(true);
     try {
-      const [categoryRows, budgetRows, transactionRows, expenseRows] = await Promise.all([
+      const today = formatISODate(new Date());
+      const [categoryRows, budgetRows, transactionRows, expenseRows, todaySource] = await Promise.all([
         getCategories(user.id),
         getCategoryBudgets(user.id, currency),
         getTransactions(user.id, { start: salaryFetchStart(range, unit), end: range.end }),
         getExpenses(user.id),
+        getTransactions(user.id, { start: today, end: today }),
       ]);
       const salaryCategoryIds = new Set(categoryRows.filter((category) => isIncomeCategory(category.name)).map((category) => category.id));
       const toSpending = (row: (typeof transactionRows)[number]) => ({
@@ -89,6 +101,13 @@ export default function BudgetPage() {
         categoryId: row.category_id,
         merchant: row.normalized_merchant,
         currency: row.currency || "EUR",
+      });
+      const toToday = (row: (typeof todaySource)[number]): TodayRow => ({
+        id: row.id,
+        label: row.full_label || row.normalized_merchant,
+        amountCents: Number(row.amount_cents),
+        kind: row.kind,
+        categoryId: row.category_id,
       });
       const snapshot: BudgetSnapshot = {
         categories: categoryRows.map((category) => ({ id: category.id, name: category.name, color: category.color })),
@@ -106,6 +125,7 @@ export default function BudgetPage() {
         transactions: transactionRows
           .map(toSpending)
           .filter((transaction) => transactionInPeriod(transaction, range, unit, salaryCategoryIds)),
+        today: todaySource.map(toToday),
       };
       if (id !== request.current) return;
       writeBudgetCache(cacheKey, snapshot);
@@ -117,12 +137,16 @@ export default function BudgetPage() {
       ]);
       if (id !== request.current) return;
       if (model.updated + synced > 0) {
-        const freshRows = await getTransactions(user.id, { start: salaryFetchStart(range, unit), end: range.end });
+        const [freshRows, freshToday] = await Promise.all([
+          getTransactions(user.id, { start: salaryFetchStart(range, unit), end: range.end }),
+          getTransactions(user.id, { start: today, end: today }),
+        ]);
         const fresh = {
           ...snapshot,
           transactions: freshRows
             .map(toSpending)
             .filter((transaction) => transactionInPeriod(transaction, range, unit, salaryCategoryIds)),
+          today: freshToday.map(toToday),
         };
         writeBudgetCache(cacheKey, fresh);
         applySnapshot(fresh, cacheKey);
@@ -139,7 +163,7 @@ export default function BudgetPage() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [user, anchor, unit]);
 
-  const ready = shownKey === `${user?.id ?? ""}:${range.start}:${range.end}:salary-next`;
+  const ready = shownKey === `${user?.id ?? ""}:${range.start}:${range.end}:today`;
   const visibleTransactions = ready ? transactions : [];
   const monthBudgets = useMemo(
     () => budgets.map((budget) => ({
@@ -288,6 +312,42 @@ export default function BudgetPage() {
               ))}
             </div>
           </div>
+        </section>
+
+        <section>
+          <h2 className="px-1 text-base font-semibold text-gray-900 dark:text-white">Today</h2>
+          {!ready ? null : todayRows.length === 0 ? (
+            <p className="mt-2 px-1 text-sm text-gray-500">No transactions today.</p>
+          ) : (
+            <ul className="mt-2 space-y-2">
+              {todayRows.map((row) => {
+                const category = categories.find((item) => item.id === row.categoryId);
+                const amount = row.kind === "expense" ? -row.amountCents : row.amountCents;
+                const content = (
+                  <>
+                    <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl" style={{ backgroundColor: `${category?.color ?? "#A1A1A1"}22`, color: category?.color ?? "#A1A1A1" }}>
+                      <CategoryIcon name={category?.name ?? "Other"} className="h-4 w-4" />
+                    </span>
+                    <span className="min-w-0 flex-1">
+                      <span className="block truncate text-sm font-medium text-gray-900 dark:text-white">{displayMerchant(row.label)}</span>
+                      <span className="block text-xs text-gray-500">{category?.name ?? "Uncategorized"}</span>
+                    </span>
+                    <span className={`text-sm font-semibold tabular-nums ${row.kind === "income" ? "text-[#34D399]" : "text-gray-900 dark:text-white"}`}>{formatCents(amount)}</span>
+                  </>
+                );
+                const className = "flex items-center gap-3 rounded-2xl border border-gray-200 bg-white px-3 py-3 dark:border-transparent dark:bg-white/5";
+                return (
+                  <li key={row.id}>
+                    {category ? (
+                      <Link href={`/budget/${category.id}?month=${formatISODate(new Date()).slice(0, 7)}`} className={className}>{content}</Link>
+                    ) : (
+                      <div className={className}>{content}</div>
+                    )}
+                  </li>
+                );
+              })}
+            </ul>
+          )}
         </section>
 
         <div className="flex items-center justify-between px-1">

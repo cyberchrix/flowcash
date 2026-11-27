@@ -215,10 +215,9 @@ export function parseCsvRecords(text: string, delimiter = ";"): string[][] {
 
 export type CsvParseResult = { rows: RawBankRow[]; skipped: string[] };
 
-export function parseCsv(text: string): CsvParseResult {
-  const records = parseCsvRecords(text.replace(/^\uFEFF/, ""), detectDelimiter(text));
+export function parseBankTable(records: string[][]): CsvParseResult {
   if (records.length === 0) {
-    throw new Error("The CSV file is empty.");
+    throw new Error("The file is empty.");
   }
 
   const located = findColumns(records);
@@ -272,4 +271,9 @@ export function parseCsv(text: string): CsvParseResult {
   }
 
   return { rows, skipped };
+}
+
+export function parseCsv(text: string): CsvParseResult {
+  const source = text.replace(/^\uFEFF/, "");
+  return parseBankTable(parseCsvRecords(source, detectDelimiter(source)));
 }

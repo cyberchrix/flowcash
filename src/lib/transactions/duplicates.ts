@@ -54,3 +54,17 @@ export function markDuplicates<T extends FingerprintInput>(
     };
   });
 }
+
+export function markSameOperations<T extends { transactionDate: string; amountCents: number; duplicate: boolean }>(
+  rows: T[],
+  existingCounts: Map<string, number>
+): T[] {
+  const seen = new Map<string, number>();
+  return rows.map((row) => {
+    const key = `${row.transactionDate}|${row.amountCents}`;
+    const index = seen.get(key) ?? 0;
+    seen.set(key, index + 1);
+    if (row.duplicate) return row;
+    return { ...row, duplicate: index < (existingCounts.get(key) ?? 0) };
+  });
+}

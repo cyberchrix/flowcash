@@ -5,6 +5,12 @@ type Category = Database["public"]["Tables"]["categories"]["Row"];
 type CategoryInsert = Database["public"]["Tables"]["categories"]["Insert"];
 type CategoryUpdate = Database["public"]["Tables"]["categories"]["Update"];
 
+const APP_CATEGORIES = [
+  { name: "Car insurance", color: "#0EA5E9" },
+  { name: "Cash withdrawals", color: "#64748B" },
+  { name: "Bank fees", color: "#94A3B8" },
+];
+
 export async function getCategories(userId: string) {
   ensureSupabaseConfigured();
   const { data, error } = await supabase
@@ -17,7 +23,17 @@ export async function getCategories(userId: string) {
     throw new Error(`Error fetching categories: ${error.message}`);
   }
 
-  return data;
+  const categories = data ?? [];
+  for (const item of APP_CATEGORIES) {
+    if (categories.some((category) => category.name.toLowerCase() === item.name.toLowerCase())) continue;
+    try {
+      categories.push(await createCategory({ user_id: userId, name: item.name, color: item.color }));
+    } catch (error) {
+      if (!(error instanceof Error) || !/duplicate|unique/i.test(error.message)) throw error;
+    }
+  }
+
+  return categories;
 }
 
 export async function createCategory(category: CategoryInsert) {
