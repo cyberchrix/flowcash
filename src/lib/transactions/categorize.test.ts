@@ -63,6 +63,13 @@ describe("categorizeTransaction", () => {
     expect(result.categoryName).toBe("Fuel");
   });
 
+  it("classifies a vet visit from the bank subcategory", () => {
+    const result = categorizeTransaction("CARTE CABINET VET", -4200, [
+      { pattern: "CABINET VET", categoryName: "Veterinary", amountCents: null, kind: null, needsReview: false, priority: 40 },
+    ], "Vie quotidienne Animaux domestiques");
+    expect(result.categoryName).toBe("Veterinary");
+  });
+
   it("classifies bank fees only when a keyword matches", () => {
     expect(categorizeTransaction("COTISATION JAZZ", -500, []).categoryName).toBeNull();
     const result = categorizeTransaction("COTIS MODULE S OPT CONV", -500, [

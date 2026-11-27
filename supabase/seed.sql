@@ -28,7 +28,8 @@ BEGIN
       ('Other', '#A1A1A1', NEW.id),
       ('Car insurance', '#0EA5E9', NEW.id),
       ('Cash withdrawals', '#64748B', NEW.id),
-      ('Bank fees', '#94A3B8', NEW.id)
+      ('Bank fees', '#94A3B8', NEW.id),
+      ('Veterinary', '#14B8A6', NEW.id)
     ON CONFLICT (name, user_id) DO NOTHING;
   EXCEPTION WHEN OTHERS THEN
     -- Log error but don't fail the user creation

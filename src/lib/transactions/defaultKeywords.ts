@@ -40,6 +40,7 @@ export const DEFAULT_KEYWORDS: DefaultKeyword[] = [
   ...rules(["LOYER", "EDF", "ENGIE", "VEOLIA", "ELECTRICITE"], "Housing"),
   ...rules(["NETFLIX", "SPOTIFY", "DISNEY", "CANAL PLUS", "ORANGE", "SFR", "BOUYGUES", "YOUTUBE"], "Subscriptions"),
   ...rules(["PHARMACIE", "DOCTOLIB", "MEDECIN", "HOPITAL"], "Health"),
+  ...rules(["CABINET VET", "VETERINAIRE"], "Veterinary"),
   ...rules(["AMAZON", "DECATHLON", "FNAC", "DARTY", "IKEA", "ZARA"], "Shopping"),
   ...rules(["VIREMENT", "VIR"], "Transfers", { kind: "transfer", needsReview: true }),
   ...rules(["RETRAIT DAB", "RETRAIT GAB"], "Cash withdrawals"),

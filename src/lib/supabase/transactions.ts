@@ -24,6 +24,7 @@ const CATEGORY_COLORS: Record<string, string> = {
   "Car insurance": "#0EA5E9",
   "Cash withdrawals": "#64748B",
   "Bank fees": "#94A3B8",
+  Veterinary: "#14B8A6",
   "Convenience Store": "#8A2BFF",
   Transfers: "#6366F1",
   Health: "#F472B6",
@@ -472,9 +473,20 @@ export async function ensureTransactionSync(userId: string): Promise<number> {
   }
 }
 
+export async function countUncategorizedTransactions(userId: string) {
+  ensureSupabaseConfigured();
+  const { count, error } = await supabase
+    .from("transactions")
+    .select("id", { count: "exact", head: true })
+    .eq("user_id", userId)
+    .is("category_id", null);
+  if (error) throw new Error(`Error counting uncategorized transactions: ${error.message}`);
+  return count ?? 0;
+}
+
 export async function getTransactions(
   userId: string,
-  filters: { month?: string; categoryId?: string; start?: string; end?: string }
+  filters: { month?: string; categoryId?: string; start?: string; end?: string; uncategorized?: boolean }
 ) {
   ensureSupabaseConfigured();
   const pageSize = 1000;
@@ -501,7 +513,9 @@ export async function getTransactions(
       query = query.gte("transaction_date", start).lt("transaction_date", end);
     }
 
-    if (filters.categoryId) {
+    if (filters.uncategorized) {
+      query = query.is("category_id", null);
+    } else if (filters.categoryId) {
       query = query.eq("category_id", filters.categoryId);
     }
 

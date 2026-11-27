@@ -9,6 +9,7 @@ const APP_CATEGORIES = [
   { name: "Car insurance", color: "#0EA5E9" },
   { name: "Cash withdrawals", color: "#64748B" },
   { name: "Bank fees", color: "#94A3B8" },
+  { name: "Veterinary", color: "#14B8A6" },
 ];
 
 export async function getCategories(userId: string) {

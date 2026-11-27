@@ -13,6 +13,7 @@ import {
   getCategorizationRules,
   deleteKeywordRule,
   ensureTransactionSync,
+  countUncategorizedTransactions,
   getTransactions,
   clearAllTransactions,
   saveBankImport,
@@ -46,7 +47,10 @@ const BUILT_IN_CATEGORIES = [
   "Car insurance",
   "Cash withdrawals",
   "Bank fees",
+  "Veterinary",
 ];
+
+const UNCATEGORIZED = "uncategorized";
 
 const KIND_LABEL: Record<TransactionKind, string> = {
   expense: "Expense",
@@ -96,6 +100,7 @@ export function TransactionsView() {
   const [keywordsOpen, setKeywordsOpen] = useState(false);
   const [keywordFormOpen, setKeywordFormOpen] = useState(false);
   const [query, setQuery] = useState("");
+  const [uncategorizedCount, setUncategorizedCount] = useState(0);
 
   useEffect(() => {
     if (!authLoading && !user) router.push("/auth");
@@ -107,13 +112,16 @@ export function TransactionsView() {
       return;
     }
     try {
-      const [categoryRows, transactionRows, ruleRows] = await Promise.all([
+      const transactionFilters = {
+        month: month || undefined,
+        categoryId: categoryId && categoryId !== UNCATEGORIZED ? categoryId : undefined,
+        uncategorized: categoryId === UNCATEGORIZED,
+      };
+      const [categoryRows, transactionRows, ruleRows, missingCategory] = await Promise.all([
         getCategories(user.id),
-        getTransactions(user.id, {
-          month: month || undefined,
-          categoryId: categoryId || undefined,
-        }),
+        getTransactions(user.id, transactionFilters),
         getCategorizationRules(user.id),
+        countUncategorizedTransactions(user.id),
       ]);
       setCategories(categoryRows.map((category) => ({
         id: category.id,
@@ -121,6 +129,7 @@ export function TransactionsView() {
         color: category.color,
       })));
       setTransactions(transactionRows);
+      setUncategorizedCount(missingCategory);
       setRules(ruleRows.map((rule) => ({
         pattern: rule.pattern,
         categoryName: rule.categoryName,
@@ -135,11 +144,12 @@ export function TransactionsView() {
         showSuccess(`${model.updated} transaction${model.updated === 1 ? "" : "s"} categorized`);
       }
       if (model.updated + synced > 0) {
-        const freshRows = await getTransactions(user.id, {
-          month: month || undefined,
-          categoryId: categoryId || undefined,
-        });
+        const [freshRows, freshMissing] = await Promise.all([
+          getTransactions(user.id, transactionFilters),
+          countUncategorizedTransactions(user.id),
+        ]);
         setTransactions(freshRows);
+        setUncategorizedCount(freshMissing);
       }
     } catch (error) {
       console.error(error);
@@ -434,6 +444,27 @@ export function TransactionsView() {
               className="w-full rounded-lg border border-gray-300 bg-white py-2 pl-9 pr-3 text-sm text-gray-900 dark:border-gray-600 dark:bg-gray-700 dark:text-gray-100"
             />
           </div>
+          {(uncategorizedCount > 0 || categoryId === UNCATEGORIZED) && (
+            <button
+              type="button"
+              aria-pressed={categoryId === UNCATEGORIZED}
+              onClick={() => {
+                if (categoryId === UNCATEGORIZED) {
+                  setCategoryId("");
+                  return;
+                }
+                setMonth("");
+                setCategoryId(UNCATEGORIZED);
+              }}
+              className={`w-full rounded-lg border px-3 py-2 text-left text-sm font-medium ${
+                categoryId === UNCATEGORIZED
+                  ? "border-flow-primary bg-flow-primary/10 text-gray-900 dark:text-gray-100"
+                  : "border-gray-300 bg-white text-gray-900 dark:border-gray-600 dark:bg-gray-700 dark:text-gray-100"
+              }`}
+            >
+              Uncategorized · {uncategorizedCount}
+            </button>
+          )}
           <div className="grid grid-cols-2 gap-2">
             <input
               type="month"
@@ -444,11 +475,16 @@ export function TransactionsView() {
             />
             <select
               value={categoryId}
-              onChange={(event) => setCategoryId(event.target.value)}
+              onChange={(event) => {
+                const value = event.target.value;
+                if (value === UNCATEGORIZED) setMonth("");
+                setCategoryId(value);
+              }}
               className="min-w-0 rounded-lg border border-gray-300 bg-white px-2 py-2 text-sm text-gray-900 dark:border-gray-600 dark:bg-gray-700 dark:text-gray-100"
               aria-label="Category"
             >
               <option value="">All categories</option>
+              <option value={UNCATEGORIZED}>Uncategorized</option>
               {categories.map((category) => (
                 <option key={category.id} value={category.id}>
                   {category.name}
@@ -617,7 +653,11 @@ export function TransactionsView() {
         <section className="space-y-3">
           {visibleTransactions.length === 0 ? (
             <p className="px-2 text-sm text-gray-500 dark:text-gray-400">
-              {query.trim() ? "No transactions match this search." : "No transactions for this filter."}
+              {query.trim()
+                ? "No transactions match this search."
+                : categoryId === UNCATEGORIZED
+                  ? "Every transaction has a category."
+                  : "No transactions for this filter."}
             </p>
           ) : (
             visibleTransactions.map((transaction, index) => {
