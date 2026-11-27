@@ -47,11 +47,30 @@ describe("opening balance", () => {
 
     expect(openingBalanceCents("2026-11", flows, overrides)).toBe(-10000);
     expect(salaryLeftCents("2026-11", flows, overrides)).toBe(50000);
+    expect(openingBalanceCents("2026-12", flows, overrides)).toBe(50000);
     expect(openingBalanceCents("2027-02", flows, new Map([["2026-12", -35000]]))).toBe(0);
   });
 
-  it("loads the previous month only", () => {
-    expect(openingHistoryStart("2026-12")).toBe("2026-10-25");
+  it("starts the next month from the previous salary left", () => {
+    const flows = new Map([
+      ["2026-09", flow(0, 177064)],
+      ["2026-10", flow(0, 119429)],
+      ["2026-11", flow(81954, 0)],
+      ["2026-12", flow(275846, 0)],
+    ]);
+    const overrides = new Map<string, number>();
+
+    expect(openingBalanceCents("2026-10", flows, overrides)).toBe(-177064);
+    expect(openingBalanceCents("2026-11", flows, overrides)).toBe(-119429);
+    expect(salaryLeftCents("2026-11", flows, overrides)).toBe(-37475);
+    expect(openingBalanceCents("2026-12", flows, overrides)).toBe(-37475);
+    expect(salaryLeftCents("2026-12", flows, overrides)).toBe(238371);
+    expect(openingBalanceCents("2027-01", flows, overrides)).toBe(238371);
+  });
+
+  it("loads the months a salary-left carry needs", () => {
+    expect(openingHistoryStart("2026-12")).toBe("2026-09-25");
+    expect(openingHistoryStart("2026-11")).toBe("2026-09-25");
     expect(openingHistoryStart("2026-08")).toBe("2026-06-25");
   });
 

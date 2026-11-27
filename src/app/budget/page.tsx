@@ -23,7 +23,7 @@ import { MonthFlow, monthFlowsFromTransactions, openingBalanceCents, openingHist
 import { deleteMonthOpening, getMonthOpenings, saveMonthOpening } from "@/lib/supabase/openings";
 import { budgetStatus, consumedPercent, fixedPlannedCents, PlannedCharge, proratedAllowance, statusLabel } from "@/lib/finance/budget";
 import { buildInsights } from "@/lib/finance/insights";
-import { spendingPace } from "@/lib/finance/pace";
+import { projectedSalaryLeftCents, spendingPace } from "@/lib/finance/pace";
 import { invalidateBudgetCache, readBudgetCache, writeBudgetCache } from "@/lib/finance/budgetCache";
 import { formatISODate, formatPeriodLabel, inclusiveDays, PeriodUnit, rangeFor, shiftAnchor } from "@/lib/finance/period";
 import { spendByCategory, SpendingTransaction, totalsFor } from "@/lib/finance/spending";
@@ -287,8 +287,6 @@ export default function BudgetPage() {
   if (!user) return null;
 
   const remainingCents = budgetCents - spent;
-  const over = budgetCents > 0 && remainingCents < 0;
-  const budgetStatusCents = budgetCents > 0 ? remainingCents : spent;
   const monthKey = range.start.slice(0, 7);
   const flowMap = monthFlows ? new Map(Object.entries(monthFlows)) : null;
   const overrideMap = new Map(Object.entries(openings));
@@ -297,8 +295,10 @@ export default function BudgetPage() {
   const salaryLeftAmount = carry
     ? carriedSalaryLeft(monthKey, flowMap, overrideMap)
     : periodTotals.income - spent;
-  const salaryOver = salaryLeftAmount < 0;
-  const roundedEuros = (cents: number) => `${Math.abs(Math.round(cents / 100)).toLocaleString("fr-FR")} €`;
+  const incomeCents = periodTotals.income;
+  const projectedLeft = projectedSalaryLeftCents(salaryLeftAmount, budgetCents, spent);
+  const projectedOver = projectedLeft < 0;
+  const euros = (cents: number) => `${(Math.abs(cents) / 100).toLocaleString("fr-FR", { minimumFractionDigits: 2, maximumFractionDigits: 2 })} €`;
   const signedEuros = (cents: number) => `${cents < 0 ? "-" : ""}${(Math.abs(cents) / 100).toLocaleString("fr-FR", { minimumFractionDigits: 2, maximumFractionDigits: 2 })} €`;
   const commitOpening = async (value: string) => {
     if (skipOpeningSave.current) {
@@ -383,23 +383,31 @@ export default function BudgetPage() {
               )}
             </>
           )}
-          <p className="text-xs font-semibold uppercase tracking-wide text-gray-500">{salaryOver ? "Over salary" : "Salary left"}</p>
-          <p className={`text-right text-2xl font-bold tabular-nums ${!ready ? "text-gray-900 dark:text-white" : salaryOver ? "text-red-400" : "text-[#34D399]"}`}>
-            {ready ? `${salaryOver ? "-" : "+"}${roundedEuros(salaryLeftAmount)}` : "—"}
+          <p className="text-xs font-semibold uppercase tracking-wide text-gray-500">Incomes</p>
+          <p className={`text-right text-2xl font-bold tabular-nums ${ready ? "text-[#34D399]" : "text-gray-900 dark:text-white"}`}>
+            {ready ? `+${euros(incomeCents)}` : "—"}
           </p>
           {ready && budgetCents > 0 && (
             <>
-              <p className="text-xs font-semibold uppercase tracking-wide text-gray-500">Planned budget</p>
+              <p className="text-xs font-semibold uppercase tracking-wide text-gray-500">Planned expenses</p>
               <p className="text-right text-sm font-medium tabular-nums text-gray-400">
-                {(budgetCents / 100).toLocaleString("fr-FR", { minimumFractionDigits: 2, maximumFractionDigits: 2 })} €
+                {euros(budgetCents)}
+              </p>
+              <p className="text-xs font-semibold uppercase tracking-wide text-gray-500">Budget left</p>
+              <p className={`text-right text-2xl font-bold tabular-nums ${remainingCents < 0 ? "text-red-400" : "text-[#34D399]"}`}>
+                {`${remainingCents < 0 ? "-" : "+"}${euros(remainingCents)}`}
               </p>
             </>
           )}
-          <p className="text-xs font-semibold uppercase tracking-wide text-gray-500">
-            {budgetCents > 0 ? (over ? "Over budget" : "Budget left") : "Total spending"}
-          </p>
-          <p className={`text-right text-2xl font-bold tabular-nums ${!ready || budgetCents <= 0 ? "text-gray-900 dark:text-white" : over ? "text-red-400" : "text-[#34D399]"}`}>
-            {ready ? `${budgetCents > 0 ? "+" : ""}${roundedEuros(budgetStatusCents)}` : "—"}
+          {ready && budgetCents <= 0 && (
+            <>
+              <p className="text-xs font-semibold uppercase tracking-wide text-gray-500">Total spending</p>
+              <p className="text-right text-sm font-medium tabular-nums text-gray-400">{euros(spent)}</p>
+            </>
+          )}
+          <p className="text-xs font-semibold uppercase tracking-wide text-gray-500">{projectedOver ? "Projected over" : "Projected left"}</p>
+          <p className={`text-right text-2xl font-bold tabular-nums ${!ready ? "text-gray-900 dark:text-white" : projectedOver ? "text-red-400" : "text-[#34D399]"}`}>
+            {ready ? `${projectedOver ? "-" : "+"}${euros(projectedLeft)}` : "—"}
           </p>
         </section>
 

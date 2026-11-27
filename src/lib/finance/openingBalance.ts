@@ -19,6 +19,24 @@ export function previousMonth(month: string): string {
   return `${previousYear}-${String(previous).padStart(2, "0")}`;
 }
 
+// November starts from October's own result. Every later month starts from
+// the previous salary left, so the balance keeps going without walking back
+// through the months before October.
+const CARRY_FROM_MONTH = "2026-10";
+
+function hasMonth(
+  month: string,
+  flows: ReadonlyMap<string, MonthFlow>,
+  overrides: ReadonlyMap<string, number>,
+) {
+  return flows.has(month) || overrides.has(month);
+}
+
+function cashCents(month: string, flows: ReadonlyMap<string, MonthFlow>) {
+  const flow = flows.get(month) ?? { incomeCents: 0, netSpendCents: 0 };
+  return flow.incomeCents - flow.netSpendCents;
+}
+
 export function openingBalanceCents(
   month: string,
   flows: ReadonlyMap<string, MonthFlow>,
@@ -27,9 +45,18 @@ export function openingBalanceCents(
   const saved = overrides.get(month);
   if (saved != null) return saved;
   const previous = previousMonth(month);
-  if (!flows.has(previous) && !overrides.has(previous)) return 0;
-  const flow = flows.get(previous) ?? { incomeCents: 0, netSpendCents: 0 };
-  return (overrides.get(previous) ?? 0) + flow.incomeCents - flow.netSpendCents;
+  if (!hasMonth(previous, flows, overrides)) return 0;
+  if (previous < CARRY_FROM_MONTH) return (overrides.get(previous) ?? 0) + cashCents(previous, flows);
+
+  let total = 0;
+  let cursor = previous;
+  while (cursor >= CARRY_FROM_MONTH && hasMonth(cursor, flows, overrides)) {
+    const corrected = overrides.get(cursor);
+    total += (corrected ?? 0) + cashCents(cursor, flows);
+    if (corrected != null) break;
+    cursor = previousMonth(cursor);
+  }
+  return total;
 }
 
 export function salaryLeftCents(
@@ -43,7 +70,8 @@ export function salaryLeftCents(
 
 export function openingHistoryStart(month: string) {
   const previous = previousMonth(month);
-  return salaryFetchStart({ start: `${previous}-01`, end: `${previous}-01` }, "month");
+  const first = previous < CARRY_FROM_MONTH ? previous : CARRY_FROM_MONTH;
+  return salaryFetchStart({ start: `${first}-01`, end: `${first}-01` }, "month");
 }
 
 export function fundedMonthKey(

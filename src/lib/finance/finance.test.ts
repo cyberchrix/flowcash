@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { budgetStatus, fixedPlannedCents, proratedAllowance } from "./budget";
 import { percentChange } from "./insights";
-import { spendingPace } from "./pace";
+import { projectedSalaryLeftCents, spendingPace } from "./pace";
 import { daysInMonth, isLeapYear, weekRange } from "./period";
 import { allocationFits, expenseStatus, suggestLinks } from "./reconcile";
 import { fundedMonth, salaryFetchStart, transactionInPeriod } from "./salaryPeriod";
@@ -100,8 +100,23 @@ describe("budget pace", () => {
       coverageDate: null,
       periodEnd: "2026-03-31",
     });
-    expect(pace.projectedCents).toBeNull();
+    expect(pace.projectedCents).toBe(3100);
     expect(pace.expectedCents).toBe(0);
+  });
+
+  it("keeps the identified budget when the current pace is lower", () => {
+    const pace = spendingPace({
+      budgetCents: 3000,
+      spentCents: 500,
+      daysInPeriod: 30,
+      elapsedDays: 10,
+      forecast: "variable",
+      coverageDate: "2026-03-10",
+      periodEnd: "2026-03-31",
+    });
+    expect(pace.projectedCents).toBe(3000);
+    expect(projectedSalaryLeftCents(10000, 3000, 500)).toBe(7500);
+    expect(projectedSalaryLeftCents(10000, 3000, 4000)).toBe(10000);
   });
 
   it("projects an overshoot and limits coverage to the latest transaction", () => {

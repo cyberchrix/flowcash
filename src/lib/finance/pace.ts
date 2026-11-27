@@ -23,7 +23,12 @@ export type PaceResult = {
 export function spendingPace(input: PaceInput): PaceResult {
   const elapsedDays = Math.min(Math.max(input.elapsedDays, 0), input.daysInPeriod);
   const remainingDays = Math.max(input.daysInPeriod - elapsedDays, 0);
-  const coverageLimited = input.coverageDate != null && input.coverageDate < input.periodEnd;
+  const linearCents = elapsedDays === 0 ? null : Math.round((input.spentCents / elapsedDays) * input.daysInPeriod);
+  const coverageLimited = linearCents != null
+    && input.budgetCents != null
+    && linearCents > input.budgetCents
+    && input.coverageDate != null
+    && input.coverageDate < input.periodEnd;
   const base = {
     coverageLimited,
     coverageDate: input.coverageDate,
@@ -43,7 +48,9 @@ export function spendingPace(input: PaceInput): PaceResult {
   }
 
   const expectedCents = Math.round((input.budgetCents * elapsedDays) / input.daysInPeriod);
-  const projectedCents = elapsedDays === 0 ? null : Math.round((input.spentCents / elapsedDays) * input.daysInPeriod);
+  // The identified budget is already expected to be spent, even before any
+  // transaction arrives. A faster pace can only raise that projection.
+  const projectedCents = Math.max(linearCents ?? 0, input.budgetCents, input.spentCents);
   const remainingBudget = input.budgetCents - input.spentCents;
   const remainingPerDayCents = remainingDays === 0 ? remainingBudget : Math.round(remainingBudget / remainingDays);
   return {
@@ -52,6 +59,12 @@ export function spendingPace(input: PaceInput): PaceResult {
     expectedCents,
     projectedCents,
     remainingPerDayCents,
-    overshootCents: projectedCents == null ? 0 : Math.max(projectedCents - input.budgetCents, 0),
+    overshootCents: Math.max(projectedCents - input.budgetCents, 0),
   };
+}
+
+/** Salary left after the identified budget that is not spent yet. */
+export function projectedSalaryLeftCents(salaryLeftCents: number, budgetCents: number, spentCents: number) {
+  if (budgetCents <= 0) return salaryLeftCents;
+  return salaryLeftCents - Math.max(budgetCents - spentCents, 0);
 }
