@@ -246,20 +246,6 @@ export default function BudgetPage() {
             <div className="space-y-4">
               <div>
                 <p className="mb-1 text-sm font-medium uppercase text-white/90">
-                  {budgetCents > 0 ? (over ? "Over budget" : "Budget left") : "Total spending"}
-                </p>
-                <div
-                  className="inline-flex items-center gap-1.5 rounded-full px-4 py-2 font-bold"
-                  style={{ backgroundColor: !ready || budgetCents <= 0 ? "rgba(255,255,255,0.25)" : over ? "rgba(239, 68, 68, 0.8)" : "rgba(99, 216, 179, 0.8)" }}
-                >
-                  {ready && budgetCents > 0 && <span className="text-2xl">{over ? "-" : "+"}</span>}
-                  <span className="text-2xl" style={{ textShadow: "0 1px 2px rgba(0, 0, 0, 0.4)" }}>
-                    {ready ? `${Math.abs(Math.round((budgetCents > 0 ? remainingCents : spent) / 100)).toLocaleString("fr-FR")} €` : "Loading..."}
-                  </span>
-                </div>
-              </div>
-              <div>
-                <p className="mb-1 text-sm font-medium uppercase text-white/90">
                   {salaryOver ? "Over salary" : "Salary left"}
                 </p>
                 <div
@@ -269,6 +255,20 @@ export default function BudgetPage() {
                   {ready && <span className="text-2xl">{salaryOver ? "-" : "+"}</span>}
                   <span className="text-2xl" style={{ textShadow: "0 1px 2px rgba(0, 0, 0, 0.4)" }}>
                     {ready ? `${Math.abs(Math.round(salaryLeftCents / 100)).toLocaleString("fr-FR")} €` : "—"}
+                  </span>
+                </div>
+              </div>
+              <div>
+                <p className="mb-1 text-sm font-medium uppercase text-white/90">
+                  {budgetCents > 0 ? (over ? "Over budget" : "Budget left") : "Total spending"}
+                </p>
+                <div
+                  className="inline-flex items-center gap-1.5 rounded-full px-4 py-2 font-bold"
+                  style={{ backgroundColor: !ready || budgetCents <= 0 ? "rgba(255,255,255,0.25)" : over ? "rgba(239, 68, 68, 0.8)" : "rgba(99, 216, 179, 0.8)" }}
+                >
+                  {ready && budgetCents > 0 && <span className="text-2xl">{over ? "-" : "+"}</span>}
+                  <span className="text-2xl" style={{ textShadow: "0 1px 2px rgba(0, 0, 0, 0.4)" }}>
+                    {ready ? `${Math.abs(Math.round((budgetCents > 0 ? remainingCents : spent) / 100)).toLocaleString("fr-FR")} €` : "Loading..."}
                   </span>
                 </div>
               </div>
