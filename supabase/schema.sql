@@ -59,6 +59,18 @@ CREATE TABLE IF NOT EXISTS monthly_snapshots (
   UNIQUE(user_id, month)
 );
 
+-- Table: month_opening_balances
+-- One row only when the user corrects that month's opening balance.
+CREATE TABLE IF NOT EXISTS month_opening_balances (
+  id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+  user_id UUID REFERENCES auth.users(id) ON DELETE CASCADE NOT NULL,
+  month DATE NOT NULL, -- first day of the funded month
+  amount_cents BIGINT NOT NULL,
+  created_at TIMESTAMP WITH TIME ZONE DEFAULT TIMEZONE('utc', NOW()),
+  updated_at TIMESTAMP WITH TIME ZONE DEFAULT TIMEZONE('utc', NOW()),
+  UNIQUE(user_id, month)
+);
+
 -- Table: push_subscriptions
 -- Stores Web Push subscriptions (one per device) for charge reminders
 CREATE TABLE IF NOT EXISTS push_subscriptions (
@@ -129,6 +141,7 @@ ALTER TABLE categories ENABLE ROW LEVEL SECURITY;
 ALTER TABLE expenses ENABLE ROW LEVEL SECURITY;
 ALTER TABLE user_settings ENABLE ROW LEVEL SECURITY;
 ALTER TABLE monthly_snapshots ENABLE ROW LEVEL SECURITY;
+ALTER TABLE month_opening_balances ENABLE ROW LEVEL SECURITY;
 ALTER TABLE push_subscriptions ENABLE ROW LEVEL SECURITY;
 ALTER TABLE bank_imports ENABLE ROW LEVEL SECURITY;
 ALTER TABLE transactions ENABLE ROW LEVEL SECURITY;
@@ -196,6 +209,23 @@ CREATE POLICY "Users can update their own snapshots"
 
 CREATE POLICY "Users can delete their own snapshots"
   ON monthly_snapshots FOR DELETE
+  USING (auth.uid() = user_id);
+
+-- RLS Policies for month_opening_balances
+CREATE POLICY "Users can view their own opening balances"
+  ON month_opening_balances FOR SELECT
+  USING (auth.uid() = user_id);
+
+CREATE POLICY "Users can create their own opening balances"
+  ON month_opening_balances FOR INSERT
+  WITH CHECK (auth.uid() = user_id);
+
+CREATE POLICY "Users can update their own opening balances"
+  ON month_opening_balances FOR UPDATE
+  USING (auth.uid() = user_id);
+
+CREATE POLICY "Users can delete their own opening balances"
+  ON month_opening_balances FOR DELETE
   USING (auth.uid() = user_id);
 
 -- RLS Policies for push_subscriptions
@@ -266,6 +296,7 @@ CREATE INDEX IF NOT EXISTS idx_categories_user_id ON categories(user_id);
 CREATE INDEX IF NOT EXISTS idx_user_settings_user_id ON user_settings(user_id);
 CREATE INDEX IF NOT EXISTS idx_monthly_snapshots_user_id ON monthly_snapshots(user_id);
 CREATE INDEX IF NOT EXISTS idx_monthly_snapshots_month ON monthly_snapshots(month);
+CREATE INDEX IF NOT EXISTS idx_month_opening_balances_user_id ON month_opening_balances(user_id);
 CREATE INDEX IF NOT EXISTS idx_push_subscriptions_user_id ON push_subscriptions(user_id);
 CREATE INDEX IF NOT EXISTS idx_bank_imports_user_id ON bank_imports(user_id);
 CREATE INDEX IF NOT EXISTS idx_transactions_user_id ON transactions(user_id);
@@ -301,6 +332,11 @@ CREATE TRIGGER update_user_settings_updated_at
 
 CREATE TRIGGER update_monthly_snapshots_updated_at
   BEFORE UPDATE ON monthly_snapshots
+  FOR EACH ROW
+  EXECUTE FUNCTION update_updated_at_column();
+
+CREATE TRIGGER update_month_opening_balances_updated_at
+  BEFORE UPDATE ON month_opening_balances
   FOR EACH ROW
   EXECUTE FUNCTION update_updated_at_column();
 

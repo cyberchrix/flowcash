@@ -19,6 +19,8 @@ import { bankParentIds, categoryRoot, incomeCategoryIds } from "@/lib/transactio
 import { categoryDisplayName } from "@/lib/transactions/categoryNames";
 import { displayMerchant, isIncomeCategory } from "@/lib/transactions/suggestCategory";
 import { salaryFetchStart, transactionInPeriod } from "@/lib/finance/salaryPeriod";
+import { MonthFlow, monthFlowsFromTransactions, openingBalanceCents, openingHistoryStart, parseOpeningInput, salaryLeftCents as carriedSalaryLeft } from "@/lib/finance/openingBalance";
+import { deleteMonthOpening, getMonthOpenings, saveMonthOpening } from "@/lib/supabase/openings";
 import { budgetStatus, consumedPercent, fixedPlannedCents, PlannedCharge, proratedAllowance, statusLabel } from "@/lib/finance/budget";
 import { buildInsights } from "@/lib/finance/insights";
 import { spendingPace } from "@/lib/finance/pace";
@@ -46,6 +48,8 @@ type BudgetSnapshot = {
   today: TodayRow[];
   budgets: Awaited<ReturnType<typeof getCategoryBudgets>>;
   charges: PlannedCharge[];
+  openings: Record<string, number>;
+  monthFlows: Record<string, MonthFlow> | null;
 };
 
 export default function BudgetPage() {
@@ -57,6 +61,10 @@ export default function BudgetPage() {
   const [todayRows, setTodayRows] = useState<TodayRow[]>([]);
   const [budgets, setBudgets] = useState<Awaited<ReturnType<typeof getCategoryBudgets>>>([]);
   const [charges, setCharges] = useState<PlannedCharge[]>([]);
+  const [openings, setOpenings] = useState<Record<string, number>>({});
+  const [monthFlows, setMonthFlows] = useState<Record<string, MonthFlow> | null>(null);
+  const [editingOpening, setEditingOpening] = useState(false);
+  const [openingDraft, setOpeningDraft] = useState("");
   const [unit, setUnit] = useState<PeriodUnit>("month");
   const [anchor, setAnchor] = useState(() => formatISODate(new Date()));
   const [loading, setLoading] = useState(true);
@@ -64,6 +72,7 @@ export default function BudgetPage() {
   const [managing, setManaging] = useState(false);
   const [drafts, setDrafts] = useState<Record<string, string>>({});
   const request = useRef(0);
+  const skipOpeningSave = useRef(false);
   const currency = "EUR";
 
   useEffect(() => {
@@ -79,6 +88,9 @@ export default function BudgetPage() {
     setCharges(snapshot.charges);
     setTransactions(snapshot.transactions);
     setTodayRows(snapshot.today ?? []);
+    setOpenings(snapshot.openings ?? {});
+    setMonthFlows(snapshot.monthFlows ?? null);
+    setEditingOpening(false);
     setShownKey(key);
   };
 
@@ -91,13 +103,18 @@ export default function BudgetPage() {
     else setLoading(true);
     try {
       const today = formatISODate(new Date());
-      const [categoryRows, budgetRows, transactionRows, expenseRows, todaySource] = await Promise.all([
+      const [categoryRows, budgetRows, expenseRows, todaySource, openingRows] = await Promise.all([
         getCategories(user.id),
         getCategoryBudgets(user.id, currency),
-        getTransactions(user.id, { start: salaryFetchStart(range, unit), end: range.end }),
         getExpenses(user.id),
         getTransactions(user.id, { start: today, end: today }),
+        getMonthOpenings(user.id),
       ]);
+      const openingMap = Object.fromEntries(openingRows.map((row) => [row.month, row.amountCents]));
+      const historyStart = unit === "month"
+        ? openingHistoryStart(range.start.slice(0, 7))
+        : salaryFetchStart(range, unit);
+      const transactionRows = await getTransactions(user.id, { start: historyStart, end: range.end });
       const salaryCategoryIds = incomeCategoryIds(toCategoryRows(categoryRows));
       const toSpending = (row: (typeof transactionRows)[number]) => ({
         id: row.id,
@@ -115,6 +132,7 @@ export default function BudgetPage() {
         kind: row.kind,
         categoryId: row.category_id,
       });
+      const spendingRows = transactionRows.map(toSpending);
       const snapshot: BudgetSnapshot = {
         categories: toCategoryRows(categoryRows),
         budgets: budgetRows,
@@ -128,10 +146,10 @@ export default function BudgetPage() {
             day: getDayOfMonth(expense.expense_date),
             onceMonth: expense.expense_type === "fixed_once" ? `${expense.expense_date.slice(0, 7)}-01` : null,
           })),
-        transactions: transactionRows
-          .map(toSpending)
-          .filter((transaction) => transactionInPeriod(transaction, range, unit, salaryCategoryIds)),
+        transactions: spendingRows.filter((transaction) => transactionInPeriod(transaction, range, unit, salaryCategoryIds)),
         today: todaySource.map(toToday),
+        openings: openingMap,
+        monthFlows: Object.fromEntries(monthFlowsFromTransactions(spendingRows, salaryCategoryIds, currency)),
       };
       if (id !== request.current) return;
       writeBudgetCache(cacheKey, snapshot);
@@ -145,16 +163,16 @@ export default function BudgetPage() {
       if (model.updated + synced > 0) {
         const [freshCategories, freshRows, freshToday] = await Promise.all([
           getCategories(user.id),
-          getTransactions(user.id, { start: salaryFetchStart(range, unit), end: range.end }),
+          getTransactions(user.id, { start: historyStart, end: range.end }),
           getTransactions(user.id, { start: today, end: today }),
         ]);
         const freshSalaryIds = incomeCategoryIds(toCategoryRows(freshCategories));
+        const freshSpending = freshRows.map(toSpending);
         const fresh = {
           ...snapshot,
           categories: toCategoryRows(freshCategories),
-          transactions: freshRows
-            .map(toSpending)
-            .filter((transaction) => transactionInPeriod(transaction, range, unit, freshSalaryIds)),
+          transactions: freshSpending.filter((transaction) => transactionInPeriod(transaction, range, unit, freshSalaryIds)),
+          monthFlows: Object.fromEntries(monthFlowsFromTransactions(freshSpending, freshSalaryIds, currency)),
           today: freshToday.map(toToday),
         };
         writeBudgetCache(cacheKey, fresh);
@@ -271,9 +289,49 @@ export default function BudgetPage() {
   const remainingCents = budgetCents - spent;
   const over = budgetCents > 0 && remainingCents < 0;
   const budgetStatusCents = budgetCents > 0 ? remainingCents : spent;
-  const salaryLeftCents = periodTotals.income - spent;
-  const salaryOver = salaryLeftCents < 0;
+  const monthKey = range.start.slice(0, 7);
+  const flowMap = monthFlows ? new Map(Object.entries(monthFlows)) : null;
+  const overrideMap = new Map(Object.entries(openings));
+  const carry = unit === "month" && ready && flowMap;
+  const openingCents = carry ? openingBalanceCents(monthKey, flowMap, overrideMap) : null;
+  const salaryLeftAmount = carry
+    ? carriedSalaryLeft(monthKey, flowMap, overrideMap)
+    : periodTotals.income - spent;
+  const salaryOver = salaryLeftAmount < 0;
   const roundedEuros = (cents: number) => `${Math.abs(Math.round(cents / 100)).toLocaleString("fr-FR")} €`;
+  const signedEuros = (cents: number) => `${cents < 0 ? "-" : ""}${(Math.abs(cents) / 100).toLocaleString("fr-FR", { minimumFractionDigits: 2, maximumFractionDigits: 2 })} €`;
+  const commitOpening = async (value: string) => {
+    if (skipOpeningSave.current) {
+      skipOpeningSave.current = false;
+      return;
+    }
+    try {
+      const cents = parseOpeningInput(value);
+      const saved = openings[monthKey];
+      if (cents == null) {
+        if (saved == null) {
+          setEditingOpening(false);
+          return;
+        }
+        await deleteMonthOpening(user.id, monthKey);
+      } else if (cents === saved || (saved == null && cents === openingCents)) {
+        setEditingOpening(false);
+        return;
+      } else {
+        await saveMonthOpening(user.id, monthKey, cents);
+      }
+      setOpenings((current) => {
+        const next = { ...current };
+        if (cents == null) delete next[monthKey];
+        else next[monthKey] = cents;
+        return next;
+      });
+      invalidateBudgetCache();
+      setEditingOpening(false);
+    } catch (error) {
+      showError(error instanceof Error ? error.message : "Could not save the starting balance");
+    }
+  };
 
   return (
     <div className="mx-auto flex h-dvh max-w-md flex-col overflow-hidden bg-flowBg px-4 dark:bg-transparent">
@@ -290,17 +348,55 @@ export default function BudgetPage() {
           onNext={() => setAnchor(shiftAnchor(unit, anchor, 1, 1))}
         />
 
-        <section className="grid grid-cols-[1fr_auto_auto] items-center gap-x-3 gap-y-3 rounded-3xl border border-gray-200 bg-white px-4 py-3 dark:border-transparent dark:bg-white/5">
+        <section className="grid grid-cols-[1fr_auto] items-center gap-x-3 gap-y-3 rounded-3xl border border-gray-200 bg-white px-4 py-3 dark:border-transparent dark:bg-white/5">
+          {openingCents != null && (
+            <>
+              <p className="text-xs font-semibold uppercase tracking-wide text-gray-500">From last month</p>
+              {editingOpening ? (
+                <input
+                  autoFocus
+                  inputMode="decimal"
+                  aria-label="From last month"
+                  value={openingDraft}
+                  onChange={(event) => setOpeningDraft(event.target.value)}
+                  onBlur={(event) => void commitOpening(event.currentTarget.value)}
+                  onKeyDown={(event) => {
+                    if (event.key === "Enter") event.currentTarget.blur();
+                    if (event.key === "Escape") {
+                      skipOpeningSave.current = true;
+                      setEditingOpening(false);
+                    }
+                  }}
+                  className="w-28 bg-transparent text-right text-sm font-medium tabular-nums text-gray-400 outline-none"
+                />
+              ) : (
+                <button
+                  type="button"
+                  onClick={() => {
+                    setOpeningDraft(`${openingCents < 0 ? "-" : ""}${(Math.abs(openingCents) / 100).toFixed(2).replace(".", ",")}`);
+                    setEditingOpening(true);
+                  }}
+                  className="text-right text-sm font-medium tabular-nums text-gray-400"
+                >
+                  {signedEuros(openingCents)}
+                </button>
+              )}
+            </>
+          )}
           <p className="text-xs font-semibold uppercase tracking-wide text-gray-500">{salaryOver ? "Over salary" : "Salary left"}</p>
-          <span />
           <p className={`text-right text-2xl font-bold tabular-nums ${!ready ? "text-gray-900 dark:text-white" : salaryOver ? "text-red-400" : "text-[#34D399]"}`}>
-            {ready ? `${salaryOver ? "-" : "+"}${roundedEuros(salaryLeftCents)}` : "—"}
+            {ready ? `${salaryOver ? "-" : "+"}${roundedEuros(salaryLeftAmount)}` : "—"}
           </p>
+          {ready && budgetCents > 0 && (
+            <>
+              <p className="text-xs font-semibold uppercase tracking-wide text-gray-500">Planned budget</p>
+              <p className="text-right text-sm font-medium tabular-nums text-gray-400">
+                {(budgetCents / 100).toLocaleString("fr-FR", { minimumFractionDigits: 2, maximumFractionDigits: 2 })} €
+              </p>
+            </>
+          )}
           <p className="text-xs font-semibold uppercase tracking-wide text-gray-500">
             {budgetCents > 0 ? (over ? "Over budget" : "Budget left") : "Total spending"}
-          </p>
-          <p className="text-right text-sm font-medium tabular-nums text-gray-400">
-            {ready && budgetCents > 0 ? `${(budgetCents / 100).toLocaleString("fr-FR", { minimumFractionDigits: 2, maximumFractionDigits: 2 })} €` : ""}
           </p>
           <p className={`text-right text-2xl font-bold tabular-nums ${!ready || budgetCents <= 0 ? "text-gray-900 dark:text-white" : over ? "text-red-400" : "text-[#34D399]"}`}>
             {ready ? `${budgetCents > 0 ? "+" : ""}${roundedEuros(budgetStatusCents)}` : "—"}
