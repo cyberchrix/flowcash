@@ -3,12 +3,30 @@ import { categorizeTransaction } from "./categorize";
 
 describe("categorizeTransaction", () => {
   it("maps grocery merchants", () => {
-    for (const label of ["LIDL CITY", "ALDI", "Intermarché", "Colruyt"]) {
+    for (const label of ["LIDL CITY", "ALDI", "LECLERC", "Intermarché", "Colruyt"]) {
       const result = categorizeTransaction(label, -1500);
       expect(result.categoryName).toBe("Groceries");
       expect(result.kind).toBe("expense");
       expect(result.needsReview).toBe(false);
     }
+  });
+
+  it("uses the merchant keyword instead of the card number", () => {
+    const result = categorizeTransaction("CARTE X8230 LECLERC", -1000, [
+      { pattern: "X8230", categoryName: "Restaurants", amountCents: null, kind: null, needsReview: false, priority: 100 },
+      { pattern: "LECLERC", categoryName: "Groceries", amountCents: null, kind: null, needsReview: false, priority: 100 },
+    ]);
+    expect(result.categoryName).toBe("Groceries");
+    expect(categorizeTransaction("CARTE X8230 PHARMACIE", -1000, [
+      { pattern: "X8230", categoryName: "Restaurants", amountCents: null, kind: null, needsReview: false, priority: 100 },
+    ]).categoryName).toBeNull();
+  });
+
+  it("does not let a short keyword match inside another word", () => {
+    const result = categorizeTransaction("PRELEVEMENT EUROPEEN", -1000, [
+      { pattern: "EUROPE", categoryName: "Restaurants", amountCents: null, kind: null, needsReview: false, priority: 100 },
+    ]);
+    expect(result.categoryName).toBeNull();
   });
 
   it("maps restaurants and fast food", () => {
@@ -69,6 +87,12 @@ describe("categorizeTransaction", () => {
       },
     ]);
     expect(result.categoryName).toBe("Other");
+  });
+
+  it("treats a Kingfisher credit as salary even when the label says transfer", () => {
+    const result = categorizeTransaction("VIREMENT KINGFISHER PAIE", 250000);
+    expect(result.kind).toBe("income");
+    expect(result.categoryName).toBe("Salary");
   });
 
   it("treats a positive amount as income", () => {

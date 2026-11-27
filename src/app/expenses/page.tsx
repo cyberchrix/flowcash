@@ -8,12 +8,14 @@ import { useAuth } from "@/hooks/useAuth";
 import { getExpenses, deleteExpense, updateExpense } from "@/lib/supabase/expenses";
 import { getCategories } from "@/lib/supabase/categories";
 import { Category } from "@/types";
-import { TrashIcon, PencilIcon, CheckIcon, XMarkIcon, ArrowDownIcon, ArrowUpIcon, EyeIcon, EyeSlashIcon, ChevronDownIcon, ChevronUpIcon } from "@heroicons/react/24/outline";
+import { TrashIcon, PencilIcon, CheckIcon, XMarkIcon, ArrowDownIcon, ArrowUpIcon, EyeIcon, EyeSlashIcon, ChevronDownIcon, ChevronUpIcon, PlusIcon } from "@heroicons/react/24/outline";
+import { useModal } from "@/contexts/ModalContext";
 import { Database } from "@/types/database";
 import { dayToDateString, getDayOfMonth, ordinal, formatDayOfMonth } from "@/lib/date";
 import { useToast } from "@/contexts/ToastContext";
 import { ReconciliationSummary } from "@/components/expenses/ReconciliationSummary";
 import { formatCents } from "@/components/finance/PeriodControls";
+import { isIncomeCategory } from "@/lib/transactions/suggestCategory";
 
 // Force dynamic rendering
 export const dynamic = 'force-dynamic';
@@ -28,6 +30,7 @@ export default function ExpensesPage() {
   const { user, loading: authLoading } = useAuth();
   const router = useRouter();
   const { showSuccess, showError } = useToast();
+  const { openAddExpenseModal } = useModal();
   const [expenses, setExpenses] = useState<Expense[]>([]);
   const [categories, setCategories] = useState<Category[]>([]);
   const [loading, setLoading] = useState(true);
@@ -133,7 +136,7 @@ export default function ExpensesPage() {
   // Obtenir toutes les catégories disponibles (avec les dépenses existantes)
   const getAvailableCategories = () => {
     const categoryMap = new Map<string, Category>();
-    categories.forEach(cat => categoryMap.set(cat.name, cat));
+    categories.filter((cat) => !isIncomeCategory(cat.name)).forEach(cat => categoryMap.set(cat.name, cat));
     
     // Ajouter "Other" si des dépenses sans catégorie existent
     const hasOther = expenses.some(exp => !exp.categories || !exp.categories.name);
@@ -316,19 +319,29 @@ export default function ExpensesPage() {
   return (
     <>
       <div id="page-top-anchor" className="absolute top-0 left-0 w-1 h-1 opacity-0 pointer-events-none" aria-hidden="true" />
-      <div className="mx-auto flex min-h-screen max-w-md flex-col px-5 bg-flowBg dark:bg-transparent">
+      <div className="mx-auto flex h-dvh max-w-md flex-col overflow-hidden px-5 bg-flowBg dark:bg-transparent">
       <Header />
 
-      <main className="flex-1 space-y-6 pt-20 pb-28">
+      <main className="min-h-0 flex-1 space-y-6 overflow-y-auto pt-20 pb-4">
         <div
           className="rounded-[28px] bg-white dark:bg-white/2 border border-gray-200 dark:border-transparent px-6 py-5"
           style={{
             boxShadow: "0 1px 2px 0 rgba(0, 0, 0, 0.05)",
           }}
         >
-          <h1 className="text-xs font-semibold text-gray-900 dark:text-white/50 uppercase mb-2">
-            My Expenses
-          </h1>
+          <div className="mb-2 flex items-center justify-between gap-3">
+            <h1 className="text-xs font-semibold uppercase text-gray-900 dark:text-white/50">
+              My Expenses
+            </h1>
+            <button
+              type="button"
+              onClick={openAddExpenseModal}
+              aria-label="Add expense"
+              className="flex h-10 w-10 items-center justify-center rounded-full bg-flow-primary text-white shadow-flowSoft hover:bg-flow-primary/90"
+            >
+              <PlusIcon className="h-5 w-5" />
+            </button>
+          </div>
           <p className="text-sm text-flowTextMuted dark:text-gray-400 mb-4">
             Manage your expenses by category
           </p>
@@ -409,7 +422,7 @@ export default function ExpensesPage() {
                 No expenses recorded
               </p>
               <p className="text-gray-400 text-xs mt-2">
-                Add your first expense from the home page
+                Use + to add an expense
               </p>
             </div>
           ) : (
@@ -610,7 +623,7 @@ export default function ExpensesPage() {
                   style={{ fontSize: '16px' }}
                 >
                   <option value="">No category</option>
-                  {categories.map((cat) => (
+                  {categories.filter((cat) => !isIncomeCategory(cat.name)).map((cat) => (
                     <option key={cat.id} value={cat.id}>
                       {cat.name}
                     </option>

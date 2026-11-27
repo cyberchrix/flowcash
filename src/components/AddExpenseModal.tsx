@@ -7,6 +7,7 @@ import { createExpense } from "@/lib/supabase/expenses";
 import { dayToDateString, ordinal } from "@/lib/date";
 import { useAuth } from "@/hooks/useAuth";
 import { useToast } from "@/contexts/ToastContext";
+import { isIncomeCategory } from "@/lib/transactions/suggestCategory";
 
 const daysOfMonth = Array.from({ length: 31 }, (_, i) => i + 1);
 
@@ -200,7 +201,7 @@ export function AddExpenseModal({
                 No categories available. Please create categories in settings.
               </div>
             ) : (
-              categories.map((category) => (
+              categories.filter((category) => !isIncomeCategory(category.name)).map((category) => (
                 <button
                   key={category.id}
                   type="button"

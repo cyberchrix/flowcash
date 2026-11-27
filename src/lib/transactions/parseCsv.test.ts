@@ -7,6 +7,11 @@ const HEADER =
 describe("parseCsv", () => {
   it("parses French dates and decimal commas", () => {
     expect(parseFrenchDate("31/01/2026")).toBe("2026-01-31");
+    expect(parseFrenchDate("1/9/2026")).toBe("2026-09-01");
+    expect(parseFrenchDate("01-09-2026")).toBe("2026-09-01");
+    expect(parseFrenchDate("01.09.26")).toBe("2026-09-01");
+    expect(parseFrenchDate("2026-09-30")).toBe("2026-09-30");
+    expect(parseAmountToCents("-10.00 EUR")).toBe(-1000);
     expect(parseAmountToCents("-11,30")).toBe(-1130);
     expect(parseAmountToCents("1 234,56")).toBe(123456);
     expect(parseAmountToCents("1.234,56")).toBe(123456);
@@ -19,7 +24,7 @@ describe("parseCsv", () => {
       "01/03/2026;01/03/2026;BE00;Compte courant;VIR;SALAIRE;Revenus;Salaire;2.500,00;Non;",
     ].join("\n");
 
-    const rows = parseCsv(csv);
+    const rows = parseCsv(csv).rows;
     expect(rows).toHaveLength(2);
     expect(rows[0]).toMatchObject({
       transactionDate: "2026-03-15",
@@ -39,7 +44,7 @@ describe("parseCsv", () => {
 
     const text = decodeCsvBytes(bytes);
     expect(text).toContain("INTERMARCHÉ");
-    expect(parseCsv(text)[0].fullLabel).toBe("INTERMARCHÉ");
+    expect(parseCsv(text).rows[0].fullLabel).toBe("INTERMARCHÉ");
   });
 
   it("accepts a reordered header, a sep line and accent-free names", () => {
@@ -49,7 +54,7 @@ describe("parseCsv", () => {
       "-9,90;NAVI MOUSCRON;02/04/2026;03/04/2026;Courses;Non",
     ].join("\n");
 
-    const rows = parseCsv(csv);
+    const rows = parseCsv(csv).rows;
     expect(rows).toHaveLength(1);
     expect(rows[0]).toMatchObject({
       transactionDate: "2026-04-02",
@@ -68,10 +73,15 @@ describe("parseCsv", () => {
       "Date de l'opération;Libellé;Détail de l'écriture;Montant de l'opération;Devise",
       "02/11/2026;CARTE;CARTE LIDL;-12,40;EUR",
       "01/11/2026;VIR;VIR SALAIRE;1.500,00;EUR",
+      "pas une date;CARTE;BROKEN;abc;EUR",
+      "15/09/2026;CARTE;AUCHAN;-42,10;EUR",
     ].join("\n");
 
-    const rows = parseCsv(csv);
-    expect(rows).toHaveLength(2);
+    const parsed = parseCsv(csv);
+    const rows = parsed.rows;
+    expect(parsed.skipped).toHaveLength(1);
+    expect(rows).toHaveLength(3);
+    expect(rows[2].transactionDate).toBe("2026-09-15");
     expect(rows[0]).toMatchObject({
       transactionDate: "2026-11-02",
       operationLabel: "CARTE",
@@ -84,6 +94,6 @@ describe("parseCsv", () => {
   it("decodes a UTF-8 file", () => {
     const csv = `${HEADER}\n15/03/2026;16/03/2026;BE00;Compte;CARTE;Intermarché;Courses;Supermarche;-8,10;Oui;\n`;
     const text = decodeCsvBytes(new TextEncoder().encode(csv));
-    expect(parseCsv(text)[0].fullLabel).toBe("Intermarché");
+    expect(parseCsv(text).rows[0].fullLabel).toBe("Intermarché");
   });
 });

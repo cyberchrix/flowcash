@@ -23,6 +23,17 @@ html {
   position: relative;
 }
 
+.overflow-y-auto,
+.overflow-auto {
+  scrollbar-width: none;
+  -ms-overflow-style: none;
+}
+
+.overflow-y-auto::-webkit-scrollbar,
+.overflow-auto::-webkit-scrollbar {
+  display: none;
+}
+
 body {
   background-color: #F5F7FA; /* flowBg */
   color: #1A1A1A;           /* flowText */

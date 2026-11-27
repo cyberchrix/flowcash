@@ -45,7 +45,7 @@ function stripBom(value: string): string {
 }
 
 export function parseAmountToCents(value: string): number {
-  let raw = value.trim().replace(/\u00a0/g, "").replace(/\s/g, "");
+  let raw = value.trim().replace(/\u00a0/g, "").replace(/\s/g, "").replace(/(?:eur|€)$/i, "");
   if (!raw) {
     throw new Error("Missing amount");
   }
@@ -72,22 +72,30 @@ export function parseAmountToCents(value: string): number {
 }
 
 export function parseFrenchDate(value: string): string {
-  const match = value.trim().match(/^(\d{2})\/(\d{2})\/(\d{4})$/);
-  if (!match) {
+  const trimmed = value.trim();
+  const iso = trimmed.match(/^(\d{4})-(\d{2})-(\d{2})$/);
+  if (iso) return validatedDate(Number(iso[1]), Number(iso[2]), Number(iso[3]), value);
+
+  const local = trimmed.match(/^(\d{1,2})[/. -](\d{1,2})[/. -](\d{2}|\d{4})$/);
+  if (!local) {
     throw new Error(`Invalid date: ${value}`);
   }
-  const day = Number(match[1]);
-  const month = Number(match[2]);
-  const year = Number(match[3]);
+  const yearPart = local[3];
+  const yearNumber = Number(yearPart);
+  const year = yearPart.length === 2 ? (yearNumber >= 70 ? 1900 + yearNumber : 2000 + yearNumber) : yearNumber;
+  return validatedDate(year, Number(local[2]), Number(local[1]), value);
+}
+
+function validatedDate(year: number, month: number, day: number, source: string): string {
   const date = new Date(Date.UTC(year, month - 1, day));
   const valid =
     date.getUTCFullYear() === year &&
     date.getUTCMonth() === month - 1 &&
     date.getUTCDate() === day;
   if (!valid) {
-    throw new Error(`Invalid date: ${value}`);
+    throw new Error(`Invalid date: ${source}`);
   }
-  return `${match[3]}-${match[2]}-${match[1]}`;
+  return `${year}-${String(month).padStart(2, "0")}-${String(day).padStart(2, "0")}`;
 }
 
 function parsePointed(value: string): boolean {
@@ -205,7 +213,9 @@ export function parseCsvRecords(text: string, delimiter = ";"): string[][] {
   return records;
 }
 
-export function parseCsv(text: string): RawBankRow[] {
+export type CsvParseResult = { rows: RawBankRow[]; skipped: string[] };
+
+export function parseCsv(text: string): CsvParseResult {
   const records = parseCsvRecords(text.replace(/^\uFEFF/, ""), detectDelimiter(text));
   if (records.length === 0) {
     throw new Error("The CSV file is empty.");
@@ -229,31 +239,37 @@ export function parseCsv(text: string): RawBankRow[] {
     return position == null ? "" : (record[position] ?? "").trim();
   };
 
-  return records.slice(headerIndex + 1).flatMap((record, index) => {
-    if (record.every((value) => value.trim() === "")) return [];
+  const rows: RawBankRow[] = [];
+  const skipped: string[] = [];
+  records.slice(headerIndex + 1).forEach((record, index) => {
+    if (record.every((value) => value.trim() === "")) return;
     const line = headerIndex + index + 2;
     try {
       const booking = cell(record, "bookingDate");
       const operationLabel = cell(record, "operationLabel");
       const fullLabel = cell(record, "fullLabel") || operationLabel;
-      return [
-        {
-          transactionDate: parseFrenchDate(cell(record, "transactionDate")),
-          bookingDate: booking ? parseFrenchDate(booking) : null,
-          accountNumber: cell(record, "accountNumber"),
-          accountLabel: cell(record, "accountLabel"),
-          operationLabel,
-          fullLabel,
-          bankCategory: cell(record, "bankCategory"),
-          bankSubcategory: cell(record, "bankSubcategory"),
-          amountCents: parseAmountToCents(cell(record, "amount")),
-          currency: (cell(record, "currency") || "EUR").toUpperCase(),
-          pointed: parsePointed(cell(record, "pointed")),
-        },
-      ];
+      rows.push({
+        transactionDate: parseFrenchDate(cell(record, "transactionDate")),
+        bookingDate: booking ? parseFrenchDate(booking) : null,
+        accountNumber: cell(record, "accountNumber"),
+        accountLabel: cell(record, "accountLabel"),
+        operationLabel,
+        fullLabel,
+        bankCategory: cell(record, "bankCategory"),
+        bankSubcategory: cell(record, "bankSubcategory"),
+        amountCents: parseAmountToCents(cell(record, "amount")),
+        currency: (cell(record, "currency") || "EUR").toUpperCase(),
+        pointed: parsePointed(cell(record, "pointed")),
+      });
     } catch (error) {
       const message = error instanceof Error ? error.message : "Invalid row";
-      throw new Error(`Line ${line}: ${message}`);
+      skipped.push(`Line ${line}: ${message}`);
     }
   });
+
+  if (rows.length === 0) {
+    throw new Error(skipped[0] ?? "The CSV file has no transactions.");
+  }
+
+  return { rows, skipped };
 }

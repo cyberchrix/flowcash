@@ -100,10 +100,10 @@ export default function AccountPage() {
   return (
     <>
       <div id="page-top-anchor" className="absolute top-0 left-0 w-1 h-1 opacity-0 pointer-events-none" aria-hidden="true" />
-      <div className="mx-auto flex min-h-screen max-w-md flex-col px-5 bg-flowBg dark:bg-transparent">
+      <div className="mx-auto flex h-dvh max-w-md flex-col overflow-hidden px-5 bg-flowBg dark:bg-transparent">
       <Header />
 
-      <main className="flex-1 space-y-6 pt-20 pb-28">
+      <main className="min-h-0 flex-1 space-y-6 overflow-y-auto pt-20 pb-4">
         {/* Section Informations du compte */}
         <div
           className="rounded-[28px] bg-white dark:bg-white/2 border border-gray-200 dark:border-transparent px-6 py-5"

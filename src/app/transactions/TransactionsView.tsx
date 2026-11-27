@@ -2,6 +2,7 @@
 
 import { useEffect, useMemo, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
+import { MagnifyingGlassIcon, TagIcon, TrashIcon } from "@heroicons/react/24/outline";
 import { Header } from "@/components/Header";
 import { BottomNav } from "@/components/BottomNav";
 import { useAuth } from "@/hooks/useAuth";
@@ -11,6 +12,7 @@ import {
   countFingerprints,
   getCategorizationRules,
   deleteKeywordRule,
+  ensureTransactionSync,
   getTransactions,
   saveBankImport,
   saveKeywordRule,
@@ -32,6 +34,7 @@ type PreviewRow = SavedTransactionInput & {
 };
 
 const BUILT_IN_CATEGORIES = [
+  "Salary",
   "Groceries",
   "Restaurants",
   "Fuel",
@@ -46,11 +49,22 @@ const KIND_LABEL: Record<TransactionKind, string> = {
   transfer: "Transfer",
 };
 
+function formatMonth(month: string) {
+  const [year, monthNumber] = month.split("-").map(Number);
+  return new Intl.DateTimeFormat("en-US", { month: "long", year: "numeric", timeZone: "UTC" }).format(
+    new Date(Date.UTC(year, monthNumber - 1, 1))
+  );
+}
+
 function formatMoney(cents: number) {
   return new Intl.NumberFormat("en-US", {
     style: "currency",
     currency: "EUR",
   }).format(cents / 100);
+}
+
+function fold(value: string) {
+  return value.normalize("NFD").replace(/\p{M}/gu, "").toLowerCase();
 }
 
 export function TransactionsView() {
@@ -65,25 +79,27 @@ export function TransactionsView() {
   const [loading, setLoading] = useState(true);
   const [preview, setPreview] = useState<PreviewRow[] | null>(null);
   const [filename, setFilename] = useState("");
+  const [skippedRows, setSkippedRows] = useState<string[]>([]);
+  const [previewOpen, setPreviewOpen] = useState(false);
   const [saving, setSaving] = useState(false);
+  const [reading, setReading] = useState(false);
   const [rules, setRules] = useState<{ pattern: string; categoryName: string }[]>([]);
   const [keyword, setKeyword] = useState("");
   const [keywordCategory, setKeywordCategory] = useState("Groceries");
+  const [keywordsOpen, setKeywordsOpen] = useState(false);
+  const [keywordFormOpen, setKeywordFormOpen] = useState(false);
+  const [query, setQuery] = useState("");
 
   useEffect(() => {
     if (!authLoading && !user) router.push("/auth");
   }, [user, authLoading, router]);
 
-  const load = async () => {
+  const load = async (options?: { silent?: boolean }) => {
     if (!user) {
       setLoading(false);
       return;
     }
     try {
-      const categorized = await categorizeWithModel();
-      if (categorized.updated > 0) {
-        showSuccess(`${categorized.updated} transaction${categorized.updated === 1 ? "" : "s"} categorized`);
-      }
       const [categoryRows, transactionRows, ruleRows] = await Promise.all([
         getCategories(user.id),
         getTransactions(user.id, {
@@ -99,6 +115,21 @@ export function TransactionsView() {
       })));
       setTransactions(transactionRows);
       setRules(ruleRows.map((rule) => ({ pattern: rule.pattern, categoryName: rule.categoryName })));
+      setLoading(false);
+      const [model, synced] = await Promise.all([
+        categorizeWithModel(),
+        ensureTransactionSync(user.id),
+      ]);
+      if (!options?.silent && model.updated > 0) {
+        showSuccess(`${model.updated} transaction${model.updated === 1 ? "" : "s"} categorized`);
+      }
+      if (model.updated + synced > 0) {
+        const freshRows = await getTransactions(user.id, {
+          month: month || undefined,
+          categoryId: categoryId || undefined,
+        });
+        setTransactions(freshRows);
+      }
     } catch (error) {
       console.error(error);
       showError(error instanceof Error ? error.message : "Error loading transactions");
@@ -112,6 +143,24 @@ export function TransactionsView() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [user, month, categoryId]);
 
+  const visibleTransactions = useMemo(() => {
+    const needle = fold(query.trim());
+    if (!needle) return transactions;
+    return transactions.filter((transaction) => {
+      const amount = (Math.abs(Number(transaction.amount_cents)) / 100).toFixed(2);
+      const haystack = fold([
+        transaction.full_label,
+        transaction.operation_label ?? "",
+        transaction.normalized_merchant,
+        transaction.bank_category ?? "",
+        transaction.categories?.name ?? "",
+        amount,
+        amount.replace(".", ","),
+      ].join(" "));
+      return haystack.includes(needle);
+    });
+  }, [query, transactions]);
+
   const categoryNames = useMemo(() => {
     const names = new Set([...BUILT_IN_CATEGORIES, ...categories.map((category) => category.name)]);
     for (const row of preview ?? []) {
@@ -122,12 +171,14 @@ export function TransactionsView() {
 
   const handleFile = async (file: File) => {
     if (!user) return;
+    setReading(true);
     try {
       const bytes = new Uint8Array(await file.arrayBuffer());
       const parsed = parseCsv(decodeCsvBytes(bytes));
+      setSkippedRows(parsed.skipped);
       const rules = await getCategorizationRules(user.id);
       const names = [...BUILT_IN_CATEGORIES, ...categories.map((category) => category.name)];
-      const categorized = parsed.map((row) => {
+      const categorized = parsed.rows.map((row) => {
         const result = categorizeTransaction(row.fullLabel, row.amountCents, rules);
         const inferred = result.categoryName ? null : inferCategory(row.fullLabel, names);
         return {
@@ -143,6 +194,7 @@ export function TransactionsView() {
       );
       const marked = markDuplicates(categorized, counts);
       setFilename(file.name);
+      setPreviewOpen(false);
       setPreview(
         marked.map((row, index) => ({
           ...row,
@@ -153,6 +205,8 @@ export function TransactionsView() {
     } catch (error) {
       console.error(error);
       showError(error instanceof Error ? error.message : "Could not read this CSV");
+    } finally {
+      setReading(false);
     }
   };
 
@@ -175,14 +229,25 @@ export function TransactionsView() {
     setSaving(true);
     try {
       const result = await saveBankImport(user.id, filename, preview);
+      const importedMonths = [...new Set(newRows.map((row) => row.transactionDate.slice(0, 7)))].sort();
+      setPreview(null);
+      const hadMonth = Boolean(month || searchParams.get("month"));
+      setMonth("");
+      if (searchParams.get("month")) {
+        const params = new URLSearchParams(searchParams.toString());
+        params.delete("month");
+        router.replace(params.size ? `/transactions?${params}` : "/transactions");
+      }
+      if (!hadMonth) await load({ silent: true });
+      const span = importedMonths.length
+        ? `, ${formatMonth(importedMonths[0])} to ${formatMonth(importedMonths[importedMonths.length - 1])}`
+        : "";
       showSuccess(
         `Imported ${result.importedCount} transaction${result.importedCount === 1 ? "" : "s"}` +
-          (result.duplicateCount ? `, skipped ${result.duplicateCount} duplicate${result.duplicateCount === 1 ? "" : "s"}` : "")
+          span +
+          (result.duplicateCount ? `, skipped ${result.duplicateCount} duplicate${result.duplicateCount === 1 ? "" : "s"}` : ""),
+        5000
       );
-      setPreview(null);
-      setLoading(true);
-      await categorizeWithModel();
-      await load();
     } catch (error) {
       console.error(error);
       showError(error instanceof Error ? error.message : "Import failed");
@@ -213,10 +278,25 @@ export function TransactionsView() {
     }
   };
 
+  const changeKeywordCategory = async (pattern: string, categoryName: string) => {
+    if (!user || !categoryName) return;
+    const current = rules.find((rule) => rule.pattern === pattern)?.categoryName;
+    if (current === categoryName) return;
+    try {
+      await saveKeywordRule(user.id, pattern, categoryName);
+      showSuccess(`${pattern} is now categorized as ${categoryName}`);
+      await load();
+    } catch (error) {
+      showError(error instanceof Error ? error.message : "Could not update this keyword");
+    }
+  };
+
   const changeSavedCategory = async (transactionId: string, nextCategoryId: string) => {
     if (!user) return;
     try {
-      await updateTransactionCategory(user.id, transactionId, nextCategoryId || null);
+      const pattern = await updateTransactionCategory(user.id, transactionId, nextCategoryId || null);
+      const categoryName = categories.find((category) => category.id === nextCategoryId)?.name;
+      if (pattern && categoryName) showSuccess(`${pattern} will be categorized as ${categoryName}`);
       await load();
     } catch (error) {
       showError(error instanceof Error ? error.message : "Could not update the category");
@@ -236,41 +316,62 @@ export function TransactionsView() {
   const newRows = preview?.filter((row) => !row.duplicate) ?? [];
 
   return (
-    <div className="mx-auto flex min-h-screen max-w-md flex-col px-5 bg-flowBg dark:bg-transparent">
+    <div className="mx-auto flex h-dvh max-w-md flex-col overflow-hidden px-5 bg-flowBg dark:bg-transparent">
       <Header />
-      <main className="flex-1 space-y-4 pt-20 pb-28">
-        <section className="rounded-[28px] border border-gray-200 bg-white px-6 py-5 dark:border-transparent dark:bg-white/2">
-          <h1 className="mb-1 text-xs font-semibold uppercase text-gray-900 dark:text-white/50">
-            Transactions
-          </h1>
-          <p className="mb-4 text-sm text-gray-600 dark:text-gray-400">
-            Import a bank CSV, review categories, then save. Planned expenses stay unchanged.
-          </p>
-          <label className="block rounded-lg border border-dashed border-gray-300 px-4 py-3 text-sm text-gray-700 dark:border-white/15 dark:text-gray-300">
-            <span className="font-medium">Upload CSV</span>
+      <main className="min-h-0 flex-1 space-y-4 overflow-y-auto pt-20 pb-4">
+        <section className="space-y-2">
+          <div className="flex items-center gap-2">
+            <label className="flex h-10 flex-1 cursor-pointer items-center justify-center rounded-lg bg-flow-primary text-sm font-medium text-white">
+              Import
+              <input
+                type="file"
+                accept=".csv,text/csv"
+                disabled={reading || saving}
+                className="sr-only"
+                onChange={(event) => {
+                  const file = event.target.files?.[0];
+                  if (file) handleFile(file);
+                  event.target.value = "";
+                }}
+              />
+            </label>
+            <button
+              type="button"
+              aria-label="Add keyword"
+              aria-pressed={keywordFormOpen}
+              onClick={() => setKeywordFormOpen((open) => !open)}
+              className={`flex h-10 w-10 items-center justify-center rounded-lg ${
+                keywordFormOpen
+                  ? "bg-flow-primary text-white"
+                  : "bg-gray-100 text-gray-900 dark:bg-gray-700 dark:text-gray-100"
+              }`}
+            >
+              <TagIcon className="h-5 w-5" />
+            </button>
+          </div>
+          <div className="relative">
+            <MagnifyingGlassIcon className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-400" />
             <input
-              type="file"
-              accept=".csv,text/csv"
-              className="mt-2 block w-full text-xs"
-              onChange={(event) => {
-                const file = event.target.files?.[0];
-                if (file) handleFile(file);
-                event.target.value = "";
-              }}
+              type="search"
+              value={query}
+              onChange={(event) => setQuery(event.target.value)}
+              placeholder="Search"
+              aria-label="Search transactions"
+              className="w-full rounded-lg border border-gray-300 bg-white py-2 pl-9 pr-3 text-sm text-gray-900 dark:border-gray-600 dark:bg-gray-700 dark:text-gray-100"
             />
-          </label>
-          <div className="mt-4 grid grid-cols-2 gap-2">
+          </div>
+          <div className="grid grid-cols-2 gap-2">
             <input
               type="month"
               value={month}
               onChange={(event) => setMonth(event.target.value)}
-              className="rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm text-gray-900 dark:border-gray-600 dark:bg-gray-700 dark:text-gray-100"
+              className="min-w-0 rounded-lg border border-gray-300 bg-white px-2 py-2 text-sm text-gray-900 dark:border-gray-600 dark:bg-gray-700 dark:text-gray-100"
               aria-label="Month"
             />
             <select
               value={categoryId}
               onChange={(event) => setCategoryId(event.target.value)}
-              className="rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm text-gray-900 dark:border-gray-600 dark:bg-gray-700 dark:text-gray-100"
+              className="min-w-0 rounded-lg border border-gray-300 bg-white px-2 py-2 text-sm text-gray-900 dark:border-gray-600 dark:bg-gray-700 dark:text-gray-100"
               aria-label="Category"
             >
               <option value="">All categories</option>
@@ -283,13 +384,8 @@ export function TransactionsView() {
           </div>
         </section>
 
-        <section className="rounded-[28px] border border-gray-200 bg-white px-6 py-5 dark:border-transparent dark:bg-white/2">
-          <h2 className="mb-1 text-xs font-semibold uppercase text-gray-900 dark:text-white/50">
-            Keywords
-          </h2>
-          <p className="mb-4 text-sm text-gray-600 dark:text-gray-400">
-            A label is matched against your keywords. If none matches, a category is chosen from the ones you already have.
-          </p>
+        {keywordFormOpen && (
+        <section className="rounded-[28px] border border-gray-200 bg-white px-4 py-4 dark:border-transparent dark:bg-white/2">
           <div className="flex gap-2">
             <input
               value={keyword}
@@ -318,30 +414,85 @@ export function TransactionsView() {
             Remember keyword
           </button>
           {rules.length > 0 && (
-            <ul className="mt-4 space-y-2">
-              {rules.map((rule) => (
-                <li key={rule.pattern} className="flex items-center justify-between gap-3 text-sm text-gray-900 dark:text-white">
-                  <span className="min-w-0 truncate">{rule.pattern} → {rule.categoryName}</span>
-                  <button type="button" onClick={() => removeKeyword(rule.pattern)} className="text-xs text-gray-500">
-                    Remove
-                  </button>
-                </li>
-              ))}
-            </ul>
+            <div className="mt-4">
+              <ul className="space-y-2">
+                {(keywordsOpen ? rules : rules.slice(0, 2)).map((rule) => (
+                  <li key={rule.pattern} className="flex items-center gap-2 text-sm text-gray-900 dark:text-white">
+                    <span className="min-w-0 flex-1 truncate">{rule.pattern}</span>
+                    <select
+                      value={rule.categoryName}
+                      aria-label={`Category for ${rule.pattern}`}
+                      onChange={(event) => changeKeywordCategory(rule.pattern, event.target.value)}
+                      className="max-w-[9rem] rounded-lg border border-gray-300 bg-white px-2 py-1.5 text-sm text-gray-900 dark:border-gray-600 dark:bg-gray-700 dark:text-gray-100"
+                    >
+                      {categoryNames.map((name) => (
+                        <option key={name} value={name}>{name}</option>
+                      ))}
+                    </select>
+                    <button
+                      type="button"
+                      onClick={() => removeKeyword(rule.pattern)}
+                      aria-label={`Remove ${rule.pattern}`}
+                      className="shrink-0 rounded-lg p-1.5 text-gray-500 hover:bg-red-50 hover:text-red-500 dark:hover:bg-white/10 dark:hover:text-white"
+                    >
+                      <TrashIcon className="h-4 w-4" />
+                    </button>
+                  </li>
+                ))}
+              </ul>
+              {rules.length > 2 && (
+                <button
+                  type="button"
+                  onClick={() => setKeywordsOpen((open) => !open)}
+                  className="mt-2 text-sm font-medium text-flow-primary"
+                >
+                  {keywordsOpen ? "Show less" : `Show all ${rules.length}`}
+                </button>
+              )}
+            </div>
           )}
         </section>
+        )}
 
         {preview && (
           <section className="rounded-[28px] border border-gray-200 bg-white px-6 py-5 dark:border-transparent dark:bg-white/2">
             <h2 className="mb-1 text-xs font-semibold uppercase text-gray-900 dark:text-white/50">
               Import preview
             </h2>
-            <p className="mb-4 text-xs text-gray-500 dark:text-gray-400">
-              {newRows.length} to import, {preview.length - newRows.length} duplicate
-              {preview.length - newRows.length === 1 ? "" : "s"}. A changed category is remembered for that merchant.
+            <p className="text-sm text-gray-900 dark:text-white">
+              {newRows.length} to add
+              {newRows.length > 0 ? `, ${formatMonth(newRows[newRows.length - 1].transactionDate.slice(0, 7))} to ${formatMonth(newRows[0].transactionDate.slice(0, 7))}` : ""}
+              . {preview.length - newRows.length} already saved
+              {skippedRows.length ? `, ${skippedRows.length} unreadable` : ""}.
             </p>
-            <div className="space-y-3">
-              {preview.map((row) => (
+            <div className="mt-4 flex gap-2">
+              <button
+                type="button"
+                onClick={() => setPreview(null)}
+                className="flex-1 rounded-lg border border-gray-300 px-4 py-3 text-sm text-gray-700 dark:border-white/15 dark:text-gray-200"
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                onClick={confirmImport}
+                disabled={saving || newRows.length === 0}
+                className="flex-1 rounded-lg bg-flow-primary px-4 py-3 text-sm font-medium text-white disabled:opacity-50"
+              >
+                {saving ? "Saving..." : `Save ${newRows.length}`}
+              </button>
+            </div>
+            {newRows.length > 0 && (
+              <button
+                type="button"
+                onClick={() => setPreviewOpen((open) => !open)}
+                className="mt-3 text-sm font-medium text-flow-primary"
+              >
+                {previewOpen ? "Hide operations" : "Review operations"}
+              </button>
+            )}
+            {previewOpen && <div className="mt-4 space-y-3">
+              {newRows.map((row) => (
                 <article
                   key={row.id}
                   className={`rounded-2xl border border-gray-200 p-3 dark:border-white/10 ${
@@ -349,8 +500,8 @@ export function TransactionsView() {
                   }`}
                 >
                   <div className="flex items-start justify-between gap-3">
-                    <div className="min-w-0">
-                      <p className="truncate text-sm font-medium text-gray-900 dark:text-white">
+                    <div className="min-w-0 flex-1">
+                      <p className="line-clamp-2 break-words text-sm font-medium leading-snug text-gray-900 dark:text-white">
                         {row.fullLabel}
                       </p>
                       <p className="mt-0.5 text-xs text-gray-500 dark:text-gray-400">
@@ -367,8 +518,7 @@ export function TransactionsView() {
                       <p className="text-[10px] uppercase text-gray-400">{KIND_LABEL[row.kind]}</p>
                     </div>
                   </div>
-                  {!row.duplicate && (
-                    <select
+                  <select
                       value={row.categoryName ?? ""}
                       onChange={(event) => updatePreview(row.id, event.target.value)}
                       className="mt-2 w-full rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm text-gray-900 dark:border-gray-600 dark:bg-gray-700 dark:text-gray-100"
@@ -381,42 +531,32 @@ export function TransactionsView() {
                         </option>
                       ))}
                     </select>
-                  )}
                 </article>
               ))}
-            </div>
-            <div className="mt-4 flex gap-2">
-              <button
-                type="button"
-                onClick={() => setPreview(null)}
-                className="flex-1 rounded-lg border border-gray-300 px-4 py-3 text-sm text-gray-700 dark:border-white/15 dark:text-gray-200"
-              >
-                Cancel
-              </button>
-              <button
-                type="button"
-                onClick={confirmImport}
-                disabled={saving || newRows.length === 0}
-                className="flex-1 rounded-lg bg-flow-primary px-4 py-3 text-sm font-medium text-white disabled:opacity-50"
-              >
-                {saving ? "Saving..." : "Save import"}
-              </button>
-            </div>
+            </div>}
           </section>
         )}
 
         <section className="space-y-3">
-          {transactions.length === 0 ? (
-            <p className="px-2 text-sm text-gray-500 dark:text-gray-400">No transactions for this filter.</p>
+          {visibleTransactions.length === 0 ? (
+            <p className="px-2 text-sm text-gray-500 dark:text-gray-400">
+              {query.trim() ? "No transactions match this search." : "No transactions for this filter."}
+            </p>
           ) : (
-            transactions.map((transaction) => (
-              <article
-                key={transaction.id}
-                className="rounded-[24px] border border-gray-200 bg-white px-4 py-3 dark:border-transparent dark:bg-white/2"
-              >
+            visibleTransactions.map((transaction, index) => {
+              const monthKey = transaction.transaction_date.slice(0, 7);
+              const previousMonth = visibleTransactions[index - 1]?.transaction_date.slice(0, 7);
+              return (
+              <div key={transaction.id} className="space-y-3">
+              {monthKey !== previousMonth && (
+                <h2 className="px-1 pt-2 text-xs font-semibold uppercase text-gray-500 dark:text-gray-400">
+                  {formatMonth(monthKey)}
+                </h2>
+              )}
+              <article className="rounded-[24px] border border-gray-200 bg-white px-4 py-3 dark:border-transparent dark:bg-white/2">
                 <div className="flex items-start justify-between gap-3">
-                  <div className="min-w-0">
-                    <p className="truncate text-sm font-medium text-gray-900 dark:text-white">
+                  <div className="min-w-0 flex-1">
+                    <p className="line-clamp-2 break-words text-sm font-medium leading-snug text-gray-900 dark:text-white">
                       {transaction.full_label}
                     </p>
                     <p className="mt-0.5 text-xs text-gray-500 dark:text-gray-400">
@@ -443,11 +583,18 @@ export function TransactionsView() {
                   ))}
                 </select>
               </article>
-            ))
+              </div>
+              );
+            })
           )}
         </section>
       </main>
       <BottomNav />
+      {(reading || saving) && (
+        <div className="fixed inset-x-4 bottom-24 z-[70] rounded-2xl bg-flow-primary px-4 py-3 text-center text-sm font-semibold text-white shadow-lg">
+          {reading ? "Reading the file…" : "Importing…"}
+        </div>
+      )}
     </div>
   );
 }

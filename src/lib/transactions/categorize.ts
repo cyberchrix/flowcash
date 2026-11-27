@@ -1,24 +1,36 @@
 import { normalizeMerchant } from "./normalize";
+import { isPaymentToken } from "./suggestCategory";
 import {
   Categorization,
   TransactionKind,
   UserCategorizationRule,
 } from "./types";
 
-const GROCERIES = ["LIDL", "ALDI", "INTERMARCHE", "COLRUYT"];
+const GROCERIES = ["LIDL", "ALDI", "LECLERC", "INTERMARCHE", "COLRUYT", "AUCHAN", "CARREFOUR"];
 const RESTAURANTS = [
   "MCDONALD",
+  "MCDONALDS",
   "BURGER KING",
   "QUICK",
   "KFC",
   "SUBWAY",
+  "PIZZA",
   "PIZZA HUT",
   "DOMINO",
+  "DOMINOS",
   "RESTAURANT",
   "BRASSERIE",
   "MC DONALD",
+  "OTACOS",
+  "FRITERIE",
+  "NEWREST",
+  "EXKI",
+  "STARBUCKS",
+  "KEBAB",
+  "SUSHI",
 ];
 const FUEL_STATIONS = ["TOTAL", "SHELL", "Q8", "ESSO", "LUKOIL", "TEXACO", "AVIA", "GULF", "BP"];
+const SALARY_PAYERS = ["KINGFISHER"];
 const FUEL_WORDS = [
   "CARBURANT",
   "ESSENCE",
@@ -51,10 +63,10 @@ export function matchingUserRule(
   rules: UserCategorizationRule[]
 ): UserCategorizationRule | null {
   return [...rules]
-    .sort((a, b) => b.priority - a.priority)
+    .sort((a, b) => b.priority - a.priority || normalizeMerchant(b.pattern).length - normalizeMerchant(a.pattern).length)
     .find((rule) => {
       const pattern = normalizeMerchant(rule.pattern);
-      if (!pattern || !normalizedMerchant.includes(pattern)) return false;
+      if (!pattern || isPaymentToken(pattern) || !containsTerm(normalizedMerchant, pattern)) return false;
       if (rule.amountCents != null && rule.amountCents !== amountCents) return false;
       return true;
     }) ?? null;
@@ -74,6 +86,15 @@ export function categorizeTransaction(
       kind: userRule.kind ?? kindFromAmount(amountCents),
       categoryName: userRule.categoryName,
       needsReview: userRule.needsReview,
+    };
+  }
+
+  if (amountCents > 0 && matchesAny(normalizedMerchant, SALARY_PAYERS)) {
+    return {
+      normalizedMerchant,
+      kind: "income",
+      categoryName: "Salary",
+      needsReview: false,
     };
   }
 

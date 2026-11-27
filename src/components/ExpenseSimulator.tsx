@@ -4,6 +4,7 @@ import { useState, useEffect, useRef } from "react";
 import { Modal } from "./Modal";
 import { Category } from "@/types";
 import { CalculatorIcon, PlusIcon, TrashIcon } from "@heroicons/react/24/outline";
+import { isIncomeCategory } from "@/lib/transactions/suggestCategory";
 
 interface SimulatedExpense {
   id: string;
@@ -185,7 +186,7 @@ export function ExpenseSimulator({
 
           {/* Quick category selection */}
           <div className="flex flex-wrap gap-2">
-            {categories.map((category) => (
+            {categories.filter((category) => !isIncomeCategory(category.name)).map((category) => (
               <button
                 key={category.id}
                 type="button"

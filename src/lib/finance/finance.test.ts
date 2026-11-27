@@ -4,6 +4,7 @@ import { percentChange } from "./insights";
 import { spendingPace } from "./pace";
 import { daysInMonth, isLeapYear, weekRange } from "./period";
 import { allocationFits, expenseStatus, suggestLinks } from "./reconcile";
+import { fundedMonth, salaryFetchStart, transactionInPeriod } from "./salaryPeriod";
 import { spendingCents, totalsFor } from "./spending";
 import { SpendingTransaction } from "./spending";
 
@@ -62,6 +63,29 @@ describe("periods and money", () => {
     expect(totals.netSpend).toBe(1500);
     expect(totals.income).toBe(3000);
     expect(totals.cashFlow).toBe(1500);
+  });
+});
+
+describe("salary period", () => {
+  const salaryIds = new Set(["salary"]);
+  const november = { start: "2026-11-01", end: "2026-11-30" };
+  const pay = (date: string, kind: "income" | "expense" = "income") => ({
+    date,
+    kind,
+    merchant: "KINGFISHER",
+    categoryId: "salary",
+  });
+
+  it("counts a payment received from the 25th in the next month", () => {
+    expect(fundedMonth("2026-10-28")).toBe("2026-11");
+    expect(fundedMonth("2026-11-26")).toBe("2026-12");
+    expect(fundedMonth("2026-12-26")).toBe("2027-01");
+    expect(fundedMonth("2026-11-10")).toBe("2026-11");
+    expect(transactionInPeriod(pay("2026-10-28"), november, "month", salaryIds)).toBe(true);
+    expect(transactionInPeriod(pay("2026-11-26"), november, "month", salaryIds)).toBe(false);
+    expect(transactionInPeriod(pay("2026-10-28", "expense"), november, "month", salaryIds)).toBe(false);
+    expect(transactionInPeriod(pay("2026-11-26"), { start: "2026-11-23", end: "2026-11-29" }, "week", salaryIds)).toBe(false);
+    expect(salaryFetchStart(november, "month")).toBe("2026-10-25");
   });
 });
 

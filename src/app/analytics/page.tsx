@@ -8,11 +8,13 @@ import { BottomNav } from "@/components/BottomNav";
 import { formatCents, PeriodControls } from "@/components/finance/PeriodControls";
 import { useAuth } from "@/hooks/useAuth";
 import { getCategories } from "@/lib/supabase/categories";
-import { getTransactions } from "@/lib/supabase/transactions";
+import { ensureTransactionSync, getTransactions } from "@/lib/supabase/transactions";
 import { categorizeWithModel } from "@/lib/transactions/categorizeWithModel";
 import { percentChange } from "@/lib/finance/insights";
 import { formatISODate, formatPeriodLabel, inclusiveDays, PeriodUnit, rangeFor, shiftAnchor, shiftDate } from "@/lib/finance/period";
+import { transactionInPeriod, salaryFetchStart } from "@/lib/finance/salaryPeriod";
 import { spendByCategory, spendByDay, SpendingTransaction, totalsFor } from "@/lib/finance/spending";
+import { isIncomeCategory } from "@/lib/transactions/suggestCategory";
 
 export const dynamic = "force-dynamic";
 
@@ -39,8 +41,7 @@ export default function AnalyticsPage() {
   useEffect(() => {
     const load = async () => {
       if (!user) return;
-      const historyStart = shiftDate(range.end, -370);
-      await categorizeWithModel();
+      const historyStart = [shiftDate(range.end, -370), salaryFetchStart(range, unit), salaryFetchStart(previousRange, unit)].sort()[0];
       const [categoryRows, rows] = await Promise.all([
         getCategories(user.id),
         getTransactions(user.id, { start: historyStart, end: range.end }),
@@ -57,12 +58,32 @@ export default function AnalyticsPage() {
       }));
       setHistory(mapped);
       setLoading(false);
+      const [model, synced] = await Promise.all([
+        categorizeWithModel(),
+        ensureTransactionSync(user.id),
+      ]);
+      if (model.updated + synced > 0) {
+        const fresh = await getTransactions(user.id, { start: historyStart, end: range.end });
+        setHistory(fresh.map((row) => ({
+          id: row.id,
+          date: row.transaction_date,
+          amountCents: Number(row.amount_cents),
+          kind: row.kind,
+          categoryId: row.category_id,
+          merchant: row.normalized_merchant,
+          currency: row.currency || "EUR",
+        })));
+      }
     };
     load();
   }, [user, range.start, range.end, previousRange.start, previousRange.end]);
 
-  const transactions = history.filter((row) => row.date >= range.start && row.date <= range.end);
-  const previous = history.filter((row) => row.date >= previousRange.start && row.date <= previousRange.end);
+  const salaryCategoryIds = useMemo(
+    () => new Set(categories.filter((category) => isIncomeCategory(category.name)).map((category) => category.id)),
+    [categories]
+  );
+  const transactions = history.filter((row) => transactionInPeriod(row, range, unit, salaryCategoryIds));
+  const previous = history.filter((row) => transactionInPeriod(row, previousRange, unit, salaryCategoryIds));
   const totals = totalsFor(transactions, currency);
   const previousTotals = totalsFor(previous, currency);
   const change = percentChange(totals.netSpend, previousTotals.netSpend);
@@ -108,9 +129,9 @@ export default function AnalyticsPage() {
   const days = Math.max(inclusiveDays(range.start, range.end), 1);
 
   return (
-    <div className="mx-auto flex min-h-screen max-w-md flex-col bg-flowBg px-4 dark:bg-transparent">
+    <div className="mx-auto flex h-dvh max-w-md flex-col overflow-hidden bg-flowBg px-4 dark:bg-transparent">
       <Header />
-      <main className="flex-1 space-y-3 pb-28 pt-20">
+      <main className="min-h-0 flex-1 space-y-3 overflow-y-auto pb-4 pt-20">
         <h1 className="text-center text-lg font-semibold tracking-wide text-flow-primary">SPENDING ANALYTICS</h1>
         <PeriodControls
           label={formatPeriodLabel(unit, anchor, 1)}

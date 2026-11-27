@@ -99,7 +99,7 @@ interface ToastContainerProps {
 
 export function ToastContainer({ toasts, onClose }: ToastContainerProps) {
   return (
-    <div className="fixed top-4 left-1/2 right-4 md:right-4 md:left-auto -translate-x-1/2 md:translate-x-0 z-50 flex flex-col gap-2 pointer-events-none items-center md:items-end">
+    <div className="fixed bottom-24 left-1/2 z-[80] flex w-[min(92vw,28rem)] -translate-x-1/2 flex-col gap-2 pointer-events-none items-center">
       <AnimatePresence mode="popLayout">
         {toasts.map((toast) => (
           <div key={toast.id} className="pointer-events-auto">

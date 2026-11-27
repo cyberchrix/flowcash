@@ -24,7 +24,7 @@ export default function AuthPage() {
   // Rediriger vers home si déjà connecté
   useEffect(() => {
     if (!authLoading && user) {
-      router.push("/");
+      router.push("/budget");
     }
   }, [user, authLoading, router]);
 
@@ -94,7 +94,7 @@ export default function AuthPage() {
 
         if (error) throw error;
 
-        router.push("/");
+        router.push("/budget");
         router.refresh();
       } else {
         const { data, error } = await supabase.auth.signUp({
@@ -110,7 +110,7 @@ export default function AuthPage() {
         // Vérifier si l'inscription a réussi
         if (data.user) {
           // Après l'inscription, on se connecte automatiquement
-          router.push("/");
+          router.push("/budget");
           router.refresh();
         } else {
           throw new Error("L'inscription a échoué. Vérifiez vos informations.");

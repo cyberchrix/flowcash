@@ -3,7 +3,16 @@ import { Database } from "@/types/database";
 import { createCategory, getCategories } from "./categories";
 import { matchingUserRule } from "@/lib/transactions/categorize";
 import { normalizeMerchant } from "@/lib/transactions/normalize";
-import { inferCategory } from "@/lib/transactions/suggestCategory";
+import { invalidateBudgetCache } from "@/lib/finance/budgetCache";
+import { invalidateCategoryModel } from "@/lib/transactions/categorizeWithModel";
+import {
+  hasRestaurantSignal,
+  inferCategory,
+  isPaymentToken,
+  isRestaurantCategory,
+  knownTermExpectation,
+  merchantKeyword,
+} from "@/lib/transactions/suggestCategory";
 import { TransactionKind } from "@/lib/transactions/types";
 
 type TransactionInsert = Database["public"]["Tables"]["transactions"]["Insert"];
@@ -13,6 +22,7 @@ export type TransactionListItem = Database["public"]["Tables"]["transactions"]["
 };
 
 const CATEGORY_COLORS: Record<string, string> = {
+  Salary: "#34D399",
   Groceries: "#10B981",
   Restaurants: "#F59E0B",
   Fuel: "#316CFF",
@@ -107,21 +117,52 @@ export async function countFingerprints(userId: string, fingerprints: string[]) 
 
   ensureSupabaseConfigured();
   const unique = [...new Set(fingerprints)];
-  const { data, error } = await supabase
-    .from("transactions")
-    .select("fingerprint")
-    .eq("user_id", userId)
-    .in("fingerprint", unique);
-
-  if (error) {
-    throw new Error(`Error checking duplicates: ${error.message}`);
-  }
-
-  for (const row of data ?? []) {
-    const key = row.fingerprint as string;
-    counts.set(key, (counts.get(key) ?? 0) + 1);
+  for (let index = 0; index < unique.length; index += 80) {
+    const batch = unique.slice(index, index + 80);
+    for (let from = 0; ; from += 1000) {
+      const { data, error } = await supabase
+        .from("transactions")
+        .select("fingerprint")
+        .eq("user_id", userId)
+        .in("fingerprint", batch)
+        .range(from, from + 999);
+      if (error) {
+        throw new Error(`Error checking duplicates: ${error.message}`);
+      }
+      const page = data ?? [];
+      for (const row of page) {
+        const key = row.fingerprint as string;
+        counts.set(key, (counts.get(key) ?? 0) + 1);
+      }
+      if (page.length < 1000) break;
+    }
   }
   return counts;
+}
+
+function isDuplicateError(error: { code?: string; message?: string }) {
+  return error.code === "23505" || /duplicate key/i.test(error.message ?? "");
+}
+
+async function insertTransactions(rows: TransactionInsert[]): Promise<number> {
+  const { error } = await supabase.from("transactions").insert(rows);
+  if (!error) return rows.length;
+  if (!isDuplicateError(error)) {
+    throw new Error(`Error saving transactions: ${error.message}`);
+  }
+
+  let saved = 0;
+  for (const row of rows) {
+    const { error: rowError } = await supabase.from("transactions").insert(row);
+    if (!rowError) {
+      saved += 1;
+      continue;
+    }
+    if (!isDuplicateError(rowError)) {
+      throw new Error(`Error saving transactions: ${rowError.message}`);
+    }
+  }
+  return saved;
 }
 
 export async function saveBankImport(
@@ -131,7 +172,8 @@ export async function saveBankImport(
 ) {
   ensureSupabaseConfigured();
   const imported = rows.filter((row) => !row.duplicate);
-  const duplicateCount = rows.length - imported.length;
+  let duplicateCount = rows.length - imported.length;
+  let saved = imported.length;
   const names = [
     ...new Set(
       imported
@@ -194,10 +236,15 @@ export async function saveBankImport(
       occurrence: row.occurrence,
     }));
 
-    const { error } = await supabase.from("transactions").insert(payload);
-    if (error) {
-      throw new Error(`Error saving transactions: ${error.message}`);
+    saved = 0;
+    for (let index = 0; index < payload.length; index += 80) {
+      saved += await insertTransactions(payload.slice(index, index + 80));
     }
+    duplicateCount += imported.length - saved;
+    await supabase
+      .from("bank_imports")
+      .update({ imported_count: saved, duplicate_count: duplicateCount })
+      .eq("id", bankImport.id);
   }
 
   const corrections = imported.filter(
@@ -208,15 +255,16 @@ export async function saveBankImport(
   );
   for (const row of corrections) {
     const categoryId = categoryIdFor(row.categoryName);
-    if (!categoryId) continue;
+    const pattern = merchantKeyword(row.fullLabel) || row.normalizedMerchant;
+    if (!categoryId || pattern.length < 3) continue;
     const { error } = await supabase.from("categorization_rules").upsert(
       {
         user_id: userId,
-        pattern: row.normalizedMerchant,
+        pattern,
         category_id: categoryId,
         kind: row.kind,
         needs_review: false,
-        priority: 100,
+        priority: 110,
       },
       { onConflict: "user_id,pattern" }
     );
@@ -225,8 +273,10 @@ export async function saveBankImport(
     }
   }
 
+  invalidateTransactionSync(userId);
+  invalidateBudgetCache();
   return {
-    importedCount: imported.length,
+    importedCount: saved,
     duplicateCount,
   };
 }
@@ -314,42 +364,199 @@ export async function applyKnownMerchants(userId: string) {
   return updated;
 }
 
+export async function applySalaryIncome(userId: string) {
+  ensureSupabaseConfigured();
+  const { data, error } = await supabase
+    .from("transactions")
+    .select("id, normalized_merchant, full_label, amount_cents, kind")
+    .eq("user_id", userId)
+    .gt("amount_cents", 0);
+  if (error) throw new Error(`Error reading income: ${error.message}`);
+  const ids = (data ?? [])
+    .filter((row) => `${row.normalized_merchant} ${row.full_label ?? ""}`.toUpperCase().includes("KINGFISHER"))
+    .filter((row) => row.kind !== "income")
+    .map((row) => row.id);
+  if (ids.length === 0) return 0;
+  const categories = await ensureCategoryIds(userId, ["Salary"]);
+  const categoryId = categories.get("salary")?.id;
+  const { error: updateError } = await supabase
+    .from("transactions")
+    .update({ kind: "income", category_id: categoryId, needs_review: false })
+    .eq("user_id", userId)
+    .in("id", ids);
+  if (updateError) throw new Error(`Error marking salary: ${updateError.message}`);
+  return ids.length;
+}
+
+export async function repairKeywordRules(userId: string) {
+  ensureSupabaseConfigured();
+  const [rules, categories] = await Promise.all([
+    getCategorizationRules(userId),
+    getCategories(userId),
+  ]);
+  const names = categories.map((category) => category.name);
+  for (const rule of rules) {
+    if (isPaymentToken(rule.pattern)) {
+      const { error } = await supabase.from("categorization_rules").delete().eq("user_id", userId).eq("pattern", rule.pattern);
+      if (error) throw new Error(`Error removing keyword: ${error.message}`);
+      continue;
+    }
+    if (rule.priority >= 110) continue;
+    const expectation = knownTermExpectation(rule.pattern, names);
+    if (expectation.known && !expectation.categoryName) {
+      const { error } = await supabase.from("categorization_rules").delete().eq("user_id", userId).eq("pattern", rule.pattern);
+      if (error) throw new Error(`Error removing keyword: ${error.message}`);
+      continue;
+    }
+    if (expectation.categoryName && expectation.categoryName !== rule.categoryName) {
+      const categoryId = categories.find((category) => category.name === expectation.categoryName)?.id;
+      if (!categoryId) continue;
+      const { error } = await supabase
+        .from("categorization_rules")
+        .update({ category_id: categoryId, needs_review: false })
+        .eq("user_id", userId)
+        .eq("pattern", rule.pattern);
+      if (error) throw new Error(`Error correcting keyword: ${error.message}`);
+      continue;
+    }
+    if (isRestaurantCategory(rule.categoryName) && rule.priority < 110 && !hasRestaurantSignal(rule.pattern)) {
+      const { error } = await supabase.from("categorization_rules").delete().eq("user_id", userId).eq("pattern", rule.pattern);
+      if (error) throw new Error(`Error removing keyword: ${error.message}`);
+    }
+  }
+}
+
+async function releaseFalseRestaurants(userId: string) {
+  const categories = await getCategories(userId);
+  const restaurant = categories.find((category) => isRestaurantCategory(category.name));
+  if (!restaurant) return 0;
+  const names = categories.map((category) => category.name);
+  const categoryIdFor = new Map(categories.map((category) => [category.name.toLowerCase(), category.id]));
+  const rules = await getCategorizationRules(userId);
+  const { data, error } = await supabase
+    .from("transactions")
+    .select("id, normalized_merchant, full_label, amount_cents")
+    .eq("user_id", userId)
+    .eq("category_id", restaurant.id);
+  if (error) throw new Error(`Error reading restaurants: ${error.message}`);
+
+  const clearIds: string[] = [];
+  const moveIds = new Map<string, string[]>();
+  for (const row of data ?? []) {
+    const label = `${row.normalized_merchant ?? ""} ${row.full_label ?? ""}`;
+    if (hasRestaurantSignal(label)) continue;
+    const rule = matchingUserRule(normalizeMerchant(label), Number(row.amount_cents), rules);
+    if (rule?.categoryId === restaurant.id) continue;
+    const inferred = inferCategory(label, names);
+    const nextId = (inferred ? categoryIdFor.get(inferred.categoryName.toLowerCase()) : undefined) ?? rule?.categoryId;
+    if (nextId && nextId !== restaurant.id) {
+      const ids = moveIds.get(nextId) ?? [];
+      ids.push(row.id);
+      moveIds.set(nextId, ids);
+    } else {
+      clearIds.push(row.id);
+    }
+  }
+
+  let updated = 0;
+  for (let index = 0; index < clearIds.length; index += 80) {
+    const ids = clearIds.slice(index, index + 80);
+    const { error: clearError } = await supabase
+      .from("transactions")
+      .update({ category_id: null, needs_review: true })
+      .eq("user_id", userId)
+      .in("id", ids);
+    if (clearError) throw new Error(`Error clearing category: ${clearError.message}`);
+    updated += ids.length;
+  }
+  for (const [categoryId, ids] of moveIds) {
+    for (let index = 0; index < ids.length; index += 80) {
+      const batch = ids.slice(index, index + 80);
+      const { error: moveError } = await supabase
+        .from("transactions")
+        .update({ category_id: categoryId, needs_review: false })
+        .eq("user_id", userId)
+        .in("id", batch);
+      if (moveError) throw new Error(`Error moving category: ${moveError.message}`);
+      updated += batch.length;
+    }
+  }
+  return updated;
+}
+
+const SYNC_TTL_MS = 10 * 60 * 1000;
+const transactionSync = new Map<string, { at: number; pending?: Promise<number> }>();
+
+export function invalidateTransactionSync(userId?: string) {
+  if (userId) transactionSync.delete(userId);
+  else transactionSync.clear();
+  invalidateCategoryModel();
+}
+
+export async function ensureTransactionSync(userId: string): Promise<number> {
+  const current = transactionSync.get(userId);
+  if (current?.pending) return current.pending;
+  if (current && Date.now() - current.at < SYNC_TTL_MS) return 0;
+  const pending = (async () => {
+    await applySalaryIncome(userId);
+    await repairKeywordRules(userId);
+    const released = await releaseFalseRestaurants(userId);
+    const keywords = await applyKeywordRules(userId);
+    const known = await applyKnownMerchants(userId);
+    return released + keywords + known;
+  })();
+  transactionSync.set(userId, { at: current?.at ?? 0, pending });
+  try {
+    return await pending;
+  } finally {
+    const latest = transactionSync.get(userId);
+    if (latest?.pending === pending) transactionSync.set(userId, { at: Date.now() });
+  }
+}
+
 export async function getTransactions(
   userId: string,
   filters: { month?: string; categoryId?: string; start?: string; end?: string }
 ) {
-  await applyKnownMerchants(userId);
-  await applyKeywordRules(userId);
   ensureSupabaseConfigured();
-  let query = supabase
-    .from("transactions")
-    .select("*, categories(name, color)")
-    .eq("user_id", userId)
-    .order("transaction_date", { ascending: false })
-    .order("created_at", { ascending: false });
+  const pageSize = 1000;
+  const rows: TransactionListItem[] = [];
 
-  if (filters.start) query = query.gte("transaction_date", filters.start);
-  if (filters.end) query = query.lte("transaction_date", filters.end);
+  for (let from = 0; ; from += pageSize) {
+    let query = supabase
+      .from("transactions")
+      .select("*, categories(name, color)")
+      .eq("user_id", userId)
+      .order("transaction_date", { ascending: false })
+      .order("created_at", { ascending: false })
+      .range(from, from + pageSize - 1);
 
-  if (filters.month && !filters.start) {
-    const [year, month] = filters.month.split("-").map(Number);
-    const start = `${filters.month}-01`;
-    const endMonth = month === 12 ? 1 : month + 1;
-    const endYear = month === 12 ? year + 1 : year;
-    const end = `${endYear}-${String(endMonth).padStart(2, "0")}-01`;
-    query = query.gte("transaction_date", start).lt("transaction_date", end);
+    if (filters.start) query = query.gte("transaction_date", filters.start);
+    if (filters.end) query = query.lte("transaction_date", filters.end);
+
+    if (filters.month && !filters.start) {
+      const [year, month] = filters.month.split("-").map(Number);
+      const start = `${filters.month}-01`;
+      const endMonth = month === 12 ? 1 : month + 1;
+      const endYear = month === 12 ? year + 1 : year;
+      const end = `${endYear}-${String(endMonth).padStart(2, "0")}-01`;
+      query = query.gte("transaction_date", start).lt("transaction_date", end);
+    }
+
+    if (filters.categoryId) {
+      query = query.eq("category_id", filters.categoryId);
+    }
+
+    const { data, error } = await query;
+    if (error) {
+      throw new Error(`Error fetching transactions: ${error.message}`);
+    }
+    const page = (data ?? []) as TransactionListItem[];
+    rows.push(...page);
+    if (page.length < pageSize) break;
   }
 
-  if (filters.categoryId) {
-    query = query.eq("category_id", filters.categoryId);
-  }
-
-  const { data, error } = await query;
-  if (error) {
-    throw new Error(`Error fetching transactions: ${error.message}`);
-  }
-
-  return (data ?? []) as TransactionListItem[];
+  return rows;
 }
 
 export async function updateTransactionCategory(
@@ -368,6 +575,31 @@ export async function updateTransactionCategory(
   if (error) {
     throw new Error(`Error updating transaction: ${error.message}`);
   }
+  invalidateBudgetCache();
+
+  if (!categoryId) return null;
+  const { data } = await supabase
+    .from("transactions")
+    .select("full_label, normalized_merchant")
+    .eq("id", transactionId)
+    .eq("user_id", userId)
+    .single();
+  const pattern = merchantKeyword(`${data?.normalized_merchant ?? ""} ${data?.full_label ?? ""}`);
+  if (pattern.length < 3) return null;
+  const { error: ruleError } = await supabase.from("categorization_rules").upsert(
+    {
+      user_id: userId,
+      pattern,
+      category_id: categoryId,
+      needs_review: false,
+      priority: 110,
+    },
+    { onConflict: "user_id,pattern" }
+  );
+  if (ruleError) throw new Error(`Error saving categorization rule: ${ruleError.message}`);
+  await applyKeywordRules(userId);
+  transactionSync.set(userId, { at: Date.now() });
+  return pattern;
 }
 
 export async function saveKeywordRule(userId: string, keyword: string, categoryName: string) {
@@ -386,12 +618,13 @@ export async function saveKeywordRule(userId: string, keyword: string, categoryN
       pattern,
       category_id: category.id,
       needs_review: false,
-      priority: 100,
+      priority: 110,
     },
     { onConflict: "user_id,pattern" }
   );
   if (error) throw new Error(`Error saving keyword: ${error.message}`);
   await applyKeywordRules(userId);
+  transactionSync.set(userId, { at: Date.now() });
   return pattern;
 }
 
@@ -403,4 +636,5 @@ export async function deleteKeywordRule(userId: string, pattern: string) {
     .eq("user_id", userId)
     .eq("pattern", pattern);
   if (error) throw new Error(`Error deleting keyword: ${error.message}`);
+  invalidateTransactionSync(userId);
 }

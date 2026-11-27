@@ -6,14 +6,15 @@ import { useRef, useEffect, useLayoutEffect } from "react";
 
 const routeOrder: Record<string, number> = {
   "/": 0,
-  "/calendar": 1,
-  "/expenses": 1,
-  "/history": 1,
-  "/transactions": 1,
-  "/budget": 1,
+  "/budget": 0,
   "/analytics": 1,
-  "/add-expense": 1,
-  "/parameters": 2,
+  "/transactions": 2,
+  "/overview": 3,
+  "/calendar": 3,
+  "/expenses": 3,
+  "/history": 3,
+  "/add-expense": 3,
+  "/parameters": 4,
 };
 
 export default function Template({ children }: { children: React.ReactNode }) {
