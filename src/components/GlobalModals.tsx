@@ -29,8 +29,11 @@ export function GlobalModals() {
           categoriesData.map((cat) => ({
             id: cat.id,
             name: cat.name,
+            nameEn: cat.name_en ?? null,
+            nameFr: cat.name_fr ?? null,
             color: cat.color,
-            percent: 0, // Pas nécessaire pour le modal
+            percent: 0,
+            parentId: cat.parent_id ?? null,
           }))
         );
       } catch (error) {

@@ -3,6 +3,7 @@
 import { useEffect, useState, useRef } from "react";
 import { useRouter } from "next/navigation";
 import { Category } from "@/types";
+import { categoryDisplayName } from "@/lib/transactions/categoryNames";
 
 interface ChargesByCategoryCardProps {
   categories: Category[];
@@ -341,7 +342,7 @@ export function ChargesByCategoryCard({
                   style={{ backgroundColor: hoveredSegment.category.color }}
                 />
                 <div className="text-xs font-semibold uppercase">
-                  {hoveredSegment.category.name}
+                  {categoryDisplayName(hoveredSegment.category)}
                 </div>
               </div>
               <div className="text-xs space-y-0.5 ml-4">
@@ -387,7 +388,7 @@ export function ChargesByCategoryCard({
                   className="h-2.5 w-2.5 rounded-full flex-shrink-0"
                   style={{ backgroundColor: cat.color }}
                 />
-                        <span className="text-gray-900 dark:text-gray-200 truncate flex-1 min-w-0 uppercase">{cat.name}</span>
+                        <span className="text-gray-900 dark:text-gray-200 truncate flex-1 min-w-0 uppercase">{categoryDisplayName(cat)}</span>
                 <span 
                   className="font-semibold flex-shrink-0 ml-auto"
                   style={{ color: cat.color }}

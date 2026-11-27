@@ -63,6 +63,24 @@ describe("categorizeTransaction", () => {
     expect(result.categoryName).toBe("Fuel");
   });
 
+  it("uses the bank subcategory when no personal keyword matches", () => {
+    const rules = [
+      { pattern: "ALIMENTATION", categoryName: "Groceries", amountCents: null, kind: null, needsReview: false, priority: 40 },
+      { pattern: "LIDL", categoryName: "Groceries", amountCents: null, kind: null, needsReview: false, priority: 110 },
+    ];
+    expect(categorizeTransaction("BOULANGERIE", -450, rules, "Vie quotidienne Alimentation").categoryName).toBe("Groceries");
+    expect(categorizeTransaction("LIDL", -450, rules, "Vie quotidienne Alimentation").categoryName).toBe("Groceries");
+  });
+
+  it("classifies a child support transfer ahead of a generic transfer keyword", () => {
+    const result = categorizeTransaction("VIR INSTANTANE EMIS MOTIF PENSION", -82500, [
+      { pattern: "VIR", categoryName: "Transfers", amountCents: null, kind: "transfer", needsReview: true, priority: 40 },
+      { pattern: "MOTIF PENSION", categoryName: "Child support", amountCents: null, kind: null, needsReview: false, priority: 110 },
+    ]);
+    expect(result.categoryName).toBe("Child support");
+    expect(result.kind).toBe("expense");
+  });
+
   it("classifies a vet visit from the bank subcategory", () => {
     const result = categorizeTransaction("CARTE CABINET VET", -4200, [
       { pattern: "CABINET VET", categoryName: "Veterinary", amountCents: null, kind: null, needsReview: false, priority: 40 },

@@ -15,6 +15,8 @@ import { dayToDateString, getDayOfMonth, ordinal, formatDayOfMonth } from "@/lib
 import { useToast } from "@/contexts/ToastContext";
 import { ReconciliationSummary } from "@/components/expenses/ReconciliationSummary";
 import { formatCents } from "@/components/finance/PeriodControls";
+import { expenseCategoryChoices } from "@/lib/transactions/bankCategories";
+import { categoryDisplayName } from "@/lib/transactions/categoryNames";
 import { isIncomeCategory } from "@/lib/transactions/suggestCategory";
 
 // Force dynamic rendering
@@ -65,8 +67,11 @@ export default function ExpensesPage() {
         categoriesData.map((cat) => ({
           id: cat.id,
           name: cat.name,
+          nameEn: cat.name_en ?? null,
+          nameFr: cat.name_fr ?? null,
           color: cat.color,
           percent: 0,
+          parentId: cat.parent_id ?? null,
         }))
       );
       setError(null);
@@ -381,7 +386,7 @@ export default function ExpensesPage() {
                           className="h-2 w-2 rounded-full"
                           style={{ backgroundColor: isSelected ? "#FFFFFF" : category.color }}
                         />
-                        {category.name}
+                        {categoryDisplayName(category)}
                       </button>
                     );
                   })}
@@ -520,7 +525,7 @@ export default function ExpensesPage() {
                                 style={{ backgroundColor: categoryColor }}
                               />
                               <span className="text-xs font-semibold text-gray-900 dark:text-white/50 uppercase">
-                                {categoryName}
+                                {categoryDisplayName({ name: categoryName })}
                               </span>
                             </div>
                             <div className="flex items-center gap-2">
@@ -601,7 +606,7 @@ export default function ExpensesPage() {
                   style={{ backgroundColor: categoryColor }}
                 />
                 <span className="text-xs font-medium text-gray-700 dark:text-gray-400 truncate">
-                  {categoryName}
+                  {categoryDisplayName({ name: categoryName })}
                 </span>
               </div>
             )}
@@ -623,9 +628,9 @@ export default function ExpensesPage() {
                   style={{ fontSize: '16px' }}
                 >
                   <option value="">No category</option>
-                  {categories.filter((cat) => !isIncomeCategory(cat.name)).map((cat) => (
+                  {expenseCategoryChoices(categories.flatMap((cat) => cat.id ? [{ id: cat.id, name: cat.name, nameEn: cat.nameEn ?? null, color: cat.color, parentId: cat.parentId ?? null }] : [])).map((cat) => (
                     <option key={cat.id} value={cat.id}>
-                      {cat.name}
+                      {cat.label}
                     </option>
                   ))}
                 </select>

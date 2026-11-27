@@ -53,6 +53,7 @@ export default function Home() {
         categoriesData.map((cat) => ({
           id: cat.id,
           name: cat.name,
+          nameEn: cat.name_en ?? null,
           color: cat.color,
           percent: 0, // Will be calculated below
         }))

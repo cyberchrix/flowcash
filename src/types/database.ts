@@ -6,7 +6,10 @@ export interface Database {
         Row: {
           id: string;
           name: string;
+          name_en: string | null;
+          name_fr: string | null;
           color: string;
+          parent_id: string | null;
           user_id: string | null;
           created_at: string;
           updated_at: string;
@@ -14,7 +17,10 @@ export interface Database {
         Insert: {
           id?: string;
           name: string;
+          name_en?: string | null;
+          name_fr?: string | null;
           color: string;
+          parent_id?: string | null;
           user_id?: string;
           created_at?: string;
           updated_at?: string;
@@ -22,7 +28,10 @@ export interface Database {
         Update: {
           id?: string;
           name?: string;
+          name_en?: string | null;
+          name_fr?: string | null;
           color?: string;
+          parent_id?: string | null;
           user_id?: string;
           created_at?: string;
           updated_at?: string;

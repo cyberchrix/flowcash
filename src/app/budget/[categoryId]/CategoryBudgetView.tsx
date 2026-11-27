@@ -18,6 +18,8 @@ import { getCategories } from "@/lib/supabase/categories";
 import { getCategoryBudgets } from "@/lib/supabase/budgets";
 import { getExpenses } from "@/lib/supabase/expenses";
 import { getTransactions, TransactionListItem, updateTransactionCategory } from "@/lib/supabase/transactions";
+import { usableBankCategory } from "@/lib/transactions/bankCategories";
+import { categoryDisplayName } from "@/lib/transactions/categoryNames";
 import { displayMerchant } from "@/lib/transactions/suggestCategory";
 
 const MATCH_LABEL: Record<string, string> = {
@@ -40,11 +42,11 @@ export function CategoryBudgetView() {
   const router = useRouter();
   const { user, loading: authLoading } = useAuth();
   const month = searchParams.get("month") ?? new Date().toISOString().slice(0, 7);
-  const [category, setCategory] = useState<{ id: string; name: string; color: string } | null>(null);
+  const [category, setCategory] = useState<{ id: string; name: string; nameEn: string | null; color: string } | null>(null);
   const [plannedCents, setPlannedCents] = useState(0);
   const [matchMode, setMatchMode] = useState("category");
   const [matchDetail, setMatchDetail] = useState("");
-  const [categories, setCategories] = useState<{ id: string; name: string; color: string }[]>([]);
+  const [categories, setCategories] = useState<{ id: string; name: string; nameEn: string | null; color: string; parentId: string | null }[]>([]);
   const [transactions, setTransactions] = useState<TransactionListItem[]>([]);
   const [editing, setEditing] = useState<TransactionListItem | null>(null);
   const [saving, setSaving] = useState(false);
@@ -68,9 +70,10 @@ export function CategoryBudgetView() {
       getTransactions(user.id, { month }),
     ]).then(([categories, budgets, expenses, rows]) => {
       if (cancelled) return;
-      setCategories(categories.map((item) => ({ id: item.id, name: item.name, color: item.color })));
+      setCategories(categories.map((item) => ({ id: item.id, name: item.name, nameEn: item.name_en ?? null, color: item.color, parentId: item.parent_id ?? null })));
       const current = categories.find((item) => item.id === categoryId) ?? null;
-      setCategory(current ? { id: current.id, name: current.name, color: current.color } : null);
+      setCategory(current ? { id: current.id, name: current.name, nameEn: current.name_en ?? null, color: current.color } : null);
+      const family = new Set([categoryId, ...categories.filter((item) => item.parent_id === categoryId).map((item) => item.id)]);
       const allowance = proratedAllowance(
         budgets
           .filter((budget) => budget.category_id === categoryId)
@@ -83,7 +86,7 @@ export function CategoryBudgetView() {
         range
       );
       const charges: PlannedCharge[] = expenses
-        .filter((expense) => expense.category_id === categoryId && (expense.currency || "EUR") === "EUR")
+        .filter((expense) => expense.category_id && family.has(expense.category_id) && (expense.currency || "EUR") === "EUR")
         .map((expense) => ({
           categoryId: expense.category_id,
           amountCents: Math.round(Number(expense.amount) * 100),
@@ -105,11 +108,11 @@ export function CategoryBudgetView() {
       setMatchDetail(
         mode === "merchant" && patterns.length > 0
           ? `Transactions whose label contains ${patterns.join(", ")}`
-          : `All transactions categorized as ${current?.name ?? "this category"}`
+          : `All transactions categorized as ${current ? categoryDisplayName(current) : "this category"}`
       );
       setTransactions(
         rows
-          .filter((row) => row.category_id === categoryId && row.kind === "expense")
+          .filter((row) => row.category_id && family.has(row.category_id) && row.kind === "expense")
           .sort((a, b) => b.transaction_date.localeCompare(a.transaction_date))
       );
       setLoading(false);
@@ -126,11 +129,15 @@ export function CategoryBudgetView() {
     setSaving(true);
     try {
       await updateTransactionCategory(user.id, editing.id, nextCategoryId);
-      const nextName = categories.find((item) => item.id === nextCategoryId)?.name ?? "the new category";
+      const nextCategory = categories.find((item) => item.id === nextCategoryId);
+      const nextName = nextCategory ? categoryDisplayName(nextCategory) : "the new category";
       const rows = await getTransactions(user.id, { month });
       setTransactions(
         rows
-          .filter((row) => row.category_id === category?.id && row.kind === "expense")
+          .filter((row) => {
+            const familyIds = new Set([category?.id, ...categories.filter((item) => item.parentId === category?.id).map((item) => item.id)]);
+            return row.category_id && familyIds.has(row.category_id) && row.kind === "expense";
+          })
           .sort((a, b) => b.transaction_date.localeCompare(a.transaction_date))
       );
       showSuccess(`Moved to ${nextName}`);
@@ -179,7 +186,7 @@ export function CategoryBudgetView() {
                 <CategoryIcon name={category.name} className="h-5 w-5" />
               </span>
               <div>
-                <h1 className="text-base font-semibold text-gray-900 dark:text-white">{category.name}</h1>
+                <h1 className="text-base font-semibold text-gray-900 dark:text-white">{categoryDisplayName(category)}</h1>
                 <p className="text-xs text-gray-500">{matchMode === "merchant" ? "Monthly fixed expense" : "Monthly variable expense"}</p>
               </div>
             </div>
@@ -221,7 +228,13 @@ export function CategoryBudgetView() {
                 <p className="mt-3 text-sm text-gray-500">No transactions in this category for this month.</p>
               ) : (
                 <ul className="mt-3 space-y-2">
-                  {transactions.map((row) => {
+                  {[...transactions].sort((left, right) => {
+                    const leftName = categoryDisplayName(categories.find((item) => item.id === left.category_id) ?? { name: "" });
+                    const rightName = categoryDisplayName(categories.find((item) => item.id === right.category_id) ?? { name: "" });
+                    return leftName.localeCompare(rightName, "en") || right.transaction_date.localeCompare(left.transaction_date);
+                  }).map((row, index, ordered) => {
+                    const subcategory = categoryDisplayName(categories.find((item) => item.id === row.category_id) ?? { name: "" });
+                    const previous = index === 0 ? "" : categoryDisplayName(categories.find((item) => item.id === ordered[index - 1]?.category_id) ?? { name: "" });
                     const spent = spendingCents({
                       id: row.id,
                       date: row.transaction_date,
@@ -233,9 +246,12 @@ export function CategoryBudgetView() {
                     });
                     return (
                       <li key={row.id}>
+                        {subcategory !== previous && <h3 className="px-1 pt-2 text-xs font-semibold uppercase text-gray-500">{subcategory}</h3>}
                         <button
                           type="button"
-                          onClick={() => setEditing(row)}
+                          onClick={() => {
+                            if (!usableBankCategory(row.bank_category)) setEditing(row);
+                          }}
                           className="flex w-full items-center gap-3 rounded-2xl bg-gray-50 px-3 py-3 text-left dark:bg-white/5"
                         >
                         <span className="flex h-9 w-9 items-center justify-center rounded-xl" style={{ backgroundColor: `${category.color}22`, color: category.color }}>
@@ -283,7 +299,7 @@ export function CategoryBudgetView() {
                     <span className="flex h-8 w-8 items-center justify-center rounded-xl" style={{ backgroundColor: `${item.color}22`, color: item.color }}>
                       <CategoryIcon name={item.name} className="h-4 w-4" />
                     </span>
-                    <span className="flex-1">{item.name}</span>
+                    <span className="flex-1">{categoryDisplayName(item)}</span>
                     {selected && <CheckCircleIcon className="h-4 w-4" />}
                   </button>
                 );

@@ -6,6 +6,8 @@ import { DEFAULT_KEYWORDS } from "@/lib/transactions/defaultKeywords";
 import { normalizeMerchant } from "@/lib/transactions/normalize";
 import { invalidateBudgetCache } from "@/lib/finance/budgetCache";
 import { invalidateCategoryModel } from "@/lib/transactions/categorizeWithModel";
+import { bankColor, usableBankCategory } from "@/lib/transactions/bankCategories";
+import { categoryEnglishName } from "@/lib/transactions/categoryNames";
 import { isPaymentToken, merchantKeyword } from "@/lib/transactions/suggestCategory";
 import { TransactionKind } from "@/lib/transactions/types";
 
@@ -25,6 +27,10 @@ const CATEGORY_COLORS: Record<string, string> = {
   "Cash withdrawals": "#64748B",
   "Bank fees": "#94A3B8",
   Veterinary: "#14B8A6",
+  "Child support": "#FB923C",
+  Travel: "#38BDF8",
+  Leisure: "#818CF8",
+  Gifts: "#F9A8D4",
   "Convenience Store": "#8A2BFF",
   Transfers: "#6366F1",
   Health: "#F472B6",
@@ -443,6 +449,117 @@ export async function repairKeywordRules(userId: string) {
   }
 }
 
+function bankMatchKey(category: { name: string; name_fr?: string | null }) {
+  return (category.name_fr || category.name).toLowerCase();
+}
+
+async function createBankCategory(category: { user_id: string; name: string; color: string; parent_id?: string }) {
+  const english = categoryEnglishName(category.name);
+  try {
+    return await createCategory({
+      ...category,
+      name_fr: category.name,
+      ...(english ? { name_en: english } : {}),
+    });
+  } catch (error) {
+    if (error instanceof Error && /name_en|name_fr|column|schema cache/i.test(error.message)) {
+      return createCategory(category);
+    }
+    throw error;
+  }
+}
+
+export async function applyBankCategories(userId: string) {
+  ensureSupabaseConfigured();
+  const rows: { id: string; bank_category: string | null; bank_subcategory: string | null; category_id: string | null }[] = [];
+  for (let from = 0; ; from += 1000) {
+    const { data, error } = await supabase
+      .from("transactions")
+      .select("id, bank_category, bank_subcategory, category_id")
+      .eq("user_id", userId)
+      .range(from, from + 999);
+    if (error) throw new Error(`Error reading transactions: ${error.message}`);
+    rows.push(...(data ?? []));
+    if (!data || data.length < 1000) break;
+  }
+
+  const wanted = new Map<string, { parent: string; child: string | null }>();
+  for (const row of rows) {
+    const parent = usableBankCategory(row.bank_category);
+    if (!parent) continue;
+    const child = usableBankCategory(row.bank_subcategory);
+    wanted.set(`${parent}\n${child ?? ""}`, { parent, child });
+  }
+
+  const existing = await getCategories(userId);
+  const parents = new Map(existing.filter((category) => !category.parent_id).map((category) => [bankMatchKey(category), category]));
+  const children = new Map(
+    existing.filter((category) => category.parent_id).map((category) => [`${category.parent_id}|${bankMatchKey(category)}`, category])
+  );
+
+  for (const item of wanted.values()) {
+    let parent = parents.get(item.parent.toLowerCase());
+    if (!parent) {
+      try {
+        parent = await createBankCategory({ user_id: userId, name: item.parent, color: bankColor(item.parent) });
+      } catch (error) {
+        if (error instanceof Error && /parent_id|column/i.test(error.message)) {
+          throw new Error("Run supabase/migrations/bank_category_hierarchy.sql in the Supabase SQL editor, then reload.");
+        }
+        throw error;
+      }
+      parents.set(bankMatchKey(parent), parent);
+    }
+    if (!item.child || !parent?.id) continue;
+    const key = `${parent.id}|${item.child.toLowerCase()}`;
+    if (children.has(key)) continue;
+    try {
+      const created = await createBankCategory({
+        user_id: userId,
+        name: item.child,
+        color: parent.color,
+        parent_id: parent.id,
+      });
+      children.set(key, created);
+    } catch (error) {
+      if (error instanceof Error && /parent_id|column/i.test(error.message)) {
+        throw new Error("Run supabase/migrations/bank_category_hierarchy.sql in the Supabase SQL editor, then reload.");
+      }
+      if (!(error instanceof Error) || !/duplicate|unique/i.test(error.message)) throw error;
+    }
+  }
+
+  const groups = new Map<string, string[]>();
+  for (const row of rows) {
+    const parentName = usableBankCategory(row.bank_category);
+    if (!parentName) continue;
+    const parent = parents.get(parentName.toLowerCase());
+    if (!parent?.id) continue;
+    const childName = usableBankCategory(row.bank_subcategory);
+    const child = childName ? children.get(`${parent.id}|${childName.toLowerCase()}`) : null;
+    const target = child?.id ?? parent.id;
+    if (target === row.category_id) continue;
+    const ids = groups.get(target) ?? [];
+    ids.push(row.id);
+    groups.set(target, ids);
+  }
+
+  let updated = 0;
+  for (const [categoryId, ids] of groups) {
+    for (let index = 0; index < ids.length; index += 80) {
+      const slice = ids.slice(index, index + 80);
+      const { error } = await supabase
+        .from("transactions")
+        .update({ category_id: categoryId, needs_review: false })
+        .eq("user_id", userId)
+        .in("id", slice);
+      if (error) throw new Error(`Error applying bank categories: ${error.message}`);
+      updated += slice.length;
+    }
+  }
+  return updated;
+}
+
 const SYNC_TTL_MS = 10 * 60 * 1000;
 const transactionSync = new Map<string, { at: number; pending?: Promise<number> }>();
 
@@ -457,12 +574,14 @@ export async function ensureTransactionSync(userId: string): Promise<number> {
   if (current?.pending) return current.pending;
   if (current && Date.now() - current.at < SYNC_TTL_MS) {
     await ensureDefaultKeywords(userId);
-    return applyKeywordRules(userId);
+    const keywords = await applyKeywordRules(userId);
+    return keywords + await applyBankCategories(userId);
   }
   const pending = (async () => {
     await ensureDefaultKeywords(userId);
     await repairKeywordRules(userId);
-    return applyKeywordRules(userId);
+    const keywords = await applyKeywordRules(userId);
+    return keywords + await applyBankCategories(userId);
   })();
   transactionSync.set(userId, { at: current?.at ?? 0, pending });
   try {

@@ -5,12 +5,15 @@ CREATE EXTENSION IF NOT EXISTS "uuid-ossp";
 -- Stores expense categories with their colors
 CREATE TABLE IF NOT EXISTS categories (
   id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
-  name VARCHAR(50) NOT NULL,
+  name VARCHAR(120) NOT NULL,
   color VARCHAR(7) NOT NULL, -- Hex color code like #FF2D8A
+  parent_id UUID REFERENCES categories(id) ON DELETE CASCADE,
+  name_en VARCHAR(120), -- English name shown in the app
+  name_fr VARCHAR(120), -- French bank label used to match transactions
   user_id UUID REFERENCES auth.users(id) ON DELETE CASCADE,
   created_at TIMESTAMP WITH TIME ZONE DEFAULT TIMEZONE('utc', NOW()),
   updated_at TIMESTAMP WITH TIME ZONE DEFAULT TIMEZONE('utc', NOW()),
-  UNIQUE(name, user_id) -- Allow same category name for different users
+  UNIQUE NULLS NOT DISTINCT (user_id, parent_id, name)
 );
 
 -- Table: expenses

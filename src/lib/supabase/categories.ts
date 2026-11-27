@@ -1,5 +1,6 @@
 import { supabase, ensureSupabaseConfigured } from "../supabase";
 import { Database } from "@/types/database";
+import { categoryEnglishName } from "@/lib/transactions/categoryNames";
 
 type Category = Database["public"]["Tables"]["categories"]["Row"];
 type CategoryInsert = Database["public"]["Tables"]["categories"]["Insert"];
@@ -10,6 +11,10 @@ const APP_CATEGORIES = [
   { name: "Cash withdrawals", color: "#64748B" },
   { name: "Bank fees", color: "#94A3B8" },
   { name: "Veterinary", color: "#14B8A6" },
+  { name: "Child support", color: "#FB923C" },
+  { name: "Travel", color: "#38BDF8" },
+  { name: "Leisure", color: "#818CF8" },
+  { name: "Gifts", color: "#F9A8D4" },
 ];
 
 export async function getCategories(userId: string) {
@@ -34,7 +39,24 @@ export async function getCategories(userId: string) {
     }
   }
 
+  await ensureCategoryTranslations(categories);
   return categories;
+}
+
+async function ensureCategoryTranslations(categories: Category[]) {
+  for (const category of categories) {
+    const english = categoryEnglishName(category.name);
+    if (!english || (category.name_en && category.name_fr)) continue;
+    const name_en = category.name_en || english;
+    const name_fr = category.name_fr || category.name;
+    const { error } = await supabase.from("categories").update({ name_en, name_fr }).eq("id", category.id);
+    if (error) {
+      if (/name_en|name_fr|column|schema cache/i.test(error.message)) return;
+      throw new Error(`Error saving category translation: ${error.message}`);
+    }
+    category.name_en = name_en;
+    category.name_fr = name_fr;
+  }
 }
 
 export async function createCategory(category: CategoryInsert) {

@@ -27,7 +27,11 @@ BEGIN
       ('Car insurance', '#0EA5E9', NEW.id),
       ('Cash withdrawals', '#64748B', NEW.id),
       ('Bank fees', '#94A3B8', NEW.id),
-      ('Veterinary', '#14B8A6', NEW.id)
+      ('Veterinary', '#14B8A6', NEW.id),
+      ('Child support', '#FB923C', NEW.id),
+      ('Travel', '#38BDF8', NEW.id),
+      ('Leisure', '#818CF8', NEW.id),
+      ('Gifts', '#F9A8D4', NEW.id)
     ON CONFLICT (name, user_id) DO NOTHING;
   EXCEPTION 
     WHEN undefined_table THEN

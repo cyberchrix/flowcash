@@ -7,7 +7,7 @@ import { BottomNav } from "@/components/BottomNav";
 import { useAuth } from "@/hooks/useAuth";
 import { getUserSettings, updateUserSettings } from "@/lib/supabase/settings";
 import { getCategories, createCategory, deleteCategory, updateCategory } from "@/lib/supabase/categories";
-import { TrashIcon, PlusIcon, PencilIcon, CheckIcon, XMarkIcon } from "@heroicons/react/24/outline";
+import { TrashIcon, PlusIcon, PencilIcon, CheckIcon, XMarkIcon, ChevronDownIcon, ChevronRightIcon } from "@heroicons/react/24/outline";
 import { ColorPicker } from "@/components/ColorPicker";
 import { useTheme } from "@/contexts/ThemeContext";
 import { useToast } from "@/contexts/ToastContext";
@@ -17,6 +17,7 @@ import {
   subscribeToPush,
   unsubscribeFromPush,
 } from "@/lib/push";
+import { categoryBankLabel, categoryDisplayName } from "@/lib/transactions/categoryNames";
 
 // Force dynamic rendering
 export const dynamic = 'force-dynamic';
@@ -26,6 +27,23 @@ const currencies = [
   { code: "USD", symbol: "$", name: "US Dollar" },
   { code: "GBP", symbol: "£", name: "British Pound" },
 ];
+
+type CategoryItem = { id: string; name: string; nameEn: string | null; nameFr: string | null; color: string; parentId: string | null };
+
+function categoryForest(categories: CategoryItem[]) {
+  const ids = new Set(categories.map((category) => category.id));
+  const byParent = new Map<string | null, CategoryItem[]>();
+  for (const category of categories) {
+    const parentId = category.parentId && ids.has(category.parentId) ? category.parentId : null;
+    const list = byParent.get(parentId) ?? [];
+    list.push(category);
+    byParent.set(parentId, list);
+  }
+  for (const list of byParent.values()) {
+    list.sort((left, right) => categoryDisplayName(left).localeCompare(categoryDisplayName(right), "en"));
+  }
+  return byParent;
+}
 
 export default function ParametersPage() {
   const { user, loading: authLoading } = useAuth();
@@ -38,12 +56,16 @@ export default function ParametersPage() {
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [categories, setCategories] = useState<Array<{ id: string; name: string; color: string }>>([]);
+  const [categories, setCategories] = useState<CategoryItem[]>([]);
   const [newCategoryName, setNewCategoryName] = useState("");
+  const [newCategoryParentId, setNewCategoryParentId] = useState("");
   const [newCategoryColor, setNewCategoryColor] = useState("#6366F1");
+  const [collapsedCategoryIds, setCollapsedCategoryIds] = useState<Set<string>>(new Set());
   const [deletingCategoryId, setDeletingCategoryId] = useState<string | null>(null);
   const [editingCategoryId, setEditingCategoryId] = useState<string | null>(null);
-  const [editingCategoryName, setEditingCategoryName] = useState("");
+  const [editingEnglish, setEditingEnglish] = useState("");
+  const [editingFrench, setEditingFrench] = useState("");
+  const [newCategoryFrench, setNewCategoryFrench] = useState("");
   const [notifSupported, setNotifSupported] = useState(false);
   const [notifEnabled, setNotifEnabled] = useState(false);
   const [notifLoading, setNotifLoading] = useState(false);
@@ -72,7 +94,10 @@ export default function ParametersPage() {
         setCategories(categoriesData.map(cat => ({
           id: cat.id,
           name: cat.name,
+          nameEn: cat.name_en ?? null,
+          nameFr: cat.name_fr ?? null,
           color: cat.color,
+          parentId: cat.parent_id ?? null,
         })));
       } catch (err) {
         console.error("Error loading data:", err);
@@ -191,23 +216,42 @@ export default function ParametersPage() {
     setError(null);
 
     try {
+      const parentId = newCategoryParentId || null;
+      const english = newCategoryName.trim();
+      const french = newCategoryFrench.trim();
       const newCategory = await createCategory({
         user_id: user.id,
-        name: newCategoryName.trim(),
+        name: french || english,
         color: newCategoryColor,
+        name_en: english,
+        ...(french ? { name_fr: french } : {}),
+        ...(parentId ? { parent_id: parentId } : {}),
       });
 
       setCategories([...categories, {
         id: newCategory.id,
         name: newCategory.name,
+        nameEn: newCategory.name_en ?? english,
+        nameFr: newCategory.name_fr ?? (french || null),
         color: newCategory.color,
+        parentId: newCategory.parent_id ?? parentId,
       }]);
+      setCollapsedCategoryIds((current) => {
+        if (!parentId || !current.has(parentId)) return current;
+        const next = new Set(current);
+        next.delete(parentId);
+        return next;
+      });
       setNewCategoryName("");
+      setNewCategoryFrench("");
+      setNewCategoryParentId("");
       setNewCategoryColor("#6366F1");
       showSuccess(`Category "${newCategoryName.trim()}" created successfully`);
     } catch (err) {
       console.error("Error creating category:", err);
-      const errorMessage = err instanceof Error
+      const errorMessage = err instanceof Error && /name_en|name_fr|column|schema cache/i.test(err.message)
+        ? "Run supabase/migrations/add_category_translations.sql in the Supabase SQL editor, then reload."
+        : err instanceof Error
         ? err.message
         : "Error creating category";
       setError(errorMessage);
@@ -215,30 +259,36 @@ export default function ParametersPage() {
     }
   };
 
-  const handleEditCategory = (categoryId: string, currentName: string) => {
-    setEditingCategoryId(categoryId);
-    setEditingCategoryName(currentName);
+  const handleEditCategory = (category: CategoryItem) => {
+    setEditingCategoryId(category.id);
+    setEditingEnglish(categoryDisplayName(category));
+    setEditingFrench(categoryBankLabel(category));
   };
 
   const handleSaveCategoryEdit = async (categoryId: string) => {
-    if (!editingCategoryName.trim()) {
-      setError("Category name cannot be empty");
+    const english = editingEnglish.trim();
+    const french = editingFrench.trim();
+    if (!english) {
+      setError("The English name cannot be empty");
       return;
     }
 
     setError(null);
 
     try {
-      await updateCategory(categoryId, { name: editingCategoryName.trim() });
-      setCategories(categories.map(cat => 
-        cat.id === categoryId ? { ...cat, name: editingCategoryName.trim() } : cat
+      await updateCategory(categoryId, { name_en: english, name_fr: french || null });
+      setCategories(categories.map(cat =>
+        cat.id === categoryId ? { ...cat, nameEn: english, nameFr: french || null } : cat
       ));
       setEditingCategoryId(null);
-      setEditingCategoryName("");
-      showSuccess(`Category renamed to "${editingCategoryName.trim()}" successfully`);
+      setEditingEnglish("");
+      setEditingFrench("");
+      showSuccess(`Category saved as "${english}"`);
     } catch (err) {
       console.error("Error updating category:", err);
-      const errorMessage = err instanceof Error
+      const errorMessage = err instanceof Error && /name_en|name_fr|column|schema cache/i.test(err.message)
+        ? "Run supabase/migrations/add_category_translations.sql in the Supabase SQL editor, then reload."
+        : err instanceof Error
         ? err.message
         : "Error updating category";
       setError(errorMessage);
@@ -248,12 +298,17 @@ export default function ParametersPage() {
 
   const handleCancelCategoryEdit = () => {
     setEditingCategoryId(null);
-    setEditingCategoryName("");
+    setEditingEnglish("");
+    setEditingFrench("");
     setError(null);
   };
 
   const handleDeleteCategory = async (categoryId: string, categoryName: string) => {
-    if (!confirm(`Are you sure you want to delete the category "${categoryName}"? Associated expenses will not be deleted.`)) {
+    const childCount = categories.filter((category) => category.parentId === categoryId).length;
+    const message = childCount > 0
+      ? `Delete "${categoryName}" and its ${childCount} subcategories? Expenses will not be deleted.`
+      : `Are you sure you want to delete the category "${categoryName}"? Associated expenses will not be deleted.`;
+    if (!confirm(message)) {
       return;
     }
 
@@ -262,7 +317,7 @@ export default function ParametersPage() {
 
     try {
       await deleteCategory(categoryId);
-      setCategories(categories.filter(cat => cat.id !== categoryId));
+      setCategories(categories.filter(cat => cat.id !== categoryId && cat.parentId !== categoryId));
       showSuccess(`Category "${categoryName}" deleted successfully`);
     } catch (err) {
       console.error("Error deleting category:", err);
@@ -289,6 +344,125 @@ export default function ParametersPage() {
     "#EF4444", // Red
     "#06B6D4", // Cyan
   ];
+
+  const forest = categoryForest(categories);
+  const roots = forest.get(null) ?? [];
+
+  const renderCategoryBranch = (category: CategoryItem): React.ReactNode => {
+    const children = forest.get(category.id) ?? [];
+    const expanded = !collapsedCategoryIds.has(category.id);
+    return (
+      <div key={category.id}>
+        {renderCategoryRow(category, children.length > 0, expanded)}
+        {expanded && children.length > 0 && (
+          <div className="ml-5 mt-1 space-y-1 border-l border-gray-200 pl-3 dark:border-white/10">
+            {children.map((child) => renderCategoryBranch(child))}
+          </div>
+        )}
+      </div>
+    );
+  };
+
+  const renderCategoryRow = (category: CategoryItem, hasChildren: boolean, expanded: boolean) => (
+    <div className="flex items-center justify-between rounded-lg border border-gray-200 bg-white p-3 dark:border-transparent dark:bg-white/2">
+      <div className="flex min-w-0 flex-1 items-center gap-2">
+        {hasChildren ? (
+          <button
+            type="button"
+            onClick={() => setCollapsedCategoryIds((current) => {
+              const next = new Set(current);
+              if (next.has(category.id)) next.delete(category.id);
+              else next.add(category.id);
+              return next;
+            })}
+            className="rounded p-0.5 text-gray-500 hover:bg-gray-100 dark:text-gray-300 dark:hover:bg-white/10"
+            aria-expanded={expanded}
+            aria-label={expanded ? `Collapse ${categoryDisplayName(category)}` : `Expand ${categoryDisplayName(category)}`}
+          >
+            {expanded ? <ChevronDownIcon className="h-4 w-4" /> : <ChevronRightIcon className="h-4 w-4" />}
+          </button>
+        ) : (
+          <span className="w-5" aria-hidden="true" />
+        )}
+        <div className="h-4 w-4 flex-shrink-0 rounded-full" style={{ backgroundColor: category.color }} />
+        {editingCategoryId === category.id ? (
+          <span className="flex min-w-0 flex-1 flex-col gap-1">
+            <input
+              type="text"
+              value={editingEnglish}
+              onChange={(e) => setEditingEnglish(e.target.value)}
+              onKeyDown={(e) => {
+                if (e.key === "Enter") handleSaveCategoryEdit(category.id);
+                else if (e.key === "Escape") handleCancelCategoryEdit();
+              }}
+              aria-label="English name"
+              placeholder="English"
+              className="min-w-0 rounded border border-gray-300 bg-white px-2 py-1 text-sm font-medium text-gray-900 focus:border-flow-primary focus:outline-none focus:ring-2 focus:ring-flow-primary/20 dark:border-gray-600 dark:bg-gray-700 dark:text-gray-100"
+              autoFocus
+            />
+            <input
+              type="text"
+              value={editingFrench}
+              onChange={(e) => setEditingFrench(e.target.value)}
+              onKeyDown={(e) => {
+                if (e.key === "Enter") handleSaveCategoryEdit(category.id);
+                else if (e.key === "Escape") handleCancelCategoryEdit();
+              }}
+              aria-label="French bank label"
+              placeholder="French bank label"
+              className="min-w-0 rounded border border-gray-300 bg-white px-2 py-1 text-xs text-gray-900 focus:border-flow-primary focus:outline-none focus:ring-2 focus:ring-flow-primary/20 dark:border-gray-600 dark:bg-gray-700 dark:text-gray-100"
+            />
+          </span>
+        ) : (
+          <span className="min-w-0">
+            <span className="block truncate text-sm font-medium text-gray-900 dark:text-white">{categoryDisplayName(category)}</span>
+            {categoryBankLabel(category) && categoryBankLabel(category) !== categoryDisplayName(category) && (
+              <span className="block truncate text-xs text-gray-500 dark:text-gray-400">{categoryBankLabel(category)}</span>
+            )}
+          </span>
+        )}
+      </div>
+      <div className="flex items-center gap-2">
+        {editingCategoryId === category.id ? (
+          <>
+            <button
+              onClick={() => handleSaveCategoryEdit(category.id)}
+              className="rounded-lg p-1.5 text-green-600 transition-colors hover:bg-green-50 dark:text-white dark:hover:bg-white/10"
+              title="Save"
+            >
+              <CheckIcon className="h-4 w-4" />
+            </button>
+            <button
+              onClick={handleCancelCategoryEdit}
+              className="rounded-lg p-1.5 text-gray-500 transition-colors hover:bg-gray-50 dark:text-white dark:hover:bg-white/10"
+              title="Cancel"
+            >
+              <XMarkIcon className="h-4 w-4" />
+            </button>
+          </>
+        ) : (
+          <>
+            <button
+              onClick={() => handleEditCategory(category)}
+              disabled={deletingCategoryId === category.id || editingCategoryId !== null}
+              className="rounded-lg p-1.5 text-blue-500 transition-colors hover:bg-blue-50 disabled:opacity-50 dark:text-white dark:hover:bg-white/10"
+              title="Edit"
+            >
+              <PencilIcon className="h-4 w-4" />
+            </button>
+            <button
+              onClick={() => handleDeleteCategory(category.id, categoryDisplayName(category))}
+              disabled={deletingCategoryId === category.id || editingCategoryId !== null}
+              className="rounded-lg p-1.5 text-red-500 transition-colors hover:bg-red-50 disabled:opacity-50 dark:text-white dark:hover:bg-white/10"
+              title="Delete"
+            >
+              <TrashIcon className="h-4 w-4" />
+            </button>
+          </>
+        )}
+      </div>
+    </div>
+  );
 
   if (authLoading || loading) {
     return (
@@ -507,96 +681,55 @@ export default function ParametersPage() {
             Categories
           </h2>
           <p className="text-sm text-gray-700 dark:text-gray-400 mb-6">
-            Manage your expense categories
+            Categories and their subcategories
           </p>
 
-          {/* Liste des catégories */}
-          <div className="space-y-3 mb-6">
-            {categories.map((category) => (
-              <div
-                key={category.id}
-                className="flex items-center justify-between p-3 rounded-lg bg-white dark:bg-white/2 border border-gray-200 dark:border-transparent"
-              >
-                <div className="flex items-center gap-3 flex-1 min-w-0">
-                  <div
-                    className="h-4 w-4 rounded-full flex-shrink-0"
-                    style={{ backgroundColor: category.color }}
-                  />
-                  {editingCategoryId === category.id ? (
-                    <input
-                      type="text"
-                      value={editingCategoryName}
-                      onChange={(e) => setEditingCategoryName(e.target.value)}
-                      onKeyDown={(e) => {
-                        if (e.key === "Enter") {
-                          handleSaveCategoryEdit(category.id);
-                        } else if (e.key === "Escape") {
-                          handleCancelCategoryEdit();
-                        }
-                      }}
-                      className="flex-1 min-w-0 text-sm font-medium text-gray-900 dark:text-gray-100 bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded px-2 py-1 focus:border-flow-primary focus:outline-none focus:ring-2 focus:ring-flow-primary/20"
-                      autoFocus
-                    />
-                  ) : (
-                    <span className="text-sm font-medium text-gray-900 dark:text-white">
-                      {category.name}
-                    </span>
-                  )}
-                </div>
-                <div className="flex items-center gap-2">
-                  {editingCategoryId === category.id ? (
-                    <>
-                      <button
-                        onClick={() => handleSaveCategoryEdit(category.id)}
-                        className="p-1.5 text-green-600 dark:text-white hover:bg-green-50 dark:hover:bg-white/10 rounded-lg transition-colors"
-                        title="Save"
-                      >
-                        <CheckIcon className="h-4 w-4" />
-                      </button>
-                      <button
-                        onClick={handleCancelCategoryEdit}
-                        className="p-1.5 text-gray-500 dark:text-white hover:bg-gray-50 dark:hover:bg-white/10 rounded-lg transition-colors"
-                        title="Cancel"
-                      >
-                        <XMarkIcon className="h-4 w-4" />
-                      </button>
-                    </>
-                  ) : (
-                    <>
-                      <button
-                        onClick={() => handleEditCategory(category.id, category.name)}
-                        disabled={deletingCategoryId === category.id || editingCategoryId !== null}
-                        className="p-1.5 text-blue-500 dark:text-white hover:bg-blue-50 dark:hover:bg-white/10 rounded-lg transition-colors disabled:opacity-50"
-                        title="Edit"
-                      >
-                        <PencilIcon className="h-4 w-4" />
-                      </button>
-                      <button
-                        onClick={() => handleDeleteCategory(category.id, category.name)}
-                        disabled={deletingCategoryId === category.id || editingCategoryId !== null}
-                        className="p-1.5 text-red-500 dark:text-white hover:bg-red-50 dark:hover:bg-white/10 rounded-lg transition-colors disabled:opacity-50"
-                        title="Delete"
-                      >
-                        <TrashIcon className="h-4 w-4" />
-                      </button>
-                    </>
-                  )}
-                </div>
-              </div>
-            ))}
+          <div className="mb-6 space-y-2">
+            {roots.map((category) => renderCategoryBranch(category))}
           </div>
 
           {/* Formulaire d'ajout de catégorie */}
           <form onSubmit={handleCreateCategory} className="space-y-4">
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-2">
-                New category
+                Place under
+              </label>
+              <select
+                value={newCategoryParentId}
+                onChange={(event) => setNewCategoryParentId(event.target.value)}
+                className="w-full rounded-lg border border-gray-300 bg-white px-4 py-2 text-gray-900 focus:border-flow-primary focus:outline-none focus:ring-2 focus:ring-flow-primary/20 dark:border-gray-600 dark:bg-gray-700 dark:text-gray-100"
+              >
+                <option value="">Top level</option>
+                {roots.map((category) => (
+                  <option key={category.id} value={category.id}>
+                    {categoryDisplayName(category)}
+                  </option>
+                ))}
+              </select>
+            </div>
+
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                App name
               </label>
               <input
                 type="text"
                 value={newCategoryName}
                 onChange={(e) => setNewCategoryName(e.target.value)}
-                placeholder="e.g. Credit, Food, Transport"
+                placeholder="e.g. Food, Transport"
+                className="w-full rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 px-4 py-2 focus:border-flow-primary focus:outline-none focus:ring-2 focus:ring-flow-primary/20"
+              />
+            </div>
+
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                Bank label
+              </label>
+              <input
+                type="text"
+                value={newCategoryFrench}
+                onChange={(e) => setNewCategoryFrench(e.target.value)}
+                placeholder="French name from the bank"
                 className="w-full rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 px-4 py-2 focus:border-flow-primary focus:outline-none focus:ring-2 focus:ring-flow-primary/20"
               />
             </div>
@@ -635,7 +768,7 @@ export default function ParametersPage() {
               className="w-full rounded-lg bg-flow-primary px-4 py-2 text-sm font-medium text-white hover:bg-flow-primary/90 disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
             >
               <PlusIcon className="h-4 w-4" />
-              Add category
+              {newCategoryParentId ? "Add subcategory" : "Add category"}
             </button>
           </form>
         </div>

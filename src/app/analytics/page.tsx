@@ -14,11 +14,12 @@ import { percentChange } from "@/lib/finance/insights";
 import { formatISODate, formatPeriodLabel, inclusiveDays, PeriodUnit, rangeFor, shiftAnchor, shiftDate } from "@/lib/finance/period";
 import { transactionInPeriod, salaryFetchStart } from "@/lib/finance/salaryPeriod";
 import { spendByCategory, spendByDay, SpendingTransaction, totalsFor } from "@/lib/finance/spending";
-import { isIncomeCategory } from "@/lib/transactions/suggestCategory";
+import { incomeCategoryIds } from "@/lib/transactions/bankCategories";
+import { categoryDisplayName } from "@/lib/transactions/categoryNames";
 
 export const dynamic = "force-dynamic";
 
-type CategoryRow = { id: string; name: string; color: string };
+type CategoryRow = { id: string; name: string; nameEn: string | null; color: string; parentId: string | null };
 
 export default function AnalyticsPage() {
   const { user, loading: authLoading } = useAuth();
@@ -46,7 +47,7 @@ export default function AnalyticsPage() {
         getCategories(user.id),
         getTransactions(user.id, { start: historyStart, end: range.end }),
       ]);
-      setCategories(categoryRows.map((category) => ({ id: category.id, name: category.name, color: category.color })));
+      setCategories(categoryRows.map((category) => ({ id: category.id, name: category.name, nameEn: category.name_en ?? null, color: category.color, parentId: category.parent_id ?? null })));
       const mapped = rows.map((row) => ({
         id: row.id,
         date: row.transaction_date,
@@ -79,7 +80,7 @@ export default function AnalyticsPage() {
   }, [user, range.start, range.end, previousRange.start, previousRange.end]);
 
   const salaryCategoryIds = useMemo(
-    () => new Set(categories.filter((category) => isIncomeCategory(category.name)).map((category) => category.id)),
+    () => incomeCategoryIds(categories),
     [categories]
   );
   const transactions = history.filter((row) => transactionInPeriod(row, range, unit, salaryCategoryIds));
@@ -168,7 +169,7 @@ export default function AnalyticsPage() {
             {slices.map((slice) => (
               <Link key={slice.category.id} href={`/transactions?category=${slice.category.id}&month=${anchor.slice(0, 7)}`} className="flex items-center gap-2 text-sm">
                 <span className="h-2.5 w-2.5 rounded-full" style={{ backgroundColor: slice.category.color }} />
-                <span className="flex-1 text-gray-900 dark:text-white">{slice.category.name}</span>
+                <span className="flex-1 text-gray-900 dark:text-white">{categoryDisplayName(slice.category)}</span>
                 <span className="text-xs text-gray-500">{totals.netSpend ? Math.round((slice.amount / totals.netSpend) * 100) : 0}%</span>
                 <span className="w-20 text-right tabular-nums text-gray-900 dark:text-white">{formatCents(slice.amount, currency)}</span>
               </Link>

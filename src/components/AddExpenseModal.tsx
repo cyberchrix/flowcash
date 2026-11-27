@@ -7,7 +7,7 @@ import { createExpense } from "@/lib/supabase/expenses";
 import { dayToDateString, ordinal } from "@/lib/date";
 import { useAuth } from "@/hooks/useAuth";
 import { useToast } from "@/contexts/ToastContext";
-import { isIncomeCategory } from "@/lib/transactions/suggestCategory";
+import { expenseCategoryChoices } from "@/lib/transactions/bankCategories";
 
 const daysOfMonth = Array.from({ length: 31 }, (_, i) => i + 1);
 
@@ -43,11 +43,13 @@ export function AddExpenseModal({
   const [error, setError] = useState<string | null>(null);
 
   // Mettre à jour la catégorie sélectionnée quand la liste change
+  const choices = expenseCategoryChoices(categories.flatMap((category) => category.id ? [{ id: category.id, name: category.name, nameEn: category.nameEn ?? null, color: category.color, parentId: category.parentId ?? null }] : []));
+
   useEffect(() => {
-    if (categories.length > 0 && (!selectedCategory || !categories.find(c => c.id === selectedCategory.id))) {
-      setSelectedCategory(categories[0]);
+    if (choices.length > 0 && (!selectedCategory || !choices.some((choice) => choice.id === selectedCategory.id))) {
+      setSelectedCategory(categories.find((category) => category.id === choices[0]?.id) ?? null);
     }
-  }, [categories, selectedCategory]);
+  }, [categories, choices, selectedCategory]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -201,11 +203,11 @@ export function AddExpenseModal({
                 No categories available. Please create categories in settings.
               </div>
             ) : (
-              categories.filter((category) => !isIncomeCategory(category.name)).map((category) => (
+              choices.map((category) => (
                 <button
                   key={category.id}
                   type="button"
-                  onClick={() => setSelectedCategory(category)}
+                  onClick={() => setSelectedCategory(categories.find((item) => item.id === category.id) ?? null)}
                   className={`flex items-center gap-2 rounded-lg border-2 px-4 py-3 transition-all ${
                     selectedCategory?.id === category.id
                       ? "border-flow-primary bg-flow-primary/5 dark:bg-flow-primary/20"
@@ -223,7 +225,7 @@ export function AddExpenseModal({
                         : "text-gray-700 dark:text-white"
                     }`}
                   >
-                    {category.name}
+                    {category.label}
                   </span>
                 </button>
               ))

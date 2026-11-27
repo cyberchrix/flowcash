@@ -4,6 +4,7 @@ import { useState, useEffect, useRef } from "react";
 import { Modal } from "./Modal";
 import { Category } from "@/types";
 import { CalculatorIcon, PlusIcon, TrashIcon } from "@heroicons/react/24/outline";
+import { categoryDisplayName } from "@/lib/transactions/categoryNames";
 import { isIncomeCategory } from "@/lib/transactions/suggestCategory";
 
 interface SimulatedExpense {
@@ -205,7 +206,7 @@ export function ExpenseSimulator({
                   className="h-2 w-2 rounded-full"
                   style={{ backgroundColor: newExpenseCategoryId === category.id ? "#FFFFFF" : category.color }}
                 />
-                {category.name}
+                {categoryDisplayName(category)}
               </button>
             ))}
           </div>

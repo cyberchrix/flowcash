@@ -7,7 +7,7 @@ describe("merchantKeyword", () => {
     expect(merchantKeyword("CB AU BUREAU LILLE")).toBe("AU BUREAU");
     expect(merchantKeyword("CARTE X8230 12/09 LECLERC 785")).toBe("LECLERC");
     expect(merchantKeyword("CARTE X8230 RETRAIT DAB")).toBe("RETRAIT DAB");
-    expect(merchantKeyword("FRAIS HORS ZONE EURO")).toBe("");
+    expect(merchantKeyword("FRAIS HORS ZONE EURO")).toBe("FRAIS HORS ZONE");
     expect(merchantKeyword("SUMUP COMITE SCOLAIRE")).toBe("COMITE");
   });
 });
@@ -16,6 +16,7 @@ describe("isIncomeCategory", () => {
   it("recognizes salary and leaves expense categories alone", () => {
     expect(isIncomeCategory("Salary")).toBe(true);
     expect(isIncomeCategory("Salaire")).toBe(true);
+    expect(isIncomeCategory("Revenus du travail")).toBe(true);
     expect(isIncomeCategory("Groceries")).toBe(false);
   });
 });

@@ -32,7 +32,7 @@ const GENERIC_WORDS = new Set([
 
 export function isIncomeCategory(name: string) {
   const normalized = normalizeMerchant(name);
-  return normalized === "SALARY" || normalized === "SALAIRE" || normalized === "INCOME" || normalized === "REVENU" || normalized === "REVENUS";
+  return normalized === "SALARY" || normalized === "SALAIRE" || normalized === "INCOME" || normalized === "REVENU" || normalized === "REVENUS" || normalized === "REVENUS DU TRAVAIL";
 }
 
 export function isPaymentToken(word: string): boolean {

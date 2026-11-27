@@ -24,13 +24,15 @@ import {
 } from "@/lib/supabase/transactions";
 import { categorizeTransaction } from "@/lib/transactions/categorize";
 import { categorizeWithModel } from "@/lib/transactions/categorizeWithModel";
+import { usableBankCategory } from "@/lib/transactions/bankCategories";
+import { categoryDisplayName } from "@/lib/transactions/categoryNames";
 import { displayMerchant } from "@/lib/transactions/suggestCategory";
 import { fingerprint, markDuplicates, markSameOperations } from "@/lib/transactions/duplicates";
 import { decodeCsvBytes, parseCsv } from "@/lib/transactions/parseCsv";
 import { parseXlsx } from "@/lib/transactions/parseXlsx";
 import { TransactionKind } from "@/lib/transactions/types";
 
-type CategoryOption = { id: string; name: string; color: string };
+type CategoryOption = { id: string; name: string; nameEn: string | null; color: string };
 
 type PreviewRow = SavedTransactionInput & {
   id: string;
@@ -48,6 +50,10 @@ const BUILT_IN_CATEGORIES = [
   "Cash withdrawals",
   "Bank fees",
   "Veterinary",
+  "Child support",
+  "Travel",
+  "Leisure",
+  "Gifts",
 ];
 
 const UNCATEGORIZED = "uncategorized";
@@ -126,6 +132,7 @@ export function TransactionsView() {
       setCategories(categoryRows.map((category) => ({
         id: category.id,
         name: category.name,
+        nameEn: category.name_en ?? null,
         color: category.color,
       })));
       setTransactions(transactionRows);
@@ -487,7 +494,7 @@ export function TransactionsView() {
               <option value={UNCATEGORIZED}>Uncategorized</option>
               {categories.map((category) => (
                 <option key={category.id} value={category.id}>
-                  {category.name}
+                  {categoryDisplayName(category)}
                 </option>
               ))}
             </select>
@@ -510,8 +517,8 @@ export function TransactionsView() {
               className="rounded-lg border border-gray-300 bg-white px-2 py-2 text-sm text-gray-900 dark:border-gray-600 dark:bg-gray-700 dark:text-gray-100"
               aria-label="Keyword category"
             >
-              {categoryNames.map((name) => (
-                <option key={name} value={name}>{name}</option>
+              {categories.map((category) => (
+                <option key={category.id} value={category.name}>{categoryDisplayName(category)}</option>
               ))}
             </select>
           </div>
@@ -678,7 +685,7 @@ export function TransactionsView() {
                     </p>
                     <p className="mt-0.5 text-xs text-gray-500 dark:text-gray-400">
                       {transaction.transaction_date} · {KIND_LABEL[transaction.kind]}
-                      {transaction.bank_category ? ` · ${transaction.bank_category}` : ""}
+                      {transaction.category_id ? ` · ${categoryDisplayName(categories.find((category) => category.id === transaction.category_id) ?? { name: transaction.categories?.name ?? "" })}` : ""}
                       {transaction.needs_review ? " · Review" : ""}
                     </p>
                   </div>
@@ -686,7 +693,7 @@ export function TransactionsView() {
                     {formatMoney(Number(transaction.amount_cents))}
                   </p>
                 </div>
-                <select
+                {usableBankCategory(transaction.bank_category) ? null : <select
                   value={transaction.category_id ?? ""}
                   onChange={(event) => changeSavedCategory(transaction.id, event.target.value)}
                   className="mt-2 w-full rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm text-gray-900 dark:border-gray-600 dark:bg-gray-700 dark:text-gray-100"
@@ -695,10 +702,10 @@ export function TransactionsView() {
                   <option value="">Uncategorized</option>
                   {categories.map((category) => (
                     <option key={category.id} value={category.id}>
-                      {category.name}
+                      {categoryDisplayName(category)}
                     </option>
                   ))}
-                </select>
+                </select>}
               </article>
               </div>
               );

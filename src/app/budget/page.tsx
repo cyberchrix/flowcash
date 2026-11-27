@@ -15,6 +15,8 @@ import { getExpenses } from "@/lib/supabase/expenses";
 import { deleteCategoryBudget, duplicateBudgets, getCategoryBudgets, saveCategoryBudget } from "@/lib/supabase/budgets";
 import { ensureTransactionSync, getTransactions } from "@/lib/supabase/transactions";
 import { categorizeWithModel } from "@/lib/transactions/categorizeWithModel";
+import { bankParentIds, categoryRoot, incomeCategoryIds } from "@/lib/transactions/bankCategories";
+import { categoryDisplayName } from "@/lib/transactions/categoryNames";
 import { displayMerchant, isIncomeCategory } from "@/lib/transactions/suggestCategory";
 import { salaryFetchStart, transactionInPeriod } from "@/lib/finance/salaryPeriod";
 import { budgetStatus, consumedPercent, fixedPlannedCents, PlannedCharge, proratedAllowance, statusLabel } from "@/lib/finance/budget";
@@ -26,7 +28,11 @@ import { spendByCategory, SpendingTransaction, totalsFor } from "@/lib/finance/s
 
 export const dynamic = "force-dynamic";
 
-type CategoryRow = { id: string; name: string; color: string };
+type CategoryRow = { id: string; name: string; nameEn: string | null; nameFr: string | null; color: string; parentId: string | null };
+
+function toCategoryRows(rows: { id: string; name: string; name_en?: string | null; name_fr?: string | null; color: string; parent_id?: string | null }[]): CategoryRow[] {
+  return rows.map((category) => ({ id: category.id, name: category.name, nameEn: category.name_en ?? null, nameFr: category.name_fr ?? null, color: category.color, parentId: category.parent_id ?? null }));
+}
 type TodayRow = {
   id: string;
   label: string;
@@ -92,7 +98,7 @@ export default function BudgetPage() {
         getExpenses(user.id),
         getTransactions(user.id, { start: today, end: today }),
       ]);
-      const salaryCategoryIds = new Set(categoryRows.filter((category) => isIncomeCategory(category.name)).map((category) => category.id));
+      const salaryCategoryIds = incomeCategoryIds(toCategoryRows(categoryRows));
       const toSpending = (row: (typeof transactionRows)[number]) => ({
         id: row.id,
         date: row.transaction_date,
@@ -110,7 +116,7 @@ export default function BudgetPage() {
         categoryId: row.category_id,
       });
       const snapshot: BudgetSnapshot = {
-        categories: categoryRows.map((category) => ({ id: category.id, name: category.name, color: category.color })),
+        categories: toCategoryRows(categoryRows),
         budgets: budgetRows,
         charges: expenseRows
           .filter((expense) => (expense.currency || "EUR") === currency)
@@ -137,15 +143,18 @@ export default function BudgetPage() {
       ]);
       if (id !== request.current) return;
       if (model.updated + synced > 0) {
-        const [freshRows, freshToday] = await Promise.all([
+        const [freshCategories, freshRows, freshToday] = await Promise.all([
+          getCategories(user.id),
           getTransactions(user.id, { start: salaryFetchStart(range, unit), end: range.end }),
           getTransactions(user.id, { start: today, end: today }),
         ]);
+        const freshSalaryIds = incomeCategoryIds(toCategoryRows(freshCategories));
         const fresh = {
           ...snapshot,
+          categories: toCategoryRows(freshCategories),
           transactions: freshRows
             .map(toSpending)
-            .filter((transaction) => transactionInPeriod(transaction, range, unit, salaryCategoryIds)),
+            .filter((transaction) => transactionInPeriod(transaction, range, unit, freshSalaryIds)),
           today: freshToday.map(toToday),
         };
         writeBudgetCache(cacheKey, fresh);
@@ -165,19 +174,36 @@ export default function BudgetPage() {
 
   const ready = shownKey === `${user?.id ?? ""}:${range.start}:${range.end}:today`;
   const visibleTransactions = ready ? transactions : [];
+  const parentById = useMemo(() => new Map(categories.map((category) => [category.id, category.parentId])), [categories]);
+  const parents = useMemo(
+    () => bankParentIds(categories, visibleTransactions.map((transaction) => transaction.categoryId).filter((id): id is string => Boolean(id))),
+    [categories, visibleTransactions]
+  );
   const monthBudgets = useMemo(
-    () => budgets.map((budget) => ({
+    () => budgets.filter((budget) => parents.has(budget.category_id)).map((budget) => ({
       month: budget.effective_month,
       amountCents: Number(budget.amount_cents),
       active: budget.active,
       forecast: budget.forecast,
     })),
-    [budgets]
+    [budgets, parents]
   );
   const allowance = proratedAllowance(monthBudgets, range);
   const planned = fixedPlannedCents(charges, range);
   const budgetCents = allowance.cents + planned.cents;
   const byCategory = spendByCategory(visibleTransactions, currency);
+  const spendByParent = new Map<string, number>();
+  for (const [categoryId, amount] of byCategory) {
+    const root = categoryRoot(categoryId, parentById);
+    if (!root) continue;
+    spendByParent.set(root, (spendByParent.get(root) ?? 0) + amount);
+  }
+  const plannedByParent = new Map<string, number>();
+  for (const [categoryId, amount] of planned.byCategory) {
+    const root = categoryRoot(categoryId, parentById);
+    if (!root || !parents.has(root)) continue;
+    plannedByParent.set(root, (plannedByParent.get(root) ?? 0) + amount);
+  }
   const periodTotals = totalsFor(visibleTransactions, currency);
   const spent = periodTotals.netSpend;
   const elapsed = Math.min(inclusiveDays(range.start, formatISODate(new Date()) < range.end ? formatISODate(new Date()) : range.end), inclusiveDays(range.start, range.end));
@@ -290,7 +316,7 @@ export default function BudgetPage() {
                   className="inline-flex items-center gap-1.5 rounded-full px-4 py-2 font-bold"
                   style={{ backgroundColor: !ready || budgetCents <= 0 ? "rgba(255,255,255,0.25)" : over ? "rgba(239, 68, 68, 0.8)" : "rgba(99, 216, 179, 0.8)" }}
                 >
-                  {ready && budgetCents > 0 && <span className="text-2xl">{over ? "-" : "+"}</span>}
+                  {ready && budgetCents > 0 && <span className="text-2xl">+</span>}
                   <span className="text-2xl" style={{ textShadow: "0 1px 2px rgba(0, 0, 0, 0.4)" }}>
                     {ready ? `${Math.abs(Math.round((budgetCents > 0 ? remainingCents : spent) / 100)).toLocaleString("fr-FR")} €` : "Loading..."}
                   </span>
@@ -339,7 +365,7 @@ export default function BudgetPage() {
                 return (
                   <li key={row.id}>
                     {category ? (
-                      <Link href={`/budget/${category.id}?month=${formatISODate(new Date()).slice(0, 7)}`} className={className}>{content}</Link>
+                      <Link href={`/budget/${categoryRoot(category.id, parentById) ?? category.id}?month=${formatISODate(new Date()).slice(0, 7)}`} className={className}>{content}</Link>
                     ) : (
                       <div className={className}>{content}</div>
                     )}
@@ -355,8 +381,8 @@ export default function BudgetPage() {
           <button type="button" onClick={() => setManaging(true)} className="text-sm font-medium text-flow-primary">Manage</button>
         </div>
 
-        {ready && <div className="grid grid-cols-2 gap-3">{categories.filter((category) => !isIncomeCategory(category.name))
-          .sort((a, b) => (byCategory.get(b.id) ?? 0) - (byCategory.get(a.id) ?? 0))
+        {ready && <div className="grid grid-cols-2 gap-3">{categories.filter((category) => parents.has(category.id) && !isIncomeCategory(category.name) && ((spendByParent.get(category.id) ?? 0) > 0 || budgets.some((budget) => budget.category_id === category.id && budget.active)))
+          .sort((a, b) => (spendByParent.get(b.id) ?? 0) - (spendByParent.get(a.id) ?? 0))
           .map((category) => {
           const direct = budgets.find((budget) => budget.category_id === category.id && budget.effective_month === month && budget.active);
           const variableCents = proratedAllowance(
@@ -368,9 +394,9 @@ export default function BudgetPage() {
             })),
             range
           ).cents;
-          const categoryBudget = variableCents + (planned.byCategory.get(category.id) ?? 0);
+          const categoryBudget = variableCents + (plannedByParent.get(category.id) ?? 0);
           const budgetCents = categoryBudget > 0 || direct ? categoryBudget : null;
-          const categorySpend = byCategory.get(category.id) ?? 0;
+          const categorySpend = spendByParent.get(category.id) ?? 0;
           const categoryPercent = consumedPercent(categorySpend, budgetCents);
           const status = budgetStatus(categorySpend, budgetCents, elapsedRatio);
           const bar = status === "over" ? "#FB7185" : category.color;
@@ -383,7 +409,7 @@ export default function BudgetPage() {
               <span className="flex h-9 w-9 items-center justify-center rounded-2xl" style={{ backgroundColor: `${category.color}22`, color: category.color }}>
                 <CategoryIcon name={category.name} className="h-5 w-5" />
               </span>
-              <p className="mt-2 truncate text-sm font-medium text-gray-900 dark:text-white">{category.name}</p>
+              <p className="mt-2 truncate text-sm font-medium text-gray-900 dark:text-white">{categoryDisplayName(category)}</p>
               <p className={`mt-1 text-base font-semibold tabular-nums ${status === "over" ? "text-[#FB7185]" : "text-gray-900 dark:text-white"}`}>{formatCents(categorySpend, currency)}</p>
               <p className="text-[11px] text-gray-500">{budgetCents == null ? "No budget" : `of ${formatCents(budgetCents, currency)}`}</p>
               <div className="mt-2"><ProgressBar value={categoryPercent ?? 0} color={bar} /></div>
@@ -423,17 +449,17 @@ export default function BudgetPage() {
             <h2 className="text-base font-semibold text-gray-900 dark:text-white">Manage budgets</h2>
             <p className="mb-3 text-xs text-gray-500">These amounts are the variable allowance for {formatPeriodLabel("month", anchor)}. Planned expenses are already included in the budget.</p>
             <div className="space-y-2">
-              {categories.filter((category) => !isIncomeCategory(category.name)).map((category) => {
+              {categories.filter((category) => parents.has(category.id) && !isIncomeCategory(category.name)).map((category) => {
                 const current = budgets.find((budget) => budget.category_id === category.id && budget.effective_month === month);
                 return (
                   <label key={category.id} className="flex items-center justify-between gap-3 text-sm text-gray-900 dark:text-white">
-                    {category.name}
+                    {categoryDisplayName(category)}
                     <input
                       inputMode="decimal"
                       defaultValue={current ? (Number(current.amount_cents) / 100).toFixed(2) : ""}
                       onChange={(event) => setDrafts((previous) => ({ ...previous, [category.id]: event.target.value }))}
                       className="w-28 rounded-lg border border-gray-300 bg-white px-2 py-1 text-right dark:border-white/10 dark:bg-transparent"
-                      aria-label={`${category.name} budget`}
+                      aria-label={`${categoryDisplayName(category)} budget`}
                     />
                   </label>
                 );
@@ -456,7 +482,7 @@ export default function BudgetPage() {
               </button>
               <button type="button" className="flex-1 rounded-xl bg-flow-primary px-3 py-2 text-sm text-white" onClick={saveDrafts}>Save</button>
             </div>
-            {budgets.filter((budget) => budget.effective_month === month).map((budget) => (
+            {budgets.filter((budget) => budget.effective_month === month && parents.has(budget.category_id)).map((budget) => (
               <button
                 key={budget.id}
                 type="button"
@@ -467,7 +493,7 @@ export default function BudgetPage() {
                   await load();
                 }}
               >
-                Remove {categories.find((category) => category.id === budget.category_id)?.name}
+                Remove {categoryDisplayName(categories.find((category) => category.id === budget.category_id) ?? { name: "category" })}
               </button>
             ))}
           </div>
