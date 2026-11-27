@@ -270,8 +270,10 @@ export default function BudgetPage() {
 
   const remainingCents = budgetCents - spent;
   const over = budgetCents > 0 && remainingCents < 0;
+  const budgetStatusCents = budgetCents > 0 ? remainingCents : spent;
   const salaryLeftCents = periodTotals.income - spent;
   const salaryOver = salaryLeftCents < 0;
+  const roundedEuros = (cents: number) => `${Math.abs(Math.round(cents / 100)).toLocaleString("fr-FR")} €`;
 
   return (
     <div className="mx-auto flex h-dvh max-w-md flex-col overflow-hidden bg-flowBg px-4 dark:bg-transparent">
@@ -288,66 +290,21 @@ export default function BudgetPage() {
           onNext={() => setAnchor(shiftAnchor(unit, anchor, 1, 1))}
         />
 
-        <section
-          className="relative overflow-hidden rounded-[24px] px-6 py-6 text-white"
-          style={{
-            fontFamily: '"SF Mono", "Monaco", "Inconsolata", "Roboto Mono", "Courier New", monospace',
-            background: "linear-gradient(to right, #FF2D8A, #8A2BFF, #316CFF)",
-            letterSpacing: "0.5px",
-          }}
-        >
-          <div className="pointer-events-none absolute inset-0 opacity-20">
-            <svg viewBox="0 0 1200 320" className="absolute bottom-0 left-0 h-[120%] w-full" preserveAspectRatio="none">
-              <path d="M0,160L48,144C96,128,192,96,288,101.3C384,107,480,149,576,154.7C672,160,768,128,864,112C960,96,1056,96,1152,112C1248,128,1344,160,1392,176L1440,192L1440,320L0,320Z" fill="white" opacity="0.3" />
-              <path d="M0,192L48,181.3C96,171,192,149,288,154.7C384,160,480,192,576,186.7C672,181,768,139,864,122.7C960,107,1056,117,1152,133.3C1248,149,1344,171,1392,181.3L1440,192L1440,320L0,320Z" fill="white" opacity="0.2" />
-            </svg>
-          </div>
-          <div className="relative z-10 flex items-end justify-between gap-4">
-            <div className="space-y-4">
-              <div>
-                <p className="mb-1 text-sm font-medium uppercase text-white/90">
-                  {salaryOver ? "Over salary" : "Salary left"}
-                </p>
-                <div
-                  className="inline-flex items-center gap-1.5 rounded-full px-4 py-2 font-bold"
-                  style={{ backgroundColor: !ready ? "rgba(255,255,255,0.25)" : salaryOver ? "rgba(239, 68, 68, 0.8)" : "rgba(99, 216, 179, 0.8)" }}
-                >
-                  {ready && <span className="text-2xl">{salaryOver ? "-" : "+"}</span>}
-                  <span className="text-2xl" style={{ textShadow: "0 1px 2px rgba(0, 0, 0, 0.4)" }}>
-                    {ready ? `${Math.abs(Math.round(salaryLeftCents / 100)).toLocaleString("fr-FR")} €` : "—"}
-                  </span>
-                </div>
-              </div>
-              <div>
-                <p className="mb-1 text-sm font-medium uppercase text-white/90">
-                  {budgetCents > 0 ? (over ? "Over budget" : "Budget left") : "Total spending"}
-                </p>
-                <div
-                  className="inline-flex items-center gap-1.5 rounded-full px-4 py-2 font-bold"
-                  style={{ backgroundColor: !ready || budgetCents <= 0 ? "rgba(255,255,255,0.25)" : over ? "rgba(239, 68, 68, 0.8)" : "rgba(99, 216, 179, 0.8)" }}
-                >
-                  {ready && budgetCents > 0 && <span className="text-2xl">+</span>}
-                  <span className="text-2xl" style={{ textShadow: "0 1px 2px rgba(0, 0, 0, 0.4)" }}>
-                    {ready ? `${Math.abs(Math.round((budgetCents > 0 ? remainingCents : spent) / 100)).toLocaleString("fr-FR")} €` : "Loading..."}
-                  </span>
-                </div>
-              </div>
-            </div>
-            <div className="space-y-3 text-right">
-              {[
-                ["Income", periodTotals.income],
-                ["Spending", spent],
-                ["Budget", budgetCents],
-              ].map(([label, cents]) => (
-                <div key={String(label)}>
-                  <p className="text-[11px] uppercase text-white/90">{label}</p>
-                  <p className="text-sm font-bold leading-tight" style={{ textShadow: "0 1px 2px rgba(0, 0, 0, 0.4)" }}>
-                    {ready ? `${(Number(cents) / 100).toLocaleString("fr-FR", { minimumFractionDigits: 2, maximumFractionDigits: 2 })} €` : "—"}
-                  </p>
-                </div>
-              ))}
-            </div>
-          </div>
+        <section className="grid grid-cols-[1fr_auto_auto] items-center gap-x-3 gap-y-3 rounded-3xl border border-gray-200 bg-white px-4 py-3 dark:border-transparent dark:bg-white/5">
+          <p className="text-xs font-semibold uppercase tracking-wide text-gray-500">{salaryOver ? "Over salary" : "Salary left"}</p>
+          <span />
+          <p className={`text-right text-2xl font-bold tabular-nums ${!ready ? "text-gray-900 dark:text-white" : salaryOver ? "text-red-400" : "text-[#34D399]"}`}>
+            {ready ? `${salaryOver ? "-" : "+"}${roundedEuros(salaryLeftCents)}` : "—"}
+          </p>
+          <p className="text-xs font-semibold uppercase tracking-wide text-gray-500">
+            {budgetCents > 0 ? (over ? "Over budget" : "Budget left") : "Total spending"}
+          </p>
+          <p className="text-right text-sm font-medium tabular-nums text-gray-400">
+            {ready && budgetCents > 0 ? `${(budgetCents / 100).toLocaleString("fr-FR", { minimumFractionDigits: 2, maximumFractionDigits: 2 })} €` : ""}
+          </p>
+          <p className={`text-right text-2xl font-bold tabular-nums ${!ready || budgetCents <= 0 ? "text-gray-900 dark:text-white" : over ? "text-red-400" : "text-[#34D399]"}`}>
+            {ready ? `${budgetCents > 0 ? "+" : ""}${roundedEuros(budgetStatusCents)}` : "—"}
+          </p>
         </section>
 
         <section className="grid grid-cols-2 gap-3">
@@ -564,9 +521,9 @@ function FlowSplitCard({
   slices: FlowSlice[];
   month: string;
 }) {
-  const radius = 34;
+  const radius = 38;
   const circumference = 2 * Math.PI * radius;
-  const gap = slices.length > 1 ? 4 : 0;
+  const gap = slices.length > 1 ? 3 : 0;
   let cursor = 0;
   const arcs = total > 0 ? slices.map((slice) => {
     const length = Math.max((slice.amount / total) * circumference - gap, 0);
@@ -578,9 +535,9 @@ function FlowSplitCard({
   return (
     <article className="rounded-3xl border border-gray-200 bg-white px-3 py-3 dark:border-transparent dark:bg-white/5">
       <h2 className="text-xs font-semibold uppercase tracking-wide text-gray-500">{title}</h2>
-      <div className="relative mx-auto mt-2 h-[7.25rem] w-[7.25rem]">
+      <div className="relative mx-auto mt-2 aspect-square w-full">
         <svg viewBox="0 0 100 100" className="h-full w-full -rotate-90">
-          <circle cx="50" cy="50" r={radius} fill="none" className="stroke-gray-100 dark:stroke-white/10" strokeWidth="9" />
+          <circle cx="50" cy="50" r={radius} fill="none" className="stroke-gray-100 dark:stroke-white/10" strokeWidth="8" />
           {arcs.map((arc, index) => (
             <circle
               key={`${arc.color}-${index}`}
@@ -589,14 +546,14 @@ function FlowSplitCard({
               r={radius}
               fill="none"
               stroke={arc.color}
-              strokeWidth="9"
+              strokeWidth="8"
               strokeDasharray={`${arc.length} ${circumference}`}
               strokeDashoffset={-arc.offset}
             />
           ))}
         </svg>
-        <div className="absolute inset-6 flex items-center justify-center text-center">
-          <p className={`px-1 text-[11px] font-semibold leading-tight tabular-nums ${amountClass}`}>{amount}</p>
+        <div className="absolute inset-[18%] flex items-center justify-center px-0.5 text-center">
+          <p className={`whitespace-nowrap text-xl font-bold leading-none tracking-tight tabular-nums ${amountClass}`}>{amount}</p>
         </div>
       </div>
       <ul className="mt-2 space-y-1.5">
