@@ -222,6 +222,17 @@ export function TransactionsView() {
     });
   }, [query, transactions]);
 
+  const displayedTotals = useMemo(() => {
+    let incoming = 0;
+    let outgoing = 0;
+    for (const transaction of visibleTransactions) {
+      const cents = Number(transaction.amount_cents);
+      if (cents > 0) incoming += cents;
+      else if (cents < 0) outgoing += cents;
+    }
+    return { incoming, outgoing };
+  }, [visibleTransactions]);
+
   const categoryNames = useMemo(() => {
     const names = new Set([...BUILT_IN_CATEGORIES, ...categories.map((category) => category.name)]);
     for (const row of preview ?? []) {
@@ -698,6 +709,16 @@ export function TransactionsView() {
         )}
 
         <section className="space-y-3">
+          {visibleTransactions.length > 0 && (
+            <div className="flex items-center justify-between px-1 text-sm font-semibold">
+              <span className={displayedTotals.incoming === 0 ? "text-gray-400" : "text-[#34D399]"}>
+                {displayedTotals.incoming === 0 ? formatMoney(0) : `+${formatMoney(displayedTotals.incoming)}`}
+              </span>
+              <span className={displayedTotals.outgoing === 0 ? "text-gray-400" : "text-red-400"}>
+                {displayedTotals.outgoing === 0 ? formatMoney(0) : formatMoney(displayedTotals.outgoing)}
+              </span>
+            </div>
+          )}
           {visibleTransactions.length === 0 ? (
             <p className="px-2 text-sm text-gray-500 dark:text-gray-400">
               {query.trim()
