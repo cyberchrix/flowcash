@@ -46,7 +46,9 @@ export default function AnalyticsPage() {
   const [balanceDraft, setBalanceDraft] = useState("");
   const [savingBalance, setSavingBalance] = useState(false);
   const [monthStart, setMonthStart] = useState<MonthStart>("salary");
-  const swipe = useRef<{ x: number; y: number } | null>(null);
+  const swipe = useRef<{ x: number; y: number; id: number } | null>(null);
+  const wheelX = useRef(0);
+  const swipeLock = useRef(0);
   const unit: PeriodUnit = "month";
   const [anchor, setAnchor] = useState(() => formatISODate(new Date()));
   const [loading, setLoading] = useState(true);
@@ -216,20 +218,41 @@ export default function AnalyticsPage() {
       <main
         className="min-h-0 flex-1 space-y-3 overflow-y-auto pb-4 pt-20"
         onPointerDown={(event) => {
-          if (event.pointerType !== "touch") return;
-          swipe.current = { x: event.clientX, y: event.clientY };
+          if (balanceOpen || (event.pointerType === "mouse" && event.button !== 0)) return;
+          swipe.current = { x: event.clientX, y: event.clientY, id: event.pointerId };
+        }}
+        onPointerMove={(event) => {
+          const start = swipe.current;
+          if (!start || event.pointerId !== start.id) return;
+          const dx = event.clientX - start.x;
+          const dy = event.clientY - start.y;
+          if (Math.abs(dx) < 12 || Math.abs(dx) <= Math.abs(dy)) return;
           event.currentTarget.setPointerCapture(event.pointerId);
         }}
         onPointerUp={(event) => {
-          if (event.pointerType !== "touch" || !swipe.current || balanceOpen) return;
-          const dx = event.clientX - swipe.current.x;
-          const dy = event.clientY - swipe.current.y;
+          const start = swipe.current;
           swipe.current = null;
-          if (Math.abs(dx) < 60 || Math.abs(dx) < Math.abs(dy)) return;
+          if (!start || event.pointerId !== start.id || balanceOpen) return;
+          const dx = event.clientX - start.x;
+          const dy = event.clientY - start.y;
+          if (Math.abs(dx) < 60 || Math.abs(dx) < Math.abs(dy) || Date.now() < swipeLock.current) return;
+          swipeLock.current = Date.now() + 450;
           setAnchor((current) => shiftAnchor(unit, current, dx < 0 ? 1 : -1, 1));
         }}
         onPointerCancel={() => {
           swipe.current = null;
+        }}
+        onWheel={(event) => {
+          if (balanceOpen || Math.abs(event.deltaY) > Math.abs(event.deltaX)) {
+            wheelX.current = 0;
+            return;
+          }
+          wheelX.current += event.deltaX;
+          if (Math.abs(wheelX.current) < 70 || Date.now() < swipeLock.current) return;
+          const direction = wheelX.current > 0 ? 1 : -1;
+          wheelX.current = 0;
+          swipeLock.current = Date.now() + 450;
+          setAnchor((current) => shiftAnchor(unit, current, direction, 1));
         }}
       >
         <PeriodControls
