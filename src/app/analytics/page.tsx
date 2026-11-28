@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { Header } from "@/components/Header";
@@ -44,6 +44,7 @@ export default function AnalyticsPage() {
   const [balanceDraft, setBalanceDraft] = useState("");
   const [savingBalance, setSavingBalance] = useState(false);
   const [monthStart, setMonthStart] = useState<MonthStart>("salary");
+  const swipe = useRef<{ x: number; y: number } | null>(null);
   const unit: PeriodUnit = "month";
   const [anchor, setAnchor] = useState(() => formatISODate(new Date()));
   const [loading, setLoading] = useState(true);
@@ -209,7 +210,25 @@ export default function AnalyticsPage() {
   return (
     <div className="mx-auto flex h-dvh max-w-md flex-col overflow-hidden bg-flowBg px-4 dark:bg-transparent">
       <Header />
-      <main className="min-h-0 flex-1 space-y-3 overflow-y-auto pb-4 pt-20">
+      <main
+        className="min-h-0 flex-1 space-y-3 overflow-y-auto pb-4 pt-20"
+        onPointerDown={(event) => {
+          if (event.pointerType !== "touch") return;
+          swipe.current = { x: event.clientX, y: event.clientY };
+          event.currentTarget.setPointerCapture(event.pointerId);
+        }}
+        onPointerUp={(event) => {
+          if (event.pointerType !== "touch" || !swipe.current || balanceOpen) return;
+          const dx = event.clientX - swipe.current.x;
+          const dy = event.clientY - swipe.current.y;
+          swipe.current = null;
+          if (Math.abs(dx) < 60 || Math.abs(dx) < Math.abs(dy)) return;
+          setAnchor((current) => shiftAnchor(unit, current, dx < 0 ? 1 : -1, 1));
+        }}
+        onPointerCancel={() => {
+          swipe.current = null;
+        }}
+      >
         <PeriodControls
           label={formatPeriodLabel(unit, anchor, 1)}
           unit={unit}
