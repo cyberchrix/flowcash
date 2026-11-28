@@ -13,6 +13,7 @@ import { getCategories } from "@/lib/supabase/categories";
 import { getCategoryBudgets } from "@/lib/supabase/budgets";
 import { getExpenses } from "@/lib/supabase/expenses";
 import { deleteMonthOpening, getMonthOpenings, saveMonthOpening } from "@/lib/supabase/openings";
+import { loadMonthStart } from "@/lib/supabase/settings";
 import { ensureTransactionSync, getTransactions } from "@/lib/supabase/transactions";
 import { categorizeWithModel } from "@/lib/transactions/categorizeWithModel";
 import { fixedPlannedCents, PlannedCharge, proratedAllowance } from "@/lib/finance/budget";
@@ -21,7 +22,7 @@ import { invalidateBudgetCache } from "@/lib/finance/budgetCache";
 import { monthFlowsFromTransactions, openingBalanceCents, parseOpeningInput, salaryLeftCents } from "@/lib/finance/openingBalance";
 import { projectedSalaryLeftCents } from "@/lib/finance/pace";
 import { formatISODate, formatPeriodLabel, inclusiveDays, PeriodUnit, rangeFor, shiftAnchor, shiftDate } from "@/lib/finance/period";
-import { paydayByFundedMonth, salaryFetchStart, salaryPeriodMonth } from "@/lib/finance/salaryPeriod";
+import { MonthStart, paydayByFundedMonth, salaryFetchStart, transactionMonth } from "@/lib/finance/salaryPeriod";
 import { categoryAverageDelta, spendByCategory, spendByDay, SpendingTransaction, totalsFor } from "@/lib/finance/spending";
 import { bankParentIds, incomeCategoryIds } from "@/lib/transactions/bankCategories";
 import { categoryDisplayName } from "@/lib/transactions/categoryNames";
@@ -42,6 +43,7 @@ export default function AnalyticsPage() {
   const [balanceOpen, setBalanceOpen] = useState(false);
   const [balanceDraft, setBalanceDraft] = useState("");
   const [savingBalance, setSavingBalance] = useState(false);
+  const [monthStart, setMonthStart] = useState<MonthStart>("salary");
   const unit: PeriodUnit = "month";
   const [anchor, setAnchor] = useState(() => formatISODate(new Date()));
   const [loading, setLoading] = useState(true);
@@ -58,6 +60,7 @@ export default function AnalyticsPage() {
   useEffect(() => {
     const load = async () => {
       if (!user) return;
+      setMonthStart(await loadMonthStart(user.id));
       const historyStart = ["2000-01-01", salaryFetchStart(range, unit), salaryFetchStart(previousRange, unit)].sort()[0];
       const [categoryRows, rows, budgetRows, expenseRows, openingRows] = await Promise.all([
         getCategories(user.id),
@@ -120,13 +123,13 @@ export default function AnalyticsPage() {
   );
   const monthKey = range.start.slice(0, 7);
   const previousMonthKey = previousRange.start.slice(0, 7);
-  const transactions = history.filter((row) => salaryPeriodMonth(row.date, paydays) === monthKey);
-  const previous = history.filter((row) => salaryPeriodMonth(row.date, paydays) === previousMonthKey);
+  const transactions = history.filter((row) => transactionMonth(row.date, paydays, monthStart) === monthKey);
+  const previous = history.filter((row) => transactionMonth(row.date, paydays, monthStart) === previousMonthKey);
   const totals = totalsFor(transactions, currency);
   const previousTotals = totalsFor(previous, currency);
   const flows = useMemo(
-    () => monthFlowsFromTransactions(history, salaryCategoryIds, currency),
-    [history, salaryCategoryIds],
+    () => monthFlowsFromTransactions(history, salaryCategoryIds, currency, monthStart),
+    [history, salaryCategoryIds, monthStart],
   );
   const budgetParents = useMemo(
     () => bankParentIds(categories, transactions.map((transaction) => transaction.categoryId).filter((id): id is string => Boolean(id))),
@@ -155,8 +158,8 @@ export default function AnalyticsPage() {
   const change = percentChange(totals.netSpend, previousTotals.netSpend);
   const byCategory = spendByCategory(transactions, currency);
   const averageDeltas = useMemo(
-    () => categoryAverageDelta(history, currency, monthKey, (date) => salaryPeriodMonth(date, paydays)),
-    [history, monthKey, paydays],
+    () => categoryAverageDelta(history, currency, monthKey, (date) => transactionMonth(date, paydays, monthStart)),
+    [history, monthKey, paydays, monthStart],
   );
   const slices = [...byCategory.entries()]
     .map(([categoryId, amount]) => ({
@@ -198,9 +201,10 @@ export default function AnalyticsPage() {
 
   const payday = paydays.get(monthKey) ?? range.start;
   const nextPayday = [...paydays.values()].filter((date) => date > payday).sort()[0];
-  const periodEnd = nextPayday ? shiftDate(nextPayday, -1) : range.end;
+  const periodEnd = monthStart === "calendar" ? range.end : nextPayday ? shiftDate(nextPayday, -1) : range.end;
+  const periodStart = monthStart === "calendar" ? range.start : payday;
   const today = formatISODate(new Date());
-  const days = Math.max(inclusiveDays(payday, periodEnd < today ? periodEnd : today), 1);
+  const days = Math.max(inclusiveDays(periodStart, periodEnd < today ? periodEnd : today), 1);
 
   return (
     <div className="mx-auto flex h-dvh max-w-md flex-col overflow-hidden bg-flowBg px-4 dark:bg-transparent">
@@ -288,7 +292,7 @@ export default function AnalyticsPage() {
               }}
             >
               <p className="text-sm font-semibold text-gray-900 dark:text-white">Balance at payday</p>
-              <p className="mt-1 text-xs text-gray-500">The account balance when this salary arrived. Use a minus if you were overdrawn. Leave empty to use the calculated balance.</p>
+              <p className="mt-1 text-xs text-gray-500">{monthStart === "salary" ? "The account balance when this salary arrived." : "The account balance on the first day of the month."} Use a minus if you were overdrawn. Leave empty to use the calculated balance.</p>
               <input
                 autoFocus
                 inputMode="decimal"
@@ -341,10 +345,10 @@ export default function AnalyticsPage() {
           <h2 className="text-sm font-semibold text-gray-900 dark:text-white">Monthly spending</h2>
           <div className="mt-4 flex h-28 items-end gap-2">
             {months.map((monthAnchor) => {
-              const inMonth = history.filter((row) => salaryPeriodMonth(row.date, paydays) === monthAnchor.slice(0, 7));
+              const inMonth = history.filter((row) => transactionMonth(row.date, paydays, monthStart) === monthAnchor.slice(0, 7));
               const amount = totalsFor(inMonth, currency).netSpend;
               const max = Math.max(...months.map((item) => {
-                return totalsFor(history.filter((row) => salaryPeriodMonth(row.date, paydays) === item.slice(0, 7)), currency).netSpend;
+                return totalsFor(history.filter((row) => transactionMonth(row.date, paydays, monthStart) === item.slice(0, 7)), currency).netSpend;
               }), 1);
               const selected = monthAnchor.slice(0, 7) === anchor.slice(0, 7);
               return (

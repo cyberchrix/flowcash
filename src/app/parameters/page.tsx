@@ -5,7 +5,8 @@ import { useRouter } from "next/navigation";
 import { Header } from "@/components/Header";
 import { BottomNav } from "@/components/BottomNav";
 import { useAuth } from "@/hooks/useAuth";
-import { getUserSettings, updateUserSettings } from "@/lib/supabase/settings";
+import { getUserSettings, loadMonthStart, saveMonthStart, updateUserSettings } from "@/lib/supabase/settings";
+import { MonthStart } from "@/lib/finance/salaryPeriod";
 import { getCategories, createCategory, deleteCategory, updateCategory } from "@/lib/supabase/categories";
 import { TrashIcon, PlusIcon, PencilIcon, CheckIcon, XMarkIcon, ChevronDownIcon, ChevronRightIcon } from "@heroicons/react/24/outline";
 import { ColorPicker } from "@/components/ColorPicker";
@@ -51,6 +52,7 @@ export default function ParametersPage() {
   const { showSuccess, showError } = useToast();
   const router = useRouter();
   const [salaryNet, setSalaryNet] = useState("");
+  const [monthStart, setMonthStart] = useState<MonthStart>("salary");
   const [taxWithholdingRate, setTaxWithholdingRate] = useState("");
   const [selectedCurrency, setSelectedCurrency] = useState(currencies[0]);
   const [loading, setLoading] = useState(true);
@@ -84,6 +86,7 @@ export default function ParametersPage() {
         const settings = await getUserSettings(user.id);
         if (settings) {
           setSalaryNet(settings.salary_net.toString());
+          setMonthStart(await loadMonthStart(user.id));
           setTaxWithholdingRate(settings.tax_withholding_rate?.toString() || "");
           const currency = currencies.find(c => c.code === settings.currency) || currencies[0];
           setSelectedCurrency(currency);
@@ -601,6 +604,34 @@ export default function ParametersPage() {
                   </p>
                 </div>
               )}
+            </div>
+
+            <div>
+              <p className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Month starts on</p>
+              <div className="grid grid-cols-2 gap-2">
+                {([
+                  ["salary", "Salary date"],
+                  ["calendar", "First day"],
+                ] as const).map(([value, label]) => (
+                  <button
+                    key={value}
+                    type="button"
+                    onClick={() => {
+                      setMonthStart(value);
+                      if (!user) return;
+                      void saveMonthStart(user.id, value)
+                        .then(() => showSuccess(value === "salary" ? "Months start on the salary date" : "Months start on the first day"))
+                        .catch((error: unknown) => showError(error instanceof Error ? error.message : "Could not save the month start"));
+                    }}
+                    className={`rounded-lg px-3 py-2 text-sm font-medium ${monthStart === value ? "bg-flow-primary text-white" : "bg-gray-100 text-gray-800 dark:bg-white/10 dark:text-gray-100"}`}
+                  >
+                    {label}
+                  </button>
+                ))}
+              </div>
+              <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">
+                Salary date counts the days after payday in the new month. First day keeps the calendar month.
+              </p>
             </div>
 
             {/* Bouton de sauvegarde */}

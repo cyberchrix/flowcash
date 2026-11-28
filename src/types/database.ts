@@ -395,6 +395,7 @@ export interface Database {
           tax_withholding_rate?: number | null;
           currency: string;
           theme?: string;
+          month_start?: string;
           created_at: string;
           updated_at: string;
         };
@@ -405,6 +406,7 @@ export interface Database {
           tax_withholding_rate?: number | null;
           currency?: string;
           theme?: string;
+          month_start?: string;
           created_at?: string;
           updated_at?: string;
         };
@@ -415,6 +417,7 @@ export interface Database {
           tax_withholding_rate?: number | null;
           currency?: string;
           theme?: string;
+          month_start?: string;
           created_at?: string;
           updated_at?: string;
         };

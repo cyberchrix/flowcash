@@ -18,7 +18,8 @@ import { categorizeWithModel } from "@/lib/transactions/categorizeWithModel";
 import { bankParentIds, categoryRoot, incomeCategoryIds } from "@/lib/transactions/bankCategories";
 import { categoryDisplayName } from "@/lib/transactions/categoryNames";
 import { displayMerchant, isIncomeCategory } from "@/lib/transactions/suggestCategory";
-import { paydayByFundedMonth, salaryFetchStart, salaryPeriodMonth, transactionInPeriod } from "@/lib/finance/salaryPeriod";
+import { MonthStart, paydayByFundedMonth, salaryFetchStart, transactionInPeriod, transactionMonth } from "@/lib/finance/salaryPeriod";
+import { loadMonthStart } from "@/lib/supabase/settings";
 import { MonthFlow, monthFlowsFromTransactions, openingBalanceCents, openingHistoryStart, parseOpeningInput, salaryLeftCents as carriedSalaryLeft } from "@/lib/finance/openingBalance";
 import { deleteMonthOpening, getMonthOpenings, saveMonthOpening } from "@/lib/supabase/openings";
 import { budgetStatus, consumedPercent, fixedPlannedCents, PlannedCharge, proratedAllowance, statusLabel } from "@/lib/finance/budget";
@@ -68,6 +69,7 @@ export default function BudgetPage() {
   const [unit, setUnit] = useState<PeriodUnit>("month");
   const [anchor, setAnchor] = useState(() => formatISODate(new Date()));
   const [loading, setLoading] = useState(true);
+  const [monthStart, setMonthStart] = useState<MonthStart>("salary");
   const [shownKey, setShownKey] = useState("");
   const [managing, setManaging] = useState(false);
   const [drafts, setDrafts] = useState<Record<string, string>>({});
@@ -97,12 +99,14 @@ export default function BudgetPage() {
   const load = async () => {
     if (!user) return;
     const id = ++request.current;
-    const cacheKey = `${user.id}:${range.start}:${range.end}:today`;
+    const cacheKey = `${user.id}:${range.start}:${range.end}:${await loadMonthStart(user.id)}:today`;
     const cached = readBudgetCache<BudgetSnapshot>(cacheKey);
     if (cached) applySnapshot(cached, cacheKey);
     else setLoading(true);
     try {
       const today = formatISODate(new Date());
+      const monthStart = await loadMonthStart(user.id);
+      setMonthStart(monthStart);
       const [categoryRows, budgetRows, expenseRows, todaySource, openingRows] = await Promise.all([
         getCategories(user.id),
         getCategoryBudgets(user.id, currency),
@@ -147,11 +151,11 @@ export default function BudgetPage() {
             onceMonth: expense.expense_type === "fixed_once" ? `${expense.expense_date.slice(0, 7)}-01` : null,
           })),
         transactions: spendingRows.filter((transaction) => unit === "month"
-          ? salaryPeriodMonth(transaction.date, paydayByFundedMonth(spendingRows, salaryCategoryIds)) === range.start.slice(0, 7)
+          ? transactionMonth(transaction.date, paydayByFundedMonth(spendingRows, salaryCategoryIds), monthStart) === range.start.slice(0, 7)
           : transactionInPeriod(transaction, range, unit, salaryCategoryIds)),
         today: todaySource.map(toToday),
         openings: openingMap,
-        monthFlows: Object.fromEntries(monthFlowsFromTransactions(spendingRows, salaryCategoryIds, currency)),
+        monthFlows: Object.fromEntries(monthFlowsFromTransactions(spendingRows, salaryCategoryIds, currency, monthStart)),
       };
       if (id !== request.current) return;
       writeBudgetCache(cacheKey, snapshot);
@@ -174,9 +178,9 @@ export default function BudgetPage() {
           ...snapshot,
           categories: toCategoryRows(freshCategories),
           transactions: freshSpending.filter((transaction) => unit === "month"
-            ? salaryPeriodMonth(transaction.date, paydayByFundedMonth(freshSpending, freshSalaryIds)) === range.start.slice(0, 7)
+            ? transactionMonth(transaction.date, paydayByFundedMonth(freshSpending, freshSalaryIds), monthStart) === range.start.slice(0, 7)
             : transactionInPeriod(transaction, range, unit, freshSalaryIds)),
-          monthFlows: Object.fromEntries(monthFlowsFromTransactions(freshSpending, freshSalaryIds, currency)),
+          monthFlows: Object.fromEntries(monthFlowsFromTransactions(freshSpending, freshSalaryIds, currency, monthStart)),
           today: freshToday.map(toToday),
         };
         writeBudgetCache(cacheKey, fresh);
@@ -355,7 +359,7 @@ export default function BudgetPage() {
         <section className="grid grid-cols-[1fr_auto] items-center gap-x-3 gap-y-3 rounded-3xl border border-gray-200 bg-white px-4 py-3 dark:border-transparent dark:bg-white/5">
           {openingCents != null && (
             <>
-              <p className="text-xs font-semibold uppercase tracking-wide text-gray-500">Before payday</p>
+              <p className="text-xs font-semibold uppercase tracking-wide text-gray-500">{monthStart === "salary" ? "Before payday" : "From last month"}</p>
               {editingOpening ? (
                 <input
                   autoFocus

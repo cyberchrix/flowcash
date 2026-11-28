@@ -350,6 +350,7 @@ CREATE TRIGGER update_transactions_updated_at
 -- Fixed planned amounts live on expenses and expense_occurrences.
 ALTER TABLE transactions ADD COLUMN IF NOT EXISTS currency VARCHAR(3) NOT NULL DEFAULT 'EUR';
 ALTER TABLE user_settings ADD COLUMN IF NOT EXISTS week_starts_on SMALLINT NOT NULL DEFAULT 1 CHECK (week_starts_on IN (0, 1));
+ALTER TABLE user_settings ADD COLUMN IF NOT EXISTS month_start TEXT NOT NULL DEFAULT 'salary' CHECK (month_start IN ('salary', 'calendar'));
 ALTER TABLE user_settings ADD COLUMN IF NOT EXISTS timezone TEXT NOT NULL DEFAULT 'Europe/Paris';
 ALTER TABLE expenses ADD COLUMN IF NOT EXISTS expense_type TEXT NOT NULL DEFAULT 'fixed_recurring' CHECK (expense_type IN ('fixed_recurring', 'fixed_once', 'variable'));
 ALTER TABLE expenses ADD COLUMN IF NOT EXISTS match_mode TEXT NOT NULL DEFAULT 'none' CHECK (match_mode IN ('merchant', 'category', 'manual', 'none'));

@@ -25,7 +25,8 @@ import {
 import { categorizeTransaction } from "@/lib/transactions/categorize";
 import { categorizeWithModel } from "@/lib/transactions/categorizeWithModel";
 import { incomeCategoryIds } from "@/lib/transactions/bankCategories";
-import { monthPeriodBounds, paydayByFundedMonth, salaryPeriodMonth } from "@/lib/finance/salaryPeriod";
+import { MonthStart, monthPeriodBounds, paydayByFundedMonth, transactionMonth } from "@/lib/finance/salaryPeriod";
+import { loadMonthStart } from "@/lib/supabase/settings";
 import { categoryDisplayName } from "@/lib/transactions/categoryNames";
 import { CategoryPicker, PickerCategory } from "@/components/transactions/CategoryPicker";
 import { displayMerchant } from "@/lib/transactions/suggestCategory";
@@ -66,7 +67,13 @@ const KIND_LABEL: Record<TransactionKind, string> = {
   transfer: "Transfer",
 };
 
-function inFundedMonth(rows: TransactionListItem[], categories: { id: string; name: string; parent_id: string | null }[], month: string) {
+function inFundedMonth(
+  rows: TransactionListItem[],
+  categories: { id: string; name: string; parent_id: string | null }[],
+  month: string,
+  categoryId: string,
+  monthStart: MonthStart,
+) {
   const salaryIds = incomeCategoryIds(categories.map((category) => ({ id: category.id, name: category.name, parentId: category.parent_id })));
   const paydays = paydayByFundedMonth(rows.map((row) => ({
     date: row.transaction_date,
@@ -74,7 +81,13 @@ function inFundedMonth(rows: TransactionListItem[], categories: { id: string; na
     merchant: `${row.normalized_merchant} ${row.full_label}`,
     categoryId: row.category_id,
   })), salaryIds);
-  return rows.filter((row) => salaryPeriodMonth(row.transaction_date, paydays) === month);
+  const selected = new Set(categories.filter((category) => category.id === categoryId || category.parent_id === categoryId).map((category) => category.id));
+  return rows.filter((row) => {
+    if (transactionMonth(row.transaction_date, paydays, monthStart) !== month) return false;
+    if (!categoryId) return true;
+    if (categoryId === UNCATEGORIZED) return !row.category_id;
+    return row.category_id != null && selected.has(row.category_id);
+  });
 }
 
 function formatMonth(month: string) {
@@ -133,13 +146,14 @@ export function TransactionsView() {
       return;
     }
     try {
-      const bounds = month ? monthPeriodBounds(month) : null;
-      const transactionFilters = {
-        start: bounds?.start,
-        end: bounds?.end,
-        categoryId: categoryId && categoryId !== UNCATEGORIZED ? categoryId : undefined,
-        uncategorized: categoryId === UNCATEGORIZED,
-      };
+      const monthStart = await loadMonthStart(user.id);
+      const bounds = month ? monthPeriodBounds(month, monthStart) : null;
+      const transactionFilters = bounds
+        ? { start: bounds.start, end: bounds.end }
+        : {
+            categoryId: categoryId && categoryId !== UNCATEGORIZED ? categoryId : undefined,
+            uncategorized: categoryId === UNCATEGORIZED,
+          };
       const [categoryRows, transactionRows, ruleRows, missingCategory] = await Promise.all([
         getCategories(user.id),
         getTransactions(user.id, transactionFilters),
@@ -154,7 +168,7 @@ export function TransactionsView() {
         color: category.color,
         parentId: category.parent_id ?? null,
       })));
-      setTransactions(month ? inFundedMonth(transactionRows, categoryRows, month) : transactionRows);
+      setTransactions(month ? inFundedMonth(transactionRows, categoryRows, month, categoryId, monthStart) : transactionRows);
       setUncategorizedCount(missingCategory);
       setRules(ruleRows.map((rule) => ({
         pattern: rule.pattern,
@@ -174,7 +188,7 @@ export function TransactionsView() {
           getTransactions(user.id, transactionFilters),
           countUncategorizedTransactions(user.id),
         ]);
-        setTransactions(month ? inFundedMonth(freshRows, categoryRows, month) : freshRows);
+        setTransactions(month ? inFundedMonth(freshRows, categoryRows, month, categoryId, monthStart) : freshRows);
         setUncategorizedCount(freshMissing);
       }
     } catch (error) {

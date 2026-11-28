@@ -19,13 +19,22 @@ export function fundedMonth(date: string): string {
   return `${nextYear}-${String(nextMonth).padStart(2, "0")}`;
 }
 
-export function monthPeriodBounds(month: string) {
+export type MonthStart = "salary" | "calendar";
+
+export function monthPeriodBounds(month: string, start: MonthStart = "salary") {
   const [year, monthNumber] = month.split("-").map(Number);
   const lastDay = new Date(Date.UTC(year, monthNumber, 0)).getUTCDate();
+  const end = `${month}-${String(lastDay).padStart(2, "0")}`;
+  if (start === "calendar") return { start: `${month}-01`, end };
   return {
     start: salaryFetchStart({ start: `${month}-01`, end: `${month}-01` }, "month"),
-    end: `${month}-${String(lastDay).padStart(2, "0")}`,
+    end,
   };
+}
+
+export function transactionMonth(date: string, paydays: ReadonlyMap<string, string>, start: MonthStart): string {
+  if (start === "calendar") return date.slice(0, 7);
+  return salaryPeriodMonth(date, paydays);
 }
 
 export function salaryFetchStart(range: DateRange, unit: PeriodUnit): string {

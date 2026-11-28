@@ -1,4 +1,4 @@
-import { salaryFetchStart, fundedMonth, isSalaryIncome, paydayByFundedMonth, salaryPeriodMonth } from "./salaryPeriod";
+import { salaryFetchStart, fundedMonth, isSalaryIncome, paydayByFundedMonth, transactionMonth, MonthStart } from "./salaryPeriod";
 import { SpendingTransaction, totalsFor } from "./spending";
 
 export type MonthFlow = { incomeCents: number; netSpendCents: number };
@@ -86,12 +86,13 @@ export function monthFlowsFromTransactions(
   transactions: SpendingTransaction[],
   salaryCategoryIds: ReadonlySet<string>,
   currency: string,
+  monthStart: MonthStart = "salary",
 ) {
   const paydays = paydayByFundedMonth(transactions, salaryCategoryIds);
   const grouped = new Map<string, SpendingTransaction[]>();
   for (const transaction of transactions) {
     if (transaction.currency !== currency) continue;
-    const key = salaryPeriodMonth(transaction.date, paydays);
+    const key = transactionMonth(transaction.date, paydays, monthStart);
     const rows = grouped.get(key) ?? [];
     rows.push(transaction);
     grouped.set(key, rows);

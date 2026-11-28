@@ -44,6 +44,30 @@ export async function createUserSettings(settings: UserSettingsInsert) {
   return data;
 }
 
+export async function saveMonthStart(userId: string, monthStart: "salary" | "calendar") {
+  ensureSupabaseConfigured();
+  if (typeof window !== "undefined") window.localStorage.setItem("availo.month-start", monthStart);
+  const { error } = await supabase.from("user_settings").update({ month_start: monthStart }).eq("user_id", userId);
+  if (error && !/month_start|schema cache|column/i.test(error.message)) {
+    throw new Error(`Error saving month start: ${error.message}`);
+  }
+}
+
+export function storedMonthStart(): "salary" | "calendar" {
+  if (typeof window === "undefined") return "salary";
+  return window.localStorage.getItem("availo.month-start") === "calendar" ? "calendar" : "salary";
+}
+
+export async function loadMonthStart(userId: string): Promise<"salary" | "calendar"> {
+  const settings = await getUserSettings(userId);
+  const saved = (settings as { month_start?: string } | null)?.month_start;
+  if (saved === "salary" || saved === "calendar") {
+    if (typeof window !== "undefined") window.localStorage.setItem("availo.month-start", saved);
+    return saved;
+  }
+  return storedMonthStart();
+}
+
 export async function updateUserSettings(
   userId: string,
   settings: UserSettingsUpdate
