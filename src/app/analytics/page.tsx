@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useRef, useState } from "react";
+import { createPortal } from "react-dom";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { Header } from "@/components/Header";
@@ -149,11 +150,12 @@ export default function AnalyticsPage() {
     range,
   );
   const planned = fixedPlannedCents(charges, range);
+  const plannedTotal = allowance.cents + planned.cents;
   const openingMap = useMemo(() => new Map(Object.entries(openings)), [openings]);
   const beforePayday = openingBalanceCents(monthKey, flows, openingMap);
   const projectedLeft = projectedSalaryLeftCents(
     salaryLeftCents(monthKey, flows, openingMap),
-    allowance.cents + planned.cents,
+    plannedTotal,
     totals.netSpend,
   );
   const projectedOver = projectedLeft < 0;
@@ -253,8 +255,20 @@ export default function AnalyticsPage() {
             <p className="text-[11px] uppercase text-gray-500">Income</p>
             <p className="text-sm font-semibold text-[#34D399]"><Odometer key={monthKey} value={`+${formatCents(totals.income, currency)}`} /></p>
           </button>
+          <article className="rounded-2xl border border-gray-200 bg-white px-3 py-3 dark:border-transparent dark:bg-white/5">
+            <p className="text-[11px] uppercase text-gray-500">Spending</p>
+            <p className="flex flex-wrap items-baseline gap-x-1 text-sm font-semibold">
+              <Odometer
+                key={`${monthKey}-spending`}
+                className={totals.netSpend === 0 ? "text-gray-900 dark:text-white" : "text-red-400"}
+                value={totals.netSpend === 0 ? formatCents(0, currency) : `-${formatCents(totals.netSpend, currency)}`}
+              />
+              <span className="text-xs font-medium text-gray-400">
+                / <Odometer key={`${monthKey}-planned`} value={formatCents(plannedTotal, currency)} />
+              </span>
+            </p>
+          </article>
           {[
-            ["Spending", totals.netSpend === 0 ? formatCents(0, currency) : `-${formatCents(totals.netSpend, currency)}`, totals.netSpend === 0 ? "text-gray-900 dark:text-white" : "text-red-400"],
             ["Cash flow", formatCents(totals.cashFlow, currency), "text-gray-900 dark:text-white"],
             ["Transactions", String(totals.count), "text-gray-900 dark:text-white"],
             ["Daily average", formatCents(Math.round(totals.netSpend / days), currency), "text-gray-900 dark:text-white"],
@@ -273,12 +287,12 @@ export default function AnalyticsPage() {
           </article>
         </section>
 
-        {balanceOpen && (
-          <div className="fixed inset-0 z-[80] flex items-end justify-center bg-black/40 px-4 pb-4 sm:items-center" onClick={() => setBalanceOpen(false)}>
+        {balanceOpen && createPortal(
+          <div className="fixed inset-0 z-[80] flex items-center justify-center overflow-y-auto bg-black/40 px-4 py-[max(1rem,env(safe-area-inset-top))] pb-[max(1rem,env(safe-area-inset-bottom))]" onClick={() => setBalanceOpen(false)}>
             <form
               role="dialog"
               aria-label="Balance at payday"
-              className="w-full max-w-md rounded-3xl bg-white p-4 dark:bg-[#18191E]"
+              className="my-auto max-h-full w-full max-w-md overflow-y-auto rounded-3xl bg-white p-4 dark:bg-[#18191E]"
               onClick={(event) => event.stopPropagation()}
               onSubmit={(event) => {
                 event.preventDefault();
@@ -327,7 +341,8 @@ export default function AnalyticsPage() {
                 <button type="submit" disabled={savingBalance} className="flex-1 rounded-xl bg-flow-primary px-3 py-2 text-sm font-medium text-white disabled:opacity-50">Save</button>
               </div>
             </form>
-          </div>
+          </div>,
+          document.body,
         )}
 
         <section className="rounded-3xl border border-gray-200 bg-white px-5 py-4 dark:border-transparent dark:bg-white/5">
