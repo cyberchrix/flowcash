@@ -5,6 +5,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { Header } from "@/components/Header";
 import { BottomNav } from "@/components/BottomNav";
+import { Odometer } from "@/components/finance/Odometer";
 import { formatCents, PeriodControls } from "@/components/finance/PeriodControls";
 import { useAuth } from "@/hooks/useAuth";
 import { useToast } from "@/contexts/ToastContext";
@@ -250,7 +251,7 @@ export default function AnalyticsPage() {
             className="rounded-2xl border border-gray-200 bg-white px-3 py-3 text-left dark:border-transparent dark:bg-white/5"
           >
             <p className="text-[11px] uppercase text-gray-500">Income</p>
-            <p className="text-sm font-semibold tabular-nums text-[#34D399]">+{formatCents(totals.income, currency)}</p>
+            <p className="text-sm font-semibold text-[#34D399]"><Odometer key={monthKey} value={`+${formatCents(totals.income, currency)}`} /></p>
           </button>
           {[
             ["Spending", totals.netSpend === 0 ? formatCents(0, currency) : `-${formatCents(totals.netSpend, currency)}`, totals.netSpend === 0 ? "text-gray-900 dark:text-white" : "text-red-400"],
@@ -261,13 +262,13 @@ export default function AnalyticsPage() {
           ].map(([label, value, color]) => (
             <article key={label} className="rounded-2xl border border-gray-200 bg-white px-3 py-3 dark:border-transparent dark:bg-white/5">
               <p className="text-[11px] uppercase text-gray-500">{label}</p>
-              <p className={`text-sm font-semibold tabular-nums ${color}`}>{value}</p>
+              <p className={`text-sm font-semibold ${color}`}><Odometer key={`${monthKey}-${label}`} value={value} /></p>
             </article>
           ))}
           <article className="col-span-2 rounded-2xl border border-gray-200 bg-white px-3 py-3 text-center dark:border-transparent dark:bg-white/5">
             <p className="text-[11px] uppercase text-gray-500">{projectedOver ? "Projected over" : "Projected left"}</p>
-            <p className={`text-sm font-semibold tabular-nums ${projectedOver ? "text-red-400" : "text-[#34D399]"}`}>
-              {projectedOver ? "-" : "+"}{formatCents(Math.abs(projectedLeft), currency)}
+            <p className={`text-sm font-semibold ${projectedOver ? "text-red-400" : "text-[#34D399]"}`}>
+              <Odometer key={`${monthKey}-projected`} value={`${projectedOver ? "-" : "+"}${formatCents(Math.abs(projectedLeft), currency)}`} />
             </p>
           </article>
         </section>
@@ -333,7 +334,7 @@ export default function AnalyticsPage() {
           <div className="relative mx-auto h-48 w-48 rounded-full" style={{ background: gradient }}>
             <div className="absolute inset-8 flex flex-col items-center justify-center rounded-full bg-white text-center dark:bg-[#18191E]">
               <p className="text-[11px] uppercase text-gray-500">Total spending</p>
-              <p className="text-sm font-bold tabular-nums text-gray-900 dark:text-white">{formatCents(totals.netSpend, currency)}</p>
+              <p className="text-sm font-bold text-gray-900 dark:text-white"><Odometer key={`${monthKey}-total`} value={formatCents(totals.netSpend, currency)} /></p>
             </div>
           </div>
           <div className="mt-4 space-y-2">
