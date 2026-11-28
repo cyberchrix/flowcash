@@ -18,7 +18,7 @@ import { categorizeWithModel } from "@/lib/transactions/categorizeWithModel";
 import { bankParentIds, categoryRoot, incomeCategoryIds } from "@/lib/transactions/bankCategories";
 import { categoryDisplayName } from "@/lib/transactions/categoryNames";
 import { displayMerchant, isIncomeCategory } from "@/lib/transactions/suggestCategory";
-import { salaryFetchStart, transactionInPeriod } from "@/lib/finance/salaryPeriod";
+import { paydayByFundedMonth, salaryFetchStart, salaryPeriodMonth, transactionInPeriod } from "@/lib/finance/salaryPeriod";
 import { MonthFlow, monthFlowsFromTransactions, openingBalanceCents, openingHistoryStart, parseOpeningInput, salaryLeftCents as carriedSalaryLeft } from "@/lib/finance/openingBalance";
 import { deleteMonthOpening, getMonthOpenings, saveMonthOpening } from "@/lib/supabase/openings";
 import { budgetStatus, consumedPercent, fixedPlannedCents, PlannedCharge, proratedAllowance, statusLabel } from "@/lib/finance/budget";
@@ -146,7 +146,9 @@ export default function BudgetPage() {
             day: getDayOfMonth(expense.expense_date),
             onceMonth: expense.expense_type === "fixed_once" ? `${expense.expense_date.slice(0, 7)}-01` : null,
           })),
-        transactions: spendingRows.filter((transaction) => transactionInPeriod(transaction, range, unit, salaryCategoryIds)),
+        transactions: spendingRows.filter((transaction) => unit === "month"
+          ? salaryPeriodMonth(transaction.date, paydayByFundedMonth(spendingRows, salaryCategoryIds)) === range.start.slice(0, 7)
+          : transactionInPeriod(transaction, range, unit, salaryCategoryIds)),
         today: todaySource.map(toToday),
         openings: openingMap,
         monthFlows: Object.fromEntries(monthFlowsFromTransactions(spendingRows, salaryCategoryIds, currency)),
@@ -171,7 +173,9 @@ export default function BudgetPage() {
         const fresh = {
           ...snapshot,
           categories: toCategoryRows(freshCategories),
-          transactions: freshSpending.filter((transaction) => transactionInPeriod(transaction, range, unit, freshSalaryIds)),
+          transactions: freshSpending.filter((transaction) => unit === "month"
+            ? salaryPeriodMonth(transaction.date, paydayByFundedMonth(freshSpending, freshSalaryIds)) === range.start.slice(0, 7)
+            : transactionInPeriod(transaction, range, unit, freshSalaryIds)),
           monthFlows: Object.fromEntries(monthFlowsFromTransactions(freshSpending, freshSalaryIds, currency)),
           today: freshToday.map(toToday),
         };
@@ -351,12 +355,12 @@ export default function BudgetPage() {
         <section className="grid grid-cols-[1fr_auto] items-center gap-x-3 gap-y-3 rounded-3xl border border-gray-200 bg-white px-4 py-3 dark:border-transparent dark:bg-white/5">
           {openingCents != null && (
             <>
-              <p className="text-xs font-semibold uppercase tracking-wide text-gray-500">From last month</p>
+              <p className="text-xs font-semibold uppercase tracking-wide text-gray-500">Before payday</p>
               {editingOpening ? (
                 <input
                   autoFocus
                   inputMode="decimal"
-                  aria-label="From last month"
+                  aria-label="Before payday"
                   value={openingDraft}
                   onChange={(event) => setOpeningDraft(event.target.value)}
                   onBlur={(event) => void commitOpening(event.currentTarget.value)}

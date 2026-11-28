@@ -49,14 +49,19 @@ function nextMonthKey(month: string): string {
 }
 
 /** Current month minus the average monthly spend since the first expense. Months with no spend count as zero. */
-export function categoryAverageDelta(history: SpendingTransaction[], currency: string, currentMonth: string): Map<string, number> {
+export function categoryAverageDelta(
+  history: SpendingTransaction[],
+  currency: string,
+  currentMonth: string,
+  monthOf: (date: string) => string = (date) => date.slice(0, 7),
+): Map<string, number> {
   const byMonth = new Map<string, Map<string, number>>();
   let first: string | null = null;
   for (const transaction of history) {
     if (transaction.currency !== currency) continue;
     const spend = spendingCents(transaction);
     if (spend === 0) continue;
-    const month = transaction.date.slice(0, 7);
+    const month = monthOf(transaction.date);
     const key = transaction.categoryId ?? "none";
     const categories = byMonth.get(month) ?? new Map<string, number>();
     categories.set(key, (categories.get(key) ?? 0) + spend);

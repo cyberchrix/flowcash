@@ -96,6 +96,15 @@ describe("opening balance", () => {
     ], salaryIds, "EUR");
     expect(flows.get("2026-11")).toEqual({ incomeCents: 100, netSpendCents: 100 });
     expect(flows.get("2026-12")).toEqual({ incomeCents: 100, netSpendCents: 0 });
+
+    const aroundPayday = monthFlowsFromTransactions([
+      pay("2026-10-28"),
+      pay("2026-11-25", "expense"),
+      pay("2026-11-26", "expense"),
+      pay("2026-11-26"),
+    ], salaryIds, "EUR");
+    expect(aroundPayday.get("2026-11")).toEqual({ incomeCents: 100, netSpendCents: 100 });
+    expect(aroundPayday.get("2026-12")).toEqual({ incomeCents: 100, netSpendCents: 100 });
   });
 
   it("parses a corrected opening and treats a blank value as automatic", () => {

@@ -4,7 +4,7 @@ import { percentChange } from "./insights";
 import { projectedSalaryLeftCents, spendingPace } from "./pace";
 import { daysInMonth, isLeapYear, weekRange } from "./period";
 import { allocationFits, expenseStatus, suggestLinks } from "./reconcile";
-import { fundedMonth, salaryFetchStart, transactionInPeriod } from "./salaryPeriod";
+import { fundedMonth, monthPeriodBounds, paydayByFundedMonth, salaryFetchStart, salaryPeriodMonth, transactionInPeriod } from "./salaryPeriod";
 import { categoryAverageDelta, spendingCents, totalsFor } from "./spending";
 import { SpendingTransaction } from "./spending";
 
@@ -103,6 +103,10 @@ describe("salary period", () => {
     expect(transactionInPeriod(pay("2026-10-28", "expense"), november, "month", salaryIds)).toBe(false);
     expect(transactionInPeriod(pay("2026-11-26"), { start: "2026-11-23", end: "2026-11-29" }, "week", salaryIds)).toBe(false);
     expect(salaryFetchStart(november, "month")).toBe("2026-10-25");
+    expect(monthPeriodBounds("2026-12")).toEqual({ start: "2026-11-25", end: "2026-12-31" });
+    const paydays = paydayByFundedMonth([pay("2026-11-26"), pay("2026-11-25", "expense")], salaryIds);
+    expect(salaryPeriodMonth("2026-11-26", paydays)).toBe("2026-12");
+    expect(salaryPeriodMonth("2026-11-25", paydays)).toBe("2026-11");
   });
 });
 

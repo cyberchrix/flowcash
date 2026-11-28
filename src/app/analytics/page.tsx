@@ -7,19 +7,21 @@ import { Header } from "@/components/Header";
 import { BottomNav } from "@/components/BottomNav";
 import { formatCents, PeriodControls } from "@/components/finance/PeriodControls";
 import { useAuth } from "@/hooks/useAuth";
+import { useToast } from "@/contexts/ToastContext";
 import { getDayOfMonth } from "@/lib/date";
 import { getCategories } from "@/lib/supabase/categories";
 import { getCategoryBudgets } from "@/lib/supabase/budgets";
 import { getExpenses } from "@/lib/supabase/expenses";
-import { getMonthOpenings } from "@/lib/supabase/openings";
+import { deleteMonthOpening, getMonthOpenings, saveMonthOpening } from "@/lib/supabase/openings";
 import { ensureTransactionSync, getTransactions } from "@/lib/supabase/transactions";
 import { categorizeWithModel } from "@/lib/transactions/categorizeWithModel";
 import { fixedPlannedCents, PlannedCharge, proratedAllowance } from "@/lib/finance/budget";
 import { percentChange } from "@/lib/finance/insights";
-import { monthFlowsFromTransactions, salaryLeftCents } from "@/lib/finance/openingBalance";
+import { invalidateBudgetCache } from "@/lib/finance/budgetCache";
+import { monthFlowsFromTransactions, openingBalanceCents, parseOpeningInput, salaryLeftCents } from "@/lib/finance/openingBalance";
 import { projectedSalaryLeftCents } from "@/lib/finance/pace";
-import { formatISODate, formatPeriodLabel, inclusiveDays, PeriodUnit, rangeFor, shiftAnchor } from "@/lib/finance/period";
-import { transactionInPeriod, salaryFetchStart } from "@/lib/finance/salaryPeriod";
+import { formatISODate, formatPeriodLabel, inclusiveDays, PeriodUnit, rangeFor, shiftAnchor, shiftDate } from "@/lib/finance/period";
+import { paydayByFundedMonth, salaryFetchStart, salaryPeriodMonth } from "@/lib/finance/salaryPeriod";
 import { categoryAverageDelta, spendByCategory, spendByDay, SpendingTransaction, totalsFor } from "@/lib/finance/spending";
 import { bankParentIds, incomeCategoryIds } from "@/lib/transactions/bankCategories";
 import { categoryDisplayName } from "@/lib/transactions/categoryNames";
@@ -30,12 +32,16 @@ type CategoryRow = { id: string; name: string; nameEn: string | null; color: str
 
 export default function AnalyticsPage() {
   const { user, loading: authLoading } = useAuth();
+  const { showError } = useToast();
   const router = useRouter();
   const [categories, setCategories] = useState<CategoryRow[]>([]);
   const [history, setHistory] = useState<SpendingTransaction[]>([]);
   const [budgets, setBudgets] = useState<Awaited<ReturnType<typeof getCategoryBudgets>>>([]);
   const [charges, setCharges] = useState<PlannedCharge[]>([]);
   const [openings, setOpenings] = useState<Record<string, number>>({});
+  const [balanceOpen, setBalanceOpen] = useState(false);
+  const [balanceDraft, setBalanceDraft] = useState("");
+  const [savingBalance, setSavingBalance] = useState(false);
   const unit: PeriodUnit = "month";
   const [anchor, setAnchor] = useState(() => formatISODate(new Date()));
   const [loading, setLoading] = useState(true);
@@ -108,11 +114,16 @@ export default function AnalyticsPage() {
     () => incomeCategoryIds(categories),
     [categories]
   );
-  const transactions = history.filter((row) => transactionInPeriod(row, range, unit, salaryCategoryIds));
-  const previous = history.filter((row) => transactionInPeriod(row, previousRange, unit, salaryCategoryIds));
+  const paydays = useMemo(
+    () => paydayByFundedMonth(history, salaryCategoryIds),
+    [history, salaryCategoryIds],
+  );
+  const monthKey = range.start.slice(0, 7);
+  const previousMonthKey = previousRange.start.slice(0, 7);
+  const transactions = history.filter((row) => salaryPeriodMonth(row.date, paydays) === monthKey);
+  const previous = history.filter((row) => salaryPeriodMonth(row.date, paydays) === previousMonthKey);
   const totals = totalsFor(transactions, currency);
   const previousTotals = totalsFor(previous, currency);
-  const monthKey = range.start.slice(0, 7);
   const flows = useMemo(
     () => monthFlowsFromTransactions(history, salaryCategoryIds, currency),
     [history, salaryCategoryIds],
@@ -133,8 +144,10 @@ export default function AnalyticsPage() {
     range,
   );
   const planned = fixedPlannedCents(charges, range);
+  const openingMap = useMemo(() => new Map(Object.entries(openings)), [openings]);
+  const beforePayday = openingBalanceCents(monthKey, flows, openingMap);
   const projectedLeft = projectedSalaryLeftCents(
-    salaryLeftCents(monthKey, flows, new Map(Object.entries(openings))),
+    salaryLeftCents(monthKey, flows, openingMap),
     allowance.cents + planned.cents,
     totals.netSpend,
   );
@@ -142,8 +155,8 @@ export default function AnalyticsPage() {
   const change = percentChange(totals.netSpend, previousTotals.netSpend);
   const byCategory = spendByCategory(transactions, currency);
   const averageDeltas = useMemo(
-    () => categoryAverageDelta(history, currency, monthKey),
-    [history, monthKey],
+    () => categoryAverageDelta(history, currency, monthKey, (date) => salaryPeriodMonth(date, paydays)),
+    [history, monthKey, paydays],
   );
   const slices = [...byCategory.entries()]
     .map(([categoryId, amount]) => ({
@@ -183,7 +196,11 @@ export default function AnalyticsPage() {
   }
   if (!user) return null;
 
-  const days = Math.max(inclusiveDays(range.start, range.end), 1);
+  const payday = paydays.get(monthKey) ?? range.start;
+  const nextPayday = [...paydays.values()].filter((date) => date > payday).sort()[0];
+  const periodEnd = nextPayday ? shiftDate(nextPayday, -1) : range.end;
+  const today = formatISODate(new Date());
+  const days = Math.max(inclusiveDays(payday, periodEnd < today ? periodEnd : today), 1);
 
   return (
     <div className="mx-auto flex h-dvh max-w-md flex-col overflow-hidden bg-flowBg px-4 dark:bg-transparent">
@@ -201,8 +218,18 @@ export default function AnalyticsPage() {
         />
 
         <section className="grid grid-cols-2 gap-2">
+          <button
+            type="button"
+            onClick={() => {
+              setBalanceDraft(`${beforePayday < 0 ? "-" : ""}${(Math.abs(beforePayday) / 100).toFixed(2).replace(".", ",")}`);
+              setBalanceOpen(true);
+            }}
+            className="rounded-2xl border border-gray-200 bg-white px-3 py-3 text-left dark:border-transparent dark:bg-white/5"
+          >
+            <p className="text-[11px] uppercase text-gray-500">Income</p>
+            <p className="text-sm font-semibold tabular-nums text-[#34D399]">+{formatCents(totals.income, currency)}</p>
+          </button>
           {[
-            ["Income", `+${formatCents(totals.income, currency)}`, "text-[#34D399]"],
             ["Spending", totals.netSpend === 0 ? formatCents(0, currency) : `-${formatCents(totals.netSpend, currency)}`, totals.netSpend === 0 ? "text-gray-900 dark:text-white" : "text-red-400"],
             ["Cash flow", formatCents(totals.cashFlow, currency), "text-gray-900 dark:text-white"],
             ["Transactions", String(totals.count), "text-gray-900 dark:text-white"],
@@ -221,6 +248,63 @@ export default function AnalyticsPage() {
             </p>
           </article>
         </section>
+
+        {balanceOpen && (
+          <div className="fixed inset-0 z-[80] flex items-end justify-center bg-black/40 px-4 pb-4 sm:items-center" onClick={() => setBalanceOpen(false)}>
+            <form
+              role="dialog"
+              aria-label="Balance at payday"
+              className="w-full max-w-md rounded-3xl bg-white p-4 dark:bg-[#18191E]"
+              onClick={(event) => event.stopPropagation()}
+              onSubmit={(event) => {
+                event.preventDefault();
+                void (async () => {
+                  setSavingBalance(true);
+                  try {
+                    const cents = parseOpeningInput(balanceDraft);
+                    const saved = openings[monthKey];
+                    if (cents == null) {
+                      if (saved != null) await deleteMonthOpening(user.id, monthKey);
+                    } else if (cents !== saved && !(saved == null && cents === beforePayday)) {
+                      await saveMonthOpening(user.id, monthKey, cents);
+                    } else {
+                      setBalanceOpen(false);
+                      return;
+                    }
+                    setOpenings((current) => {
+                      const next = { ...current };
+                      if (cents == null) delete next[monthKey];
+                      else next[monthKey] = cents;
+                      return next;
+                    });
+                    invalidateBudgetCache();
+                    setBalanceOpen(false);
+                  } catch (error) {
+                    showError(error instanceof Error ? error.message : "Could not save the balance");
+                  } finally {
+                    setSavingBalance(false);
+                  }
+                })();
+              }}
+            >
+              <p className="text-sm font-semibold text-gray-900 dark:text-white">Balance at payday</p>
+              <p className="mt-1 text-xs text-gray-500">The account balance when this salary arrived. Use a minus if you were overdrawn. Leave empty to use the calculated balance.</p>
+              <input
+                autoFocus
+                inputMode="decimal"
+                aria-label="Balance at payday"
+                value={balanceDraft}
+                onChange={(event) => setBalanceDraft(event.target.value)}
+                placeholder="-200,50"
+                className="mt-3 w-full rounded-xl border border-gray-300 bg-white px-3 py-2 text-sm text-gray-900 dark:border-gray-600 dark:bg-gray-700 dark:text-gray-100"
+              />
+              <div className="mt-4 flex gap-2">
+                <button type="button" onClick={() => setBalanceOpen(false)} className="flex-1 rounded-xl bg-gray-100 px-3 py-2 text-sm font-medium text-gray-800 dark:bg-white/10 dark:text-gray-100">Cancel</button>
+                <button type="submit" disabled={savingBalance} className="flex-1 rounded-xl bg-flow-primary px-3 py-2 text-sm font-medium text-white disabled:opacity-50">Save</button>
+              </div>
+            </form>
+          </div>
+        )}
 
         <section className="rounded-3xl border border-gray-200 bg-white px-5 py-4 dark:border-transparent dark:bg-white/5">
           <div className="relative mx-auto h-48 w-48 rounded-full" style={{ background: gradient }}>
@@ -257,12 +341,10 @@ export default function AnalyticsPage() {
           <h2 className="text-sm font-semibold text-gray-900 dark:text-white">Monthly spending</h2>
           <div className="mt-4 flex h-28 items-end gap-2">
             {months.map((monthAnchor) => {
-              const monthRange = rangeFor("month", monthAnchor, 1);
-              const inMonth = history.filter((row) => row.date >= monthRange.start && row.date <= monthRange.end);
+              const inMonth = history.filter((row) => salaryPeriodMonth(row.date, paydays) === monthAnchor.slice(0, 7));
               const amount = totalsFor(inMonth, currency).netSpend;
               const max = Math.max(...months.map((item) => {
-                const itemRange = rangeFor("month", item, 1);
-                return totalsFor(history.filter((row) => row.date >= itemRange.start && row.date <= itemRange.end), currency).netSpend;
+                return totalsFor(history.filter((row) => salaryPeriodMonth(row.date, paydays) === item.slice(0, 7)), currency).netSpend;
               }), 1);
               const selected = monthAnchor.slice(0, 7) === anchor.slice(0, 7);
               return (

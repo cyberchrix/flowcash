@@ -24,6 +24,8 @@ import {
 } from "@/lib/supabase/transactions";
 import { categorizeTransaction } from "@/lib/transactions/categorize";
 import { categorizeWithModel } from "@/lib/transactions/categorizeWithModel";
+import { incomeCategoryIds } from "@/lib/transactions/bankCategories";
+import { monthPeriodBounds, paydayByFundedMonth, salaryPeriodMonth } from "@/lib/finance/salaryPeriod";
 import { categoryDisplayName } from "@/lib/transactions/categoryNames";
 import { CategoryPicker, PickerCategory } from "@/components/transactions/CategoryPicker";
 import { displayMerchant } from "@/lib/transactions/suggestCategory";
@@ -63,6 +65,17 @@ const KIND_LABEL: Record<TransactionKind, string> = {
   income: "Income",
   transfer: "Transfer",
 };
+
+function inFundedMonth(rows: TransactionListItem[], categories: { id: string; name: string; parent_id: string | null }[], month: string) {
+  const salaryIds = incomeCategoryIds(categories.map((category) => ({ id: category.id, name: category.name, parentId: category.parent_id })));
+  const paydays = paydayByFundedMonth(rows.map((row) => ({
+    date: row.transaction_date,
+    kind: row.kind,
+    merchant: `${row.normalized_merchant} ${row.full_label}`,
+    categoryId: row.category_id,
+  })), salaryIds);
+  return rows.filter((row) => salaryPeriodMonth(row.transaction_date, paydays) === month);
+}
 
 function formatMonth(month: string) {
   const [year, monthNumber] = month.split("-").map(Number);
@@ -120,8 +133,10 @@ export function TransactionsView() {
       return;
     }
     try {
+      const bounds = month ? monthPeriodBounds(month) : null;
       const transactionFilters = {
-        month: month || undefined,
+        start: bounds?.start,
+        end: bounds?.end,
         categoryId: categoryId && categoryId !== UNCATEGORIZED ? categoryId : undefined,
         uncategorized: categoryId === UNCATEGORIZED,
       };
@@ -139,7 +154,7 @@ export function TransactionsView() {
         color: category.color,
         parentId: category.parent_id ?? null,
       })));
-      setTransactions(transactionRows);
+      setTransactions(month ? inFundedMonth(transactionRows, categoryRows, month) : transactionRows);
       setUncategorizedCount(missingCategory);
       setRules(ruleRows.map((rule) => ({
         pattern: rule.pattern,
@@ -159,7 +174,7 @@ export function TransactionsView() {
           getTransactions(user.id, transactionFilters),
           countUncategorizedTransactions(user.id),
         ]);
-        setTransactions(freshRows);
+        setTransactions(month ? inFundedMonth(freshRows, categoryRows, month) : freshRows);
         setUncategorizedCount(freshMissing);
       }
     } catch (error) {
@@ -679,8 +694,10 @@ export function TransactionsView() {
             </p>
           ) : (
             visibleTransactions.map((transaction, index) => {
-              const monthKey = transaction.transaction_date.slice(0, 7);
-              const previousMonth = visibleTransactions[index - 1]?.transaction_date.slice(0, 7);
+              const monthKey = month || transaction.transaction_date.slice(0, 7);
+              const previousMonth = month
+                ? (index === 0 ? "" : month)
+                : visibleTransactions[index - 1]?.transaction_date.slice(0, 7);
               return (
               <div key={transaction.id} className="space-y-3">
               {monthKey !== previousMonth && (
