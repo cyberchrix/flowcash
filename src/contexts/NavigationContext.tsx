@@ -17,8 +17,8 @@ const NavigationContext = createContext<NavigationContextType>({
 
 const routeOrder: Record<string, number> = {
   "/": 0,
-  "/budget": 0,
-  "/analytics": 1,
+  "/analytics": 0,
+  "/budget": 1,
   "/transactions": 2,
   "/overview": 3,
   "/calendar": 3,

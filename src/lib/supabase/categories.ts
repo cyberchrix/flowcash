@@ -6,16 +6,29 @@ type Category = Database["public"]["Tables"]["categories"]["Row"];
 type CategoryInsert = Database["public"]["Tables"]["categories"]["Insert"];
 type CategoryUpdate = Database["public"]["Tables"]["categories"]["Update"];
 
-const APP_CATEGORIES = [
-  { name: "Car insurance", color: "#0EA5E9" },
-  { name: "Cash withdrawals", color: "#64748B" },
-  { name: "Bank fees", color: "#94A3B8" },
-  { name: "Veterinary", color: "#14B8A6" },
-  { name: "Child support", color: "#FB923C" },
-  { name: "Travel", color: "#38BDF8" },
-  { name: "Leisure", color: "#818CF8" },
-  { name: "Gifts", color: "#F9A8D4" },
-];
+const CATEGORY_ALIASES: Record<string, string> = {
+  "child support": "Pensions",
+  "convenience store": "Vie Quotidienne - Autres",
+  credit: "Crédit conso",
+  other: "Autres dépenses",
+  salary: "Salaire fixe",
+  shopping: "Autres dépenses",
+  transport: "Voyages et Transports",
+  transfers: "Virements émis",
+  veterinary: "Animaux domestiques",
+};
+
+export function findCategoryByName<T extends { name: string; name_en?: string | null }>(categories: T[], name: string): T | null {
+  const needle = name.trim().toLowerCase();
+  const alias = CATEGORY_ALIASES[needle];
+  if (alias) {
+    const aliased = categories.find((category) => category.name.toLowerCase() === alias.toLowerCase());
+    if (aliased) return aliased;
+  }
+  const byEnglish = categories.filter((category) => (category.name_en ?? "").toLowerCase() === needle);
+  if (byEnglish.length === 1) return byEnglish[0];
+  return categories.find((category) => category.name.toLowerCase() === needle) ?? null;
+}
 
 export async function getCategories(userId: string) {
   ensureSupabaseConfigured();
@@ -30,14 +43,6 @@ export async function getCategories(userId: string) {
   }
 
   const categories = data ?? [];
-  for (const item of APP_CATEGORIES) {
-    if (categories.some((category) => category.name.toLowerCase() === item.name.toLowerCase())) continue;
-    try {
-      categories.push(await createCategory({ user_id: userId, name: item.name, color: item.color }));
-    } catch (error) {
-      if (!(error instanceof Error) || !/duplicate|unique/i.test(error.message)) throw error;
-    }
-  }
 
   await ensureCategoryTranslations(categories);
   return categories;

@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useState, useEffect } from "react";
-import { HomeIcon, BanknotesIcon, ChartBarIcon, ChartPieIcon, EllipsisHorizontalIcon, Cog6ToothIcon, CalendarDaysIcon, ClockIcon } from "@heroicons/react/24/outline";
+import { HomeIcon, BanknotesIcon, ChartBarIcon, ChartPieIcon, EllipsisHorizontalIcon, Cog6ToothIcon } from "@heroicons/react/24/outline";
 
 interface NavItemProps {
   href: string;
@@ -33,8 +33,7 @@ function NavItem({ href, icon, label, active }: NavItemProps) {
 
 export function BottomNav() {
   const pathname = usePathname();
-  const isBudgetActive = pathname === "/" || pathname === "/budget";
-  const isAnalyticsActive = pathname === "/analytics";
+  const isAnalyticsActive = pathname === "/" || pathname === "/analytics";
   const isTransactionsActive = pathname === "/transactions";
   const moreRoutes = ["/overview", "/expenses", "/history", "/calendar", "/parameters"];
   const isMoreActive = moreRoutes.includes(pathname);
@@ -74,18 +73,9 @@ export function BottomNav() {
   return (
     <nav className="z-50 flex shrink-0 justify-center bg-[#F5F7FA] pb-[max(0.75rem,env(safe-area-inset-bottom))] pt-2 dark:bg-[#191A1F]">
       <div className="w-full max-w-md mx-auto px-5">
-        <div className={`grid w-full grid-cols-4 items-start rounded-3xl border border-gray-200 bg-white px-2 py-4 transition-all duration-300 dark:border-transparent dark:bg-[#262A35] ${
+        <div className={`grid w-full grid-cols-3 items-start rounded-3xl border border-gray-200 bg-white px-2 py-4 transition-all duration-300 dark:border-transparent dark:bg-[#262A35] ${
           hasOverflow || isScrolled ? "shadow-lg" : "shadow-flowNav"
         }`}>
-        <div className="flex min-w-0 justify-center">
-          <NavItem
-            href="/budget"
-            icon={<ChartBarIcon className="h-6 w-6" />}
-            label="Budget"
-            active={isBudgetActive}
-          />
-        </div>
-
         <div className="flex min-w-0 justify-center">
           <NavItem
             href="/analytics"
@@ -113,8 +103,6 @@ export function BottomNav() {
             <div className="absolute bottom-16 right-0 w-44 rounded-2xl border border-gray-200 bg-white p-2 shadow-lg dark:border-transparent dark:bg-[#262A35]">
               {[
                 ["/expenses", "Expenses", ChartBarIcon],
-                ["/calendar", "Calendar", CalendarDaysIcon],
-                ["/history", "History", ClockIcon],
                 ["/parameters", "Parameters", Cog6ToothIcon],
                 ["/overview", "Overview", HomeIcon],
               ].map(([href, label, Icon]) => (

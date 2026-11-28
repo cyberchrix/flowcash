@@ -19,6 +19,7 @@ export function PeriodControls({
   onUnit,
   onPrevious,
   onNext,
+  showUnits = true,
 }: {
   label: string;
   unit: PeriodUnit;
@@ -27,6 +28,7 @@ export function PeriodControls({
   onUnit: (unit: PeriodUnit) => void;
   onPrevious: () => void;
   onNext: () => void;
+  showUnits?: boolean;
 }) {
   const [open, setOpen] = useState(false);
   const selectedYear = Number(month?.slice(0, 4)) || new Date().getFullYear();
@@ -94,20 +96,22 @@ export function PeriodControls({
           </div>
         </div>
       )}
-      <div className="grid grid-cols-4 rounded-full bg-gray-100 p-1 text-xs dark:bg-white/5">
-        {UNITS.map((item) => (
-          <button
-            key={item}
-            type="button"
-            onClick={() => onUnit(item)}
-            className={`rounded-full py-1.5 capitalize ${
-              unit === item ? "bg-flow-primary font-semibold text-white" : "text-gray-600 dark:text-gray-300"
-            }`}
-          >
-            {item}
-          </button>
-        ))}
-      </div>
+      {showUnits && (
+        <div className="grid grid-cols-4 rounded-full bg-gray-100 p-1 text-xs dark:bg-white/5">
+          {UNITS.map((item) => (
+            <button
+              key={item}
+              type="button"
+              onClick={() => onUnit(item)}
+              className={`rounded-full py-1.5 capitalize ${
+                unit === item ? "bg-flow-primary font-semibold text-white" : "text-gray-600 dark:text-gray-300"
+              }`}
+            >
+              {item}
+            </button>
+          ))}
+        </div>
+      )}
     </div>
   );
 }

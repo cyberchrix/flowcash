@@ -7,14 +7,21 @@ import { Header } from "@/components/Header";
 import { BottomNav } from "@/components/BottomNav";
 import { formatCents, PeriodControls } from "@/components/finance/PeriodControls";
 import { useAuth } from "@/hooks/useAuth";
+import { getDayOfMonth } from "@/lib/date";
 import { getCategories } from "@/lib/supabase/categories";
+import { getCategoryBudgets } from "@/lib/supabase/budgets";
+import { getExpenses } from "@/lib/supabase/expenses";
+import { getMonthOpenings } from "@/lib/supabase/openings";
 import { ensureTransactionSync, getTransactions } from "@/lib/supabase/transactions";
 import { categorizeWithModel } from "@/lib/transactions/categorizeWithModel";
+import { fixedPlannedCents, PlannedCharge, proratedAllowance } from "@/lib/finance/budget";
 import { percentChange } from "@/lib/finance/insights";
-import { formatISODate, formatPeriodLabel, inclusiveDays, PeriodUnit, rangeFor, shiftAnchor, shiftDate } from "@/lib/finance/period";
+import { monthFlowsFromTransactions, salaryLeftCents } from "@/lib/finance/openingBalance";
+import { projectedSalaryLeftCents } from "@/lib/finance/pace";
+import { formatISODate, formatPeriodLabel, inclusiveDays, PeriodUnit, rangeFor, shiftAnchor } from "@/lib/finance/period";
 import { transactionInPeriod, salaryFetchStart } from "@/lib/finance/salaryPeriod";
-import { spendByCategory, spendByDay, SpendingTransaction, totalsFor } from "@/lib/finance/spending";
-import { incomeCategoryIds } from "@/lib/transactions/bankCategories";
+import { categoryAverageDelta, spendByCategory, spendByDay, SpendingTransaction, totalsFor } from "@/lib/finance/spending";
+import { bankParentIds, incomeCategoryIds } from "@/lib/transactions/bankCategories";
 import { categoryDisplayName } from "@/lib/transactions/categoryNames";
 
 export const dynamic = "force-dynamic";
@@ -26,7 +33,10 @@ export default function AnalyticsPage() {
   const router = useRouter();
   const [categories, setCategories] = useState<CategoryRow[]>([]);
   const [history, setHistory] = useState<SpendingTransaction[]>([]);
-  const [unit, setUnit] = useState<PeriodUnit>("month");
+  const [budgets, setBudgets] = useState<Awaited<ReturnType<typeof getCategoryBudgets>>>([]);
+  const [charges, setCharges] = useState<PlannedCharge[]>([]);
+  const [openings, setOpenings] = useState<Record<string, number>>({});
+  const unit: PeriodUnit = "month";
   const [anchor, setAnchor] = useState(() => formatISODate(new Date()));
   const [loading, setLoading] = useState(true);
   const currency = "EUR";
@@ -42,12 +52,27 @@ export default function AnalyticsPage() {
   useEffect(() => {
     const load = async () => {
       if (!user) return;
-      const historyStart = [shiftDate(range.end, -370), salaryFetchStart(range, unit), salaryFetchStart(previousRange, unit)].sort()[0];
-      const [categoryRows, rows] = await Promise.all([
+      const historyStart = ["2000-01-01", salaryFetchStart(range, unit), salaryFetchStart(previousRange, unit)].sort()[0];
+      const [categoryRows, rows, budgetRows, expenseRows, openingRows] = await Promise.all([
         getCategories(user.id),
         getTransactions(user.id, { start: historyStart, end: range.end }),
+        getCategoryBudgets(user.id, currency),
+        getExpenses(user.id),
+        getMonthOpenings(user.id),
       ]);
       setCategories(categoryRows.map((category) => ({ id: category.id, name: category.name, nameEn: category.name_en ?? null, color: category.color, parentId: category.parent_id ?? null })));
+      setBudgets(budgetRows);
+      setCharges((expenseRows ?? [])
+        .filter((expense) => (expense.currency || "EUR") === currency)
+        .map((expense) => ({
+          categoryId: expense.category_id,
+          amountCents: Math.round(Number(expense.amount) * 100),
+          type: expense.expense_type ?? "fixed_recurring",
+          active: expense.active !== false,
+          day: getDayOfMonth(expense.expense_date),
+          onceMonth: expense.expense_type === "fixed_once" ? `${expense.expense_date.slice(0, 7)}-01` : null,
+        })));
+      setOpenings(Object.fromEntries(openingRows.map((row) => [row.month, row.amountCents])));
       const mapped = rows.map((row) => ({
         id: row.id,
         date: row.transaction_date,
@@ -87,8 +112,39 @@ export default function AnalyticsPage() {
   const previous = history.filter((row) => transactionInPeriod(row, previousRange, unit, salaryCategoryIds));
   const totals = totalsFor(transactions, currency);
   const previousTotals = totalsFor(previous, currency);
+  const monthKey = range.start.slice(0, 7);
+  const flows = useMemo(
+    () => monthFlowsFromTransactions(history, salaryCategoryIds, currency),
+    [history, salaryCategoryIds],
+  );
+  const budgetParents = useMemo(
+    () => bankParentIds(categories, transactions.map((transaction) => transaction.categoryId).filter((id): id is string => Boolean(id))),
+    [categories, transactions],
+  );
+  const allowance = proratedAllowance(
+    budgets
+      .filter((budget) => budgetParents.has(budget.category_id))
+      .map((budget) => ({
+        month: budget.effective_month,
+        amountCents: Number(budget.amount_cents),
+        active: budget.active,
+        forecast: budget.forecast,
+      })),
+    range,
+  );
+  const planned = fixedPlannedCents(charges, range);
+  const projectedLeft = projectedSalaryLeftCents(
+    salaryLeftCents(monthKey, flows, new Map(Object.entries(openings))),
+    allowance.cents + planned.cents,
+    totals.netSpend,
+  );
+  const projectedOver = projectedLeft < 0;
   const change = percentChange(totals.netSpend, previousTotals.netSpend);
   const byCategory = spendByCategory(transactions, currency);
+  const averageDeltas = useMemo(
+    () => categoryAverageDelta(history, currency, monthKey),
+    [history, monthKey],
+  );
   const slices = [...byCategory.entries()]
     .map(([categoryId, amount]) => ({
       category: categories.find((category) => category.id === categoryId) ?? { id: "none", name: "Uncategorized", color: "#A1A1A1" },
@@ -133,29 +189,37 @@ export default function AnalyticsPage() {
     <div className="mx-auto flex h-dvh max-w-md flex-col overflow-hidden bg-flowBg px-4 dark:bg-transparent">
       <Header />
       <main className="min-h-0 flex-1 space-y-3 overflow-y-auto pb-4 pt-20">
-        <h1 className="text-center text-lg font-semibold tracking-wide text-flow-primary">SPENDING ANALYTICS</h1>
         <PeriodControls
           label={formatPeriodLabel(unit, anchor, 1)}
           unit={unit}
-          onUnit={setUnit}
+          month={anchor.slice(0, 7)}
+          onMonth={(value) => setAnchor(`${value}-01`)}
+          onUnit={() => undefined}
+          showUnits={false}
           onPrevious={() => setAnchor(previousAnchor)}
           onNext={() => setAnchor(shiftAnchor(unit, anchor, 1, 1))}
         />
 
         <section className="grid grid-cols-2 gap-2">
           {[
-            ["Spending", formatCents(totals.netSpend, currency)],
-            ["Income", formatCents(totals.income, currency)],
-            ["Cash flow", formatCents(totals.cashFlow, currency)],
-            ["Transactions", String(totals.count)],
-            ["Daily average", formatCents(Math.round(totals.netSpend / days), currency)],
-            ["Per transaction", formatCents(totals.count ? Math.round(totals.netSpend / totals.count) : 0, currency)],
-          ].map(([label, value]) => (
+            ["Income", `+${formatCents(totals.income, currency)}`, "text-[#34D399]"],
+            ["Spending", totals.netSpend === 0 ? formatCents(0, currency) : `-${formatCents(totals.netSpend, currency)}`, totals.netSpend === 0 ? "text-gray-900 dark:text-white" : "text-red-400"],
+            ["Cash flow", formatCents(totals.cashFlow, currency), "text-gray-900 dark:text-white"],
+            ["Transactions", String(totals.count), "text-gray-900 dark:text-white"],
+            ["Daily average", formatCents(Math.round(totals.netSpend / days), currency), "text-gray-900 dark:text-white"],
+            ["Per transaction", formatCents(totals.count ? Math.round(totals.netSpend / totals.count) : 0, currency), "text-gray-900 dark:text-white"],
+          ].map(([label, value, color]) => (
             <article key={label} className="rounded-2xl border border-gray-200 bg-white px-3 py-3 dark:border-transparent dark:bg-white/5">
               <p className="text-[11px] uppercase text-gray-500">{label}</p>
-              <p className="text-sm font-semibold tabular-nums text-gray-900 dark:text-white">{value}</p>
+              <p className={`text-sm font-semibold tabular-nums ${color}`}>{value}</p>
             </article>
           ))}
+          <article className="col-span-2 rounded-2xl border border-gray-200 bg-white px-3 py-3 text-center dark:border-transparent dark:bg-white/5">
+            <p className="text-[11px] uppercase text-gray-500">{projectedOver ? "Projected over" : "Projected left"}</p>
+            <p className={`text-sm font-semibold tabular-nums ${projectedOver ? "text-red-400" : "text-[#34D399]"}`}>
+              {projectedOver ? "-" : "+"}{formatCents(Math.abs(projectedLeft), currency)}
+            </p>
+          </article>
         </section>
 
         <section className="rounded-3xl border border-gray-200 bg-white px-5 py-4 dark:border-transparent dark:bg-white/5">
@@ -166,14 +230,25 @@ export default function AnalyticsPage() {
             </div>
           </div>
           <div className="mt-4 space-y-2">
-            {slices.map((slice) => (
+            {slices.map((slice) => {
+              const delta = averageDeltas.get(slice.category.id) ?? 0;
+              return (
               <Link key={slice.category.id} href={`/transactions?category=${slice.category.id}&month=${anchor.slice(0, 7)}`} className="flex items-center gap-2 text-sm">
                 <span className="h-2.5 w-2.5 rounded-full" style={{ backgroundColor: slice.category.color }} />
-                <span className="flex-1 text-gray-900 dark:text-white">{categoryDisplayName(slice.category)}</span>
+                <span className="min-w-0 flex-1 truncate text-gray-900 dark:text-white">{categoryDisplayName(slice.category)}</span>
+                {delta !== 0 && (
+                  <span
+                    title="Compared with the monthly average since the start"
+                    className={`shrink-0 text-[11px] tabular-nums ${delta > 0 ? "text-red-400" : "text-[#34D399]"}`}
+                  >
+                    {delta > 0 ? "+" : "-"}{formatCents(Math.abs(delta), currency)}
+                  </span>
+                )}
                 <span className="text-xs text-gray-500">{totals.netSpend ? Math.round((slice.amount / totals.netSpend) * 100) : 0}%</span>
                 <span className="w-20 text-right tabular-nums text-gray-900 dark:text-white">{formatCents(slice.amount, currency)}</span>
               </Link>
-            ))}
+              );
+            })}
             {slices.length === 0 && <p className="text-sm text-gray-500">No categorized spending in this period.</p>}
           </div>
         </section>

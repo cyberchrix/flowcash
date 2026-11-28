@@ -72,6 +72,22 @@ describe("categorizeTransaction", () => {
     expect(categorizeTransaction("LIDL", -450, rules, "Vie quotidienne Alimentation").categoryName).toBe("Groceries");
   });
 
+  it("keeps an instant transfer out of the bank restaurant label", () => {
+    const rules = [
+      { pattern: "RESTAURANTS", categoryName: "Restaurants", amountCents: null, kind: null, needsReview: false, priority: 40 },
+      { pattern: "VIR INSTANTANE", categoryName: "Transfers", amountCents: null, kind: "transfer" as const, needsReview: false, priority: 100 },
+      { pattern: "MOTIF PENSION", categoryName: "Child support", amountCents: null, kind: null, needsReview: false, priority: 110 },
+      { pattern: "MOTIF LOYER", categoryName: "Housing", amountCents: null, kind: null, needsReview: false, priority: 110 },
+      { pattern: "CHIROPRACTIE", categoryName: "Health", amountCents: null, kind: null, needsReview: false, priority: 110 },
+    ];
+    const bank = "Loisirs Restaurants bars discotheques";
+    expect(categorizeTransaction("VIR INSTANTANE EMIS MOTIF REMBOURSEMENT", -5000, rules, bank).categoryName).toBe("Transfers");
+    expect(categorizeTransaction("VIR INSTANTANE EMIS MOTIF PENSION", -82500, rules, bank).categoryName).toBe("Child support");
+    expect(categorizeTransaction("VIR INSTANTANE EMIS MOTIF LOYER", -40000, rules, bank).categoryName).toBe("Housing");
+    expect(categorizeTransaction("VIR INSTANTANE EMIS MOTIF CHIROPRACTIE", -6000, rules, bank).categoryName).toBe("Health");
+    expect(categorizeTransaction("CARTE FRITERIE THEMIS", -7490, rules, bank).categoryName).toBe("Restaurants");
+  });
+
   it("classifies a child support transfer ahead of a generic transfer keyword", () => {
     const result = categorizeTransaction("VIR INSTANTANE EMIS MOTIF PENSION", -82500, [
       { pattern: "VIR", categoryName: "Transfers", amountCents: null, kind: "transfer", needsReview: true, priority: 40 },

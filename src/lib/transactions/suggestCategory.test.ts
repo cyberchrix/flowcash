@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { acceptedSuggestions, displayMerchant, isIncomeCategory, merchantKeyword } from "./suggestCategory";
+import { acceptedSuggestions, displayMerchant, isIncomeCategory, labelKeywords, merchantKeyword, sameDisplayedMerchantIds } from "./suggestCategory";
 
 describe("merchantKeyword", () => {
   it("keeps the brand so later transactions of the same merchant match", () => {
@@ -9,6 +9,23 @@ describe("merchantKeyword", () => {
     expect(merchantKeyword("CARTE X8230 RETRAIT DAB")).toBe("RETRAIT DAB");
     expect(merchantKeyword("FRAIS HORS ZONE EURO")).toBe("FRAIS HORS ZONE");
     expect(merchantKeyword("SUMUP COMITE SCOLAIRE")).toBe("COMITE");
+  });
+});
+
+describe("labelKeywords", () => {
+  it("keeps words from the transaction name", () => {
+    expect(labelKeywords("CARTE X8230 02/08 Friterie Themis 74,90 EUR BELGIQUE")).toEqual(["FRITERIE", "THEMIS"]);
+  });
+});
+
+describe("sameDisplayedMerchantIds", () => {
+  it("includes every transaction with the same displayed name", () => {
+    const rows = [
+      { id: "a", fullLabel: "CARTE X8230 02/08 Friterie Themis 74,90 EUR BELGIQUE" },
+      { id: "b", fullLabel: "CARTE X8230 22/11 Friterie Themis 9,50 EUR BELGIQUE" },
+      { id: "c", fullLabel: "CARTE X8230 04/10 FRITERIE GRAND PLACE 22,90 EUR BELGIQUE" },
+    ];
+    expect(sameDisplayedMerchantIds(rows, "a")).toEqual(["a", "b"]);
   });
 });
 

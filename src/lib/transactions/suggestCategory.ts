@@ -47,6 +47,10 @@ function keywordWord(word: string): boolean {
   return word.length >= 4 && !GENERIC_WORDS.has(word) && !isPaymentToken(word) && !/^\d+$/.test(word);
 }
 
+export function labelKeywords(label: string): string[] {
+  return [...new Set(normalizeMerchant(label).split(" ").filter(keywordWord))];
+}
+
 const DISPLAY_NOISE = new Set(["CARTE", "CB", "PAIEMENT", "ACHAT", "EUR", "EURO", "BELGIQUE", "FRANCE"]);
 const LEGAL_WORDS = new Set(["SA", "SAS", "SARL", "SCA", "SCS", "EURL", "CIE", "ET", "EUROPE"]);
 
@@ -102,6 +106,13 @@ function emittedTransfer(words: string[]): string | null {
     (word) => word !== "LOGITEL" && word !== "WERO" && word !== "POUR"
   );
   return name.length > 0 ? `Vir. émis ${titleCase(name.join(" "))}` : "Vir. émis";
+}
+
+export function sameDisplayedMerchantIds(rows: { id: string; fullLabel: string }[], transactionId: string) {
+  const current = rows.find((row) => row.id === transactionId);
+  const name = displayMerchant(current?.fullLabel ?? "");
+  if (!current || name === "Card payment" || name === "Vir. émis") return [transactionId];
+  return rows.filter((row) => displayMerchant(row.fullLabel) === name).map((row) => row.id);
 }
 
 export function displayMerchant(label: string): string {

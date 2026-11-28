@@ -50,7 +50,7 @@ export function GlobalModals() {
     // Rafraîchir la page actuelle pour mettre à jour les données
     router.refresh();
     // Si on est sur la page home, on peut aussi forcer un rechargement
-    if (window.location.pathname === "/budget" || window.location.pathname === "/overview" || window.location.pathname === "/expenses") {
+    if (window.location.pathname === "/analytics" || window.location.pathname === "/budget" || window.location.pathname === "/overview" || window.location.pathname === "/expenses") {
       window.location.reload();
     }
   };

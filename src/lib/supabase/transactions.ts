@@ -1,6 +1,6 @@
 import { supabase, ensureSupabaseConfigured } from "../supabase";
 import { Database } from "@/types/database";
-import { createCategory, getCategories } from "./categories";
+import { createCategory, findCategoryByName, getCategories } from "./categories";
 import { matchingUserRule } from "@/lib/transactions/categorize";
 import { DEFAULT_KEYWORDS } from "@/lib/transactions/defaultKeywords";
 import { normalizeMerchant } from "@/lib/transactions/normalize";
@@ -8,7 +8,7 @@ import { invalidateBudgetCache } from "@/lib/finance/budgetCache";
 import { invalidateCategoryModel } from "@/lib/transactions/categorizeWithModel";
 import { bankColor, usableBankCategory } from "@/lib/transactions/bankCategories";
 import { categoryEnglishName } from "@/lib/transactions/categoryNames";
-import { isPaymentToken, merchantKeyword } from "@/lib/transactions/suggestCategory";
+import { isPaymentToken, merchantKeyword, sameDisplayedMerchantIds } from "@/lib/transactions/suggestCategory";
 import { TransactionKind } from "@/lib/transactions/types";
 
 type TransactionInsert = Database["public"]["Tables"]["transactions"]["Insert"];
@@ -79,12 +79,21 @@ export async function ensureCategoryIds(userId: string, names: string[]) {
 
   for (const name of names) {
     const trimmed = name.trim();
-    if (!trimmed || byName.has(trimmed.toLowerCase())) continue;
+    const key = trimmed.toLowerCase();
+    if (!trimmed) continue;
+    const resolved = findCategoryByName(existing, trimmed);
+    if (resolved) {
+      byName.set(key, resolved);
+      continue;
+    }
+    if (byName.has(key)) continue;
     const created = await createCategory({
       user_id: userId,
       name: trimmed,
       color: CATEGORY_COLORS[trimmed] ?? "#A1A1A1",
     });
+    existing.push(created);
+    byName.set(key, created);
     byName.set(created.name.toLowerCase(), created);
   }
 
@@ -471,15 +480,30 @@ async function createBankCategory(category: { user_id: string; name: string; col
 
 export async function applyBankCategories(userId: string) {
   ensureSupabaseConfigured();
-  const rows: { id: string; bank_category: string | null; bank_subcategory: string | null; category_id: string | null }[] = [];
+  const rules = await getCategorizationRules(userId);
+  const rows: {
+    id: string;
+    text: string;
+    amount_cents: number;
+    bank_category: string | null;
+    bank_subcategory: string | null;
+    category_id: string | null;
+  }[] = [];
   for (let from = 0; ; from += 1000) {
     const { data, error } = await supabase
       .from("transactions")
-      .select("id, bank_category, bank_subcategory, category_id")
+      .select("id, normalized_merchant, full_label, bank_category, bank_subcategory, amount_cents, category_id")
       .eq("user_id", userId)
       .range(from, from + 999);
     if (error) throw new Error(`Error reading transactions: ${error.message}`);
-    rows.push(...(data ?? []));
+    rows.push(...(data ?? []).map((row) => ({
+      id: row.id,
+      text: normalizeMerchant([row.normalized_merchant, row.full_label, row.bank_category, row.bank_subcategory].filter(Boolean).join(" ")),
+      amount_cents: Number(row.amount_cents),
+      bank_category: row.bank_category,
+      bank_subcategory: row.bank_subcategory,
+      category_id: row.category_id,
+    })));
     if (!data || data.length < 1000) break;
   }
 
@@ -531,6 +555,8 @@ export async function applyBankCategories(userId: string) {
 
   const groups = new Map<string, string[]>();
   for (const row of rows) {
+    const keyword = matchingUserRule(row.text, row.amount_cents, rules);
+    if (keyword && keyword.priority >= 100) continue;
     const parentName = usableBankCategory(row.bank_category);
     if (!parentName) continue;
     const parent = parents.get(parentName.toLowerCase());
@@ -653,7 +679,8 @@ export async function getTransactions(
 export async function updateTransactionCategory(
   userId: string,
   transactionId: string,
-  categoryId: string | null
+  categoryId: string | null,
+  keyword?: string | null,
 ) {
   await assertCategoryOwner(userId, categoryId);
   ensureSupabaseConfigured();
@@ -668,19 +695,49 @@ export async function updateTransactionCategory(
   }
   invalidateBudgetCache();
 
-  if (!categoryId) return null;
+  const sameIds = sameDisplayedMerchantIds(await transactionLabels(userId), transactionId);
+  let updated = 1;
+  const others = sameIds.filter((id) => id !== transactionId);
+  for (let index = 0; index < others.length; index += 80) {
+    const ids = others.slice(index, index + 80);
+    const { error: sameError } = await supabase
+      .from("transactions")
+      .update({ category_id: categoryId, needs_review: false })
+      .eq("user_id", userId)
+      .in("id", ids);
+    if (sameError) throw new Error(`Error updating transaction: ${sameError.message}`);
+    updated += ids.length;
+  }
+
+  if (!categoryId || keyword === null) return { pattern: null, updated };
   const { data } = await supabase
     .from("transactions")
     .select("full_label, normalized_merchant")
     .eq("id", transactionId)
     .eq("user_id", userId)
     .single();
-  const pattern = merchantKeyword(`${data?.normalized_merchant ?? ""} ${data?.full_label ?? ""}`);
-  if (pattern.length < 3) return null;
+  const label = `${data?.normalized_merchant ?? ""} ${data?.full_label ?? ""}`;
+  const pattern = keyword ? normalizeMerchant(keyword) : merchantKeyword(label);
+  if (pattern.length < 3 || (keyword && !normalizeMerchant(label).includes(pattern))) return { pattern: null, updated };
   await rememberKeyword(userId, pattern, categoryId);
   await applyKeywordRules(userId);
   transactionSync.set(userId, { at: Date.now() });
-  return pattern;
+  return { pattern, updated };
+}
+
+async function transactionLabels(userId: string) {
+  const rows: { id: string; fullLabel: string }[] = [];
+  for (let from = 0; ; from += 1000) {
+    const { data, error } = await supabase
+      .from("transactions")
+      .select("id, full_label")
+      .eq("user_id", userId)
+      .range(from, from + 999);
+    if (error) throw new Error(`Error reading transactions: ${error.message}`);
+    rows.push(...(data ?? []).map((row) => ({ id: row.id, fullLabel: row.full_label ?? "" })));
+    if (!data || data.length < 1000) break;
+  }
+  return rows;
 }
 
 export async function saveKeywordRule(

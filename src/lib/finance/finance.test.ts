@@ -5,7 +5,7 @@ import { projectedSalaryLeftCents, spendingPace } from "./pace";
 import { daysInMonth, isLeapYear, weekRange } from "./period";
 import { allocationFits, expenseStatus, suggestLinks } from "./reconcile";
 import { fundedMonth, salaryFetchStart, transactionInPeriod } from "./salaryPeriod";
-import { spendingCents, totalsFor } from "./spending";
+import { categoryAverageDelta, spendingCents, totalsFor } from "./spending";
 import { SpendingTransaction } from "./spending";
 
 const expense = (partial: Partial<SpendingTransaction>): SpendingTransaction => ({
@@ -16,6 +16,23 @@ const expense = (partial: Partial<SpendingTransaction>): SpendingTransaction => 
   categoryId: partial.categoryId ?? "groceries",
   merchant: partial.merchant ?? "LIDL",
   currency: partial.currency ?? "EUR",
+});
+
+describe("category average", () => {
+  it("compares the month with the average since the first expense", () => {
+    const history = [
+      expense({ id: "a", date: "2026-01-10", amountCents: -1000 }),
+      expense({ id: "b", date: "2026-03-10", amountCents: -3000 }),
+      expense({ id: "c", date: "2026-05-10", amountCents: -4000 }),
+    ];
+    const deltas = categoryAverageDelta(history, "EUR", "2026-05");
+    expect(deltas.get("groceries")).toBe(3000);
+  });
+
+  it("hides the comparison on the first month", () => {
+    const history = [expense({ date: "2026-05-10", amountCents: -4000 })];
+    expect(categoryAverageDelta(history, "EUR", "2026-05").size).toBe(0);
+  });
 });
 
 describe("periods and money", () => {

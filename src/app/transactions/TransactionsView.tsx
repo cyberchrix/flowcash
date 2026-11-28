@@ -24,15 +24,15 @@ import {
 } from "@/lib/supabase/transactions";
 import { categorizeTransaction } from "@/lib/transactions/categorize";
 import { categorizeWithModel } from "@/lib/transactions/categorizeWithModel";
-import { usableBankCategory } from "@/lib/transactions/bankCategories";
 import { categoryDisplayName } from "@/lib/transactions/categoryNames";
+import { CategoryPicker, PickerCategory } from "@/components/transactions/CategoryPicker";
 import { displayMerchant } from "@/lib/transactions/suggestCategory";
 import { fingerprint, markDuplicates, markSameOperations } from "@/lib/transactions/duplicates";
 import { decodeCsvBytes, parseCsv } from "@/lib/transactions/parseCsv";
 import { parseXlsx } from "@/lib/transactions/parseXlsx";
 import { TransactionKind } from "@/lib/transactions/types";
 
-type CategoryOption = { id: string; name: string; nameEn: string | null; color: string };
+type CategoryOption = PickerCategory;
 
 type PreviewRow = SavedTransactionInput & {
   id: string;
@@ -107,6 +107,8 @@ export function TransactionsView() {
   const [keywordFormOpen, setKeywordFormOpen] = useState(false);
   const [query, setQuery] = useState("");
   const [uncategorizedCount, setUncategorizedCount] = useState(0);
+  const [editing, setEditing] = useState<TransactionListItem | null>(null);
+  const [savingCategory, setSavingCategory] = useState(false);
 
   useEffect(() => {
     if (!authLoading && !user) router.push("/auth");
@@ -133,7 +135,9 @@ export function TransactionsView() {
         id: category.id,
         name: category.name,
         nameEn: category.name_en ?? null,
+        nameFr: category.name_fr ?? null,
         color: category.color,
+        parentId: category.parent_id ?? null,
       })));
       setTransactions(transactionRows);
       setUncategorizedCount(missingCategory);
@@ -348,15 +352,22 @@ export function TransactionsView() {
     }
   };
 
-  const changeSavedCategory = async (transactionId: string, nextCategoryId: string) => {
-    if (!user) return;
+  const saveCategory = async (nextCategoryId: string, keyword: string | null) => {
+    if (!user || !editing) return;
+    setSavingCategory(true);
     try {
-      const pattern = await updateTransactionCategory(user.id, transactionId, nextCategoryId || null);
-      const categoryName = categories.find((category) => category.id === nextCategoryId)?.name;
-      if (pattern && categoryName) showSuccess(`${pattern} will be categorized as ${categoryName}`);
+      const result = await updateTransactionCategory(user.id, editing.id, nextCategoryId, keyword);
+      const categoryName = categoryDisplayName(categories.find((category) => category.id === nextCategoryId) ?? { name: "" });
+      const count = result?.updated ?? 1;
+      showSuccess(result?.pattern
+        ? `${result.pattern} will be categorized as ${categoryName} · ${count} transaction${count === 1 ? "" : "s"}`
+        : `Categorized ${count} transaction${count === 1 ? "" : "s"} as ${categoryName}`);
+      setEditing(null);
       await load();
     } catch (error) {
       showError(error instanceof Error ? error.message : "Could not update the category");
+    } finally {
+      setSavingCategory(false);
     }
   };
 
@@ -677,7 +688,12 @@ export function TransactionsView() {
                   {formatMonth(monthKey)}
                 </h2>
               )}
-              <article className="rounded-[24px] border border-gray-200 bg-white px-4 py-3 dark:border-transparent dark:bg-white/2">
+              <article className="rounded-[24px] border border-gray-200 bg-white dark:border-transparent dark:bg-white/2">
+                <button
+                  type="button"
+                  onClick={() => setEditing(transaction)}
+                  className="w-full px-4 py-3 text-left"
+                >
                 <div className="flex items-start justify-between gap-3">
                   <div className="min-w-0 flex-1">
                     <p className="truncate text-sm font-medium leading-snug text-gray-900 dark:text-white">
@@ -693,19 +709,7 @@ export function TransactionsView() {
                     {formatMoney(Number(transaction.amount_cents))}
                   </p>
                 </div>
-                {usableBankCategory(transaction.bank_category) ? null : <select
-                  value={transaction.category_id ?? ""}
-                  onChange={(event) => changeSavedCategory(transaction.id, event.target.value)}
-                  className="mt-2 w-full rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm text-gray-900 dark:border-gray-600 dark:bg-gray-700 dark:text-gray-100"
-                  aria-label={`Category for ${transaction.full_label}`}
-                >
-                  <option value="">Uncategorized</option>
-                  {categories.map((category) => (
-                    <option key={category.id} value={category.id}>
-                      {categoryDisplayName(category)}
-                    </option>
-                  ))}
-                </select>}
+                </button>
               </article>
               </div>
               );
@@ -714,6 +718,17 @@ export function TransactionsView() {
         </section>
       </main>
       <BottomNav />
+      {editing && (
+        <CategoryPicker
+          categories={categories}
+          title={displayMerchant(editing.full_label)}
+          label={editing.full_label}
+          currentCategoryId={editing.category_id}
+          saving={savingCategory}
+          onClose={() => setEditing(null)}
+          onSave={saveCategory}
+        />
+      )}
       {(reading || saving) && (
         <div className="fixed inset-x-4 bottom-24 z-[70] rounded-2xl bg-flow-primary px-4 py-3 text-center text-sm font-semibold text-white shadow-lg">
           {reading ? "Reading the file…" : "Importing…"}
