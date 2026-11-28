@@ -1,11 +1,11 @@
 import { describe, expect, it } from "vitest";
-import { budgetStatus, fixedPlannedCents, proratedAllowance } from "./budget";
+import { budgetStatus, fixedPlannedCents, proratedAllowance, upcomingFixedCharges } from "./budget";
 import { percentChange } from "./insights";
 import { projectedSalaryLeftCents, spendingPace } from "./pace";
 import { daysInMonth, isLeapYear, weekRange } from "./period";
 import { allocationFits, expenseStatus, suggestLinks } from "./reconcile";
 import { fundedMonth, monthPeriodBounds, paydayByFundedMonth, salaryFetchStart, salaryPeriodMonth, transactionInPeriod } from "./salaryPeriod";
-import { categoryAverageDelta, spendingCents, totalsFor } from "./spending";
+import { categoryAverageDelta, categoryAverageMonths, spendingCents, subscriptionCandidates, totalsFor } from "./spending";
 import { SpendingTransaction } from "./spending";
 
 const expense = (partial: Partial<SpendingTransaction>): SpendingTransaction => ({
@@ -32,6 +32,48 @@ describe("category average", () => {
   it("hides the comparison on the first month", () => {
     const history = [expense({ date: "2026-05-10", amountCents: -4000 })];
     expect(categoryAverageDelta(history, "EUR", "2026-05").size).toBe(0);
+  });
+
+  it("keeps zero months in the average and marks a single large month", () => {
+    const history = [
+      expense({ id: "other", date: "2026-05-10", categoryId: "food", amountCents: -1000 }),
+      expense({ id: "a", date: "2026-06-10", categoryId: "credit", amountCents: -10000 }),
+      expense({ id: "b", date: "2026-07-06", categoryId: "credit", amountCents: -1121519 }),
+      expense({ id: "c", date: "2026-08-10", categoryId: "credit", amountCents: -10000 }),
+    ];
+    const breakdown = categoryAverageMonths(history, "EUR", "2026-09", "credit");
+    expect(breakdown.months.map((month) => month.cents)).toEqual([0, 10000, 1121519, 10000]);
+    expect(breakdown.months.find((month) => month.month === "2026-07")?.outlier).toBe(true);
+    expect(breakdown.months.find((month) => month.month === "2026-06")?.outlier).toBe(false);
+    expect(breakdown.average).toBe(Math.round((10000 + 1121519 + 10000) / 4));
+  });
+});
+
+describe("recurring charges", () => {
+  it("suggests a merchant with the same amount for three months", () => {
+    const history = [6, 7, 8].map((month) => expense({
+      id: `disney-${month}`,
+      date: `2026-${String(month).padStart(2, "0")}-12`,
+      amountCents: -1399,
+      merchant: "Disney Plus",
+      categoryId: "subs",
+    }));
+    history.push(expense({ id: "fuel", date: "2026-06-02", amountCents: -6400, merchant: "Texaco" }));
+    history.push(expense({ id: "fuel-2", date: "2026-07-02", amountCents: -4100, merchant: "Texaco" }));
+    history.push(expense({ id: "fuel-3", date: "2026-08-02", amountCents: -8800, merchant: "Texaco" }));
+    const found = subscriptionCandidates(history, "EUR", []);
+    expect(found.map((item) => item.merchant)).toEqual(["Disney Plus"]);
+    expect(found[0].amountCents).toBe(1399);
+    expect(subscriptionCandidates(history, "EUR", [{ label: "Disney Plus", amountCents: 1399 }])).toEqual([]);
+  });
+
+  it("lists a planned charge that is still ahead and hides one already posted", () => {
+    const rent = { categoryId: "rent", amountCents: 80000, type: "fixed_recurring" as const, active: true, day: 5, onceMonth: null, label: "Rent" };
+    const phone = { categoryId: "phone", amountCents: 1999, type: "fixed_recurring" as const, active: true, day: 12, onceMonth: null, label: "Disney Plus" };
+    const posted = [expense({ date: "2026-12-11", amountCents: -1999, merchant: "disney plus", categoryId: "phone" })];
+    const upcoming = upcomingFixedCharges([rent, phone], { start: "2026-12-01", end: "2026-12-31" }, "2026-12-01", posted);
+    expect(upcoming.map((item) => item.label)).toEqual(["Rent"]);
+    expect(upcomingFixedCharges([rent], { start: "2026-12-01", end: "2026-12-31" }, "2026-12-20", [])).toEqual([]);
   });
 });
 

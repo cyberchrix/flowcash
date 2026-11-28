@@ -56,6 +56,8 @@ export type PlannedCharge = {
   active: boolean;
   day: number;
   onceMonth: string | null;
+  label?: string;
+  matchPattern?: string | null;
 };
 
 function dueDate(year: number, month: number, day: number): string {
@@ -84,6 +86,60 @@ export function fixedPlannedCents(
     }
   }
   return { cents, byCategory };
+}
+
+export type UpcomingCharge = { label: string; amountCents: number; due: string };
+
+function foldText(value: string) {
+  return value.normalize("NFD").replace(/\p{M}/gu, "").toLowerCase();
+}
+
+function shiftIsoDate(date: string, days: number): string {
+  const parsed = parseISODate(date);
+  parsed.setUTCDate(parsed.getUTCDate() + days);
+  return formatISODate(parsed);
+}
+
+/** Fixed charges still due after today in the period, except those already on the statement. */
+export function upcomingFixedCharges(
+  charges: PlannedCharge[],
+  range: DateRange,
+  today: string,
+  posted: { date: string; amountCents: number; kind: string; categoryId: string | null; merchant: string }[],
+): UpcomingCharge[] {
+  const result: UpcomingCharge[] = [];
+  for (const charge of charges) {
+    if (!charge.active || charge.type === "variable" || charge.amountCents <= 0) continue;
+    for (const month of monthsTouched(range)) {
+      if (charge.type === "fixed_once" && charge.onceMonth !== month) continue;
+      const date = parseISODate(month);
+      const due = dueDate(date.getUTCFullYear(), date.getUTCMonth() + 1, charge.day);
+      if (due < range.start || due > range.end || due <= today) continue;
+      if (chargeAlreadyPosted(charge, due, posted)) continue;
+      result.push({ label: charge.label?.trim() || "Planned expense", amountCents: charge.amountCents, due });
+    }
+  }
+  return result.sort((left, right) => left.due.localeCompare(right.due));
+}
+
+function chargeAlreadyPosted(
+  charge: PlannedCharge,
+  due: string,
+  posted: { date: string; amountCents: number; kind: string; categoryId: string | null; merchant: string }[],
+) {
+  const label = foldText(charge.label ?? "");
+  const pattern = foldText(charge.matchPattern ?? "");
+  const tolerance = Math.max(100, Math.round(charge.amountCents * 0.05));
+  const earliest = shiftIsoDate(due, -7);
+  const latest = shiftIsoDate(due, 7);
+  return posted.some((transaction) => {
+    if (transaction.kind !== "expense" || transaction.amountCents >= 0) return false;
+    if (Math.abs(-transaction.amountCents - charge.amountCents) > tolerance) return false;
+    const merchant = foldText(transaction.merchant);
+    if (pattern.length >= 4 && merchant.includes(pattern)) return true;
+    if (label.length >= 4 && merchant.includes(label)) return true;
+    return Boolean(charge.categoryId && transaction.categoryId === charge.categoryId && transaction.date >= earliest && transaction.date <= latest);
+  });
 }
 
 export function statusLabel(status: BudgetStatus): string {
