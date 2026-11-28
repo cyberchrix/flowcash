@@ -276,7 +276,12 @@ export default function AnalyticsPage() {
             className="rounded-2xl border border-gray-200 bg-white px-3 py-3 text-left dark:border-transparent dark:bg-white/5"
           >
             <p className="text-[11px] uppercase text-gray-500">Income</p>
-            <p className="text-sm font-semibold text-[#34D399]"><Odometer key={monthKey} value={`+${formatCents(totals.income, currency)}`} /></p>
+            <p className="flex flex-wrap items-baseline gap-x-1 text-sm font-semibold">
+              <Odometer key={monthKey} className="text-[#34D399]" value={`+${formatCents(totals.income, currency)}`} />
+              <span className="text-xs font-medium text-gray-400">
+                / <Odometer key={`${monthKey}-balance`} value={formatCents(totals.income + beforePayday, currency)} />
+              </span>
+            </p>
           </button>
           <article className="rounded-2xl border border-gray-200 bg-white px-3 py-3 dark:border-transparent dark:bg-white/5">
             <p className="text-[11px] uppercase text-gray-500">Spending</p>
